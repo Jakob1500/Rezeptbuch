@@ -2093,9 +2093,27 @@ a { color: var(--accent); }
     return clean(s) || clean(t);
   }
 
+  // Maschinelle Übersetzung in Rezeptsprache bringen: "Kochen Sie die Nudeln, bis …" -> "Die Nudeln kochen, bis …",
+  // "Geben Sie das Öl hinzu." -> "Das Öl hinzugeben."
+  var PARTIKEL = /^(hinzu|dazu|an|auf|ab|aus|bei|ein|mit|nach|vor|zu|zurück|unter|darüber|darauf|um|durch|weg|heraus|herein|hinein|beiseite|fest|gar|kalt|warm|bereit)$/i;
+  function rezeptStil(text) {
+    return String(text || "").split(/(?<=[.!?])\s+/).map(function (satz) {
+      var m = satz.match(/^([A-ZÄÖÜ][a-zäöüß]+(?:en|ern|eln))\s+Sie\s+(.+)$/);
+      if (!m) return satz.replace(/\b(Ihre[nrms]?|Ihr)\b/g, function (w) { return { "Ihr": "den", "Ihre": "die", "Ihren": "den", "Ihrem": "dem", "Ihrer": "der", "Ihres": "des" }[w] || w; });
+      var verb = m[1].toLowerCase(), rest = m[2];
+      var cut = rest.search(/,|[.!?]$|\s(?:und|oder|bis|dann)\s/);
+      var teil = cut === -1 ? rest : rest.slice(0, cut), danach = cut === -1 ? "" : rest.slice(cut);
+      var w = teil.trim().split(/\s+/), last = w[w.length - 1] || "";
+      if (PARTIKEL.test(last)) { w.pop(); verb = last.toLowerCase() + verb; }
+      var vorn = w.join(" ").replace(/\b(Ihre[nrms]?|Ihr)\b/g, function (x) { return { "Ihr": "den", "Ihre": "die", "Ihren": "den", "Ihrem": "dem", "Ihrer": "der", "Ihres": "des" }[x] || x; });
+      var neu = (vorn ? vorn.charAt(0).toUpperCase() + vorn.slice(1) + " " + verb : verb.charAt(0).toUpperCase() + verb.slice(1)) + danach;
+      return neu.replace(/\b(Ihre[nrms]?|Ihr)\b/g, function (x) { return { "Ihr": "den", "Ihre": "die", "Ihren": "den", "Ihrem": "dem", "Ihrer": "der", "Ihres": "des" }[x] || x; });
+    }).join(" ");
+  }
+
   // Übersetzte Schritte einsetzen; das Original bleibt erhalten ("Original zeigen")
   function uebersetzeSchritte(r, stepsDe) {
-    var st = (stepsDe || []).map(function (x) { return cleanStep(String(x)); }).filter(function (x) { return x.length > 2; });
+    var st = (stepsDe || []).map(function (x) { return rezeptStil(cleanStep(String(x))); }).filter(function (x) { return x.length > 2; });
     if (!st.length) return r;
     if (!r.stepsOriginal) r.stepsOriginal = r.steps.slice();
     r.steps = st; r.stepsTranslated = true; r.lang = "de";
@@ -3119,7 +3137,7 @@ a { color: var(--accent); }
     extractInlineIngredients: extractInlineIngredients, isStepLike: isStepLike, postType: postType, normalizeFancy: normalizeFancy, zuordnungsVorschlaege: zuordnungsVorschlaege,
     recipeId: recipeId, importNeue: importNeue, folgenVorschlag: folgenVorschlag, folgenAntwort: folgenAntwort, FOLGEN_ERNEUT_AB: FOLGEN_ERNEUT_AB,
     blogSuchplan: blogSuchplan, blogKandidaten: blogKandidaten, besteKandidaten: besteKandidaten, pruefeBlogTreffer: pruefeBlogTreffer,
-    parseRecipeHtml: parseRecipeHtml, inferServings: inferServings, uebersetzeSchritte: uebersetzeSchritte, detectLang: detectLang
+    parseRecipeHtml: parseRecipeHtml, inferServings: inferServings, uebersetzeSchritte: uebersetzeSchritte, detectLang: detectLang, rezeptStil: rezeptStil
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = api;

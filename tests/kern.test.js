@@ -371,5 +371,11 @@ const trA = K.analyse({ caption: enCap, captionDe: deCap }).recipe;
 check("Schritte deutsch aus Übersetzung", trA.steps[0] === "Die Nudeln kochen." && trA.stepsOriginal[0] === "Cook the pasta." && trA.lang === "de", trA.steps);
 check("Zutaten weiter aus dem Original", trA.ingredients.some(i => i.key === "spaghetti" && i.qty === 200));
 
+// Rezeptsprache statt "Sie"-Form (echte Ausgabe von Apples Übersetzer, iPhone 11, iOS 26.6.1)
+check("Sie-Form -> Infinitiv", K.rezeptStil("Kochen Sie die Nudeln in Salzwasser, bis sie al dente sind.") === "Die Nudeln in Salzwasser kochen, bis sie al dente sind.", K.rezeptStil("Kochen Sie die Nudeln in Salzwasser, bis sie al dente sind."));
+check("Trennbares Verb", K.rezeptStil("Geben Sie das Öl hinzu.") === "Das Öl hinzugeben.", K.rezeptStil("Geben Sie das Öl hinzu."));
+check("Ohne Sie unverändert", K.rezeptStil("Mit Olivenöl, Zitronenschale und Parmesan vermischen.") === "Mit Olivenöl, Zitronenschale und Parmesan vermischen.");
+check("Ihre -> die", K.rezeptStil("Heizen Sie Ihren Ofen auf 200 °C vor.") === "Den Ofen auf 200 °C vorheizen.", K.rezeptStil("Heizen Sie Ihren Ofen auf 200 °C vor."));
+
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);
