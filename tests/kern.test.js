@@ -438,5 +438,13 @@ check("Fehlende Menge geschätzt und markiert", sp.qty === 200 && sp.unit === "g
 check("Salz bleibt ohne Menge", est.ingredients.find(i => i.key === "salz").qty == null);
 check("Erzählsatz ist kein Schritt", !K.analyse({ caption: "Curry\nZutaten:\n200 g Reis\n1 Zwiebel\n2 EL Öl\nZubereitung:\n1. Reis kochen.\n2. Meine Mutter hat das früher oft gemacht und ich liebe es.\n3. Zwiebel anbraten." }).recipe.steps.some(s => /Mutter/.test(s)));
 
+// T1 (iPhone 11, Live Text aus Bildschirmfoto eines Reels, Namen anonymisiert)
+const t1 = "18:40\n‹ one sec\n40\nHERBST REZEPT ZUM ABNEHMEN\nHokkaido\nKürbis\nRinderhack\nCherry-tomaten\nstückige Tomaten\nFeta\n422 kcal\nE: 45 g, K: 31 g, F: 13 g\nbeispiel.wiki\nFolgen\nDiese Low Carb Kürbispfanne kannst Du praktisch jeden Tag während Deiner Diät essen. Denn sie ..\nperson.a und 1 weitere Person sind Follower\n9\n＝\nKommentar hinzufügen …";
+const t1r = K.analyse({ ocrText: t1 }).recipe;
+check("T1: Zutaten ohne Bedienelemente", t1r.ingredients.length === 5 && t1r.ingredients.some(i => i.name === "Hokkaido Kürbis") && !t1r.ingredients.some(i => /follower|kommentar|wiki|kcal/i.test(i.raw)), t1r.ingredients.map(i => i.raw));
+check("T1: Titel ist das Gericht", /kürbispfanne/i.test(t1r.title), t1r.title);
+check("T1: Creator-Nährwerte E/K/F gelesen", t1r.nutritionDeclared && t1r.nutritionDeclared.protein === 45 && t1r.nutritionDeclared.fat === 13, t1r.nutritionDeclared);
+check("T1: Werbesatz kein Schritt", t1r.steps.length === 0, t1r.steps);
+
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

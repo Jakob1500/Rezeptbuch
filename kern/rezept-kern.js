@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.3.2";
+  var VERSION = "0.3.3";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -968,9 +968,9 @@
     var g = function (re) { var m = t.match(re); return m ? parseFloat(m[1].replace(",", ".")) : null; };
     return {
       kcal: +kcal[1],
-      protein: g(/(\d+(?:[.,]\d+)?)\s*g\s*(?:protein|eiweiß|eiweiss|p\b)/i) || g(/(?:protein|eiweiß|eiweiss)\s*:?\s*(\d+(?:[.,]\d+)?)\s*g/i),
-      carbs: g(/(\d+(?:[.,]\d+)?)\s*g\s*(?:kh|kohlenhydrate|carbs?)/i) || g(/(?:kh|kohlenhydrate|carbs?)\s*:?\s*(\d+(?:[.,]\d+)?)\s*g/i),
-      fat: g(/(\d+(?:[.,]\d+)?)\s*g\s*(?:fett|fat)/i) || g(/(?:fett|fat)\s*:?\s*(\d+(?:[.,]\d+)?)\s*g/i),
+      protein: g(/(\d+(?:[.,]\d+)?)\s*g\s*(?:protein|eiweiß|eiweiss|p\b)/i) || g(/(?:protein|eiweiß|eiweiss)\s*:?\s*(\d+(?:[.,]\d+)?)\s*g/i) || g(/\b[EP]\s*:\s*(\d+(?:[.,]\d+)?)\s*g/),
+      carbs: g(/(\d+(?:[.,]\d+)?)\s*g\s*(?:kh|kohlenhydrate|carbs?)/i) || g(/(?:kh|kohlenhydrate|carbs?)\s*:?\s*(\d+(?:[.,]\d+)?)\s*g/i) || g(/\b(?:K|KH|C)\s*:\s*(\d+(?:[.,]\d+)?)\s*g/),
+      fat: g(/(\d+(?:[.,]\d+)?)\s*g\s*(?:fett|fat)/i) || g(/(?:fett|fat)\s*:?\s*(\d+(?:[.,]\d+)?)\s*g/i) || g(/\bF\s*:\s*(\d+(?:[.,]\d+)?)\s*g/),
       fiber: g(/(\d+(?:[.,]\d+)?)\s*g\s*(?:ballaststoffe|fiber|fibre)/i),
       perServing: true, basis: "laut Creator"
     };
@@ -1073,7 +1073,7 @@
         t = t.replace(/\s+(ist|sind|schmeckt|schmecken|kombiniert|könnte|wird|macht|machen|bringt|gibt|isn['’]t|is|are|tastes|makes)\b.*$/i, "");
         var tw = t.split(/\s+/); while (tw.length > 1 && TITLE_STOP.test(tw[0])) tw.shift(); t = tw.join(" ");
         if (t.split(/\s+/).length > 6) t = t.split(/\s+(?:with|mit)\s+/)[0];
-        if (t.length < 3 || TITLE_BAD.test(t) || NOISE.test(t) || /^\d/.test(t) || readUnit(t)) continue;
+        if (t.length < 3 || TITLE_BAD.test(t) || NOISE.test(t) || /^\d/.test(t) || readUnit(t) || /\b(rezept|recipe|rezepte|recipes)\b/i.test(t)) continue;
         var words = t.split(/\s+/).length, food = hasFoodWord(t);
         if (!food && (TITLE_SENTENCE.test(t) || words >= 7 || /[!?]/.test(raw) || words >= 4 && /^[A-ZÄÖÜ]/.test(t) && t !== t.toUpperCase() && /\s[a-zäöü]/.test(t) && langOfText(t) === "de")) continue;
         if (EN_IMP.test(t) || (isStepLike(t) && !food)) continue;
@@ -1132,7 +1132,7 @@
     var m = t.match(new RegExp("(?:recipe for (?:this |my |the )?|for this |rezept für (?:diese[ns]? |das |den |die |meine?n? )?)" + cap));
     dishPhrase.strength = 1;
     if (m && hasFoodWord(m[1])) return tidyPhrase(m[1]);
-    m = t.match(new RegExp("\\b(?:This|These|My|Our|Diese[rsn]?|Meine?)\\s+(?:(?:super|so|really|very|easy|simple|quick|new|favou?rite|einfache[rn]?|schnelle[rn]?)\\s+)*" + cap + "\\s+(?:is|are|was|ist|sind|war|könnte|könnten|kann|schmeckt|schmecken|wird|werden|gibt)\\b", "i"));
+    m = t.match(new RegExp("\\b(?:This|These|My|Our|Diese[rsn]?|Meine?)\\s+(?:(?:super|so|really|very|easy|simple|quick|new|favou?rite|einfache[rn]?|schnelle[rn]?)\\s+)*" + cap + "\\s+(?:is|are|was|ist|sind|war|könnte|könnten|kann|kannst|schmeckt|schmecken|wird|werden|gibt)\\b", "i"));
     dishPhrase.strength = 2;
     if (m && hasFoodWord(m[1])) return tidyPhrase(m[1]);
     dishPhrase.strength = 3;
@@ -1303,7 +1303,7 @@
   function isInstruction(st, lang, strict) {
     if (/\?\s*$/.test(st) || /\b(unterstützen|support us|folgt uns|follow (?:me|us))\b/i.test(st)) return false;
     var stl = st.replace(/^[A-ZÄÖÜ]/, function (c) { return c.toLowerCase(); });
-    if (/\b(let it be|you['’]ve never|have you ever|you won['’]t|you['’]ll love|ich liebe|i love|my favou?rite|mein liebling|must try)\b/i.test(st) || /\bwenn du\b.*\b(magst|liebst|willst)\b/i.test(st)) return false;
+    if (/\b(let it be|you['’]ve never|have you ever|you won['’]t|you['’]ll love|ich liebe|i love|my favou?rite|mein liebling|must try)\b/i.test(st) || /\bwenn du\b.*\b(magst|liebst|willst)\b/i.test(st) || /\b(kannst du|kannst Du|könnt ihr|kann man|you can)\b/.test(st) && /\b(praktisch|jeden tag|diät|immer|every day)\b/i.test(st)) return false;
     if (/\b(schmeckt|schmecken|tastes?|ist ein|is a)\b/i.test(st) && !/\babschmeck/i.test(st)) return false;
     if (lang !== "en" && /\b(wird|werden)\b.*\b\w*ge\w+(t|en)\b/i.test(st) && !/\b(ich|wir)\b/i.test(st)) return true; // "Die Haferflocken werden … aufgekocht"
     if (lang !== "en" && /^(dann|danach|anschließend|zuerst|zum schluss|jetzt|nun)\b/i.test(st) && DE_ACT.test(lower(st))) return true;
@@ -1405,6 +1405,19 @@
   }
 
   function parseText(text, origin) {
+    if (origin === "ocr") {
+      // Zeilenumbruch im Bild: "Hokkaido" / "Kürbis" -> "Hokkaido Kürbis"
+      var ol = String(text || "").split("\n"), oj = [];
+      ol.forEach(function (l) {
+        var prev = oj[oj.length - 1], c = clean(l);
+        if (prev && /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(clean(prev)) && /^[A-ZÄÖÜ][a-zäöüß-]+$/.test(c)) {
+          var pi = parseIngredientLine(clean(prev)), ci = parseIngredientLine(c);
+          if (pi && ci && pi.aisle === "Sonstiges" && !pi.nameOriginal && /^(kürbis|kartoffeln?|tomaten?|paprika|zwiebeln?|bohnen|linsen|pilze|salat|kohl|äpfel|apfel|reis|nudeln)$/i.test(c) && !/(hack|fleisch|wurst|käse|tofu|seitan|filet)/i.test(prev)) { oj[oj.length - 1] = clean(prev) + " " + c; return; }
+        }
+        oj.push(l);
+      });
+      text = oj.join("\n");
+    }
     text = resegment(preferGerman(normalizeFancy(text)));
     // "Salmon Sushi Bowl #sushibowl #sushi …": Text vor den Hashtags behalten
     var rawLines = splitLines(text).map(function (l) {
@@ -1412,6 +1425,7 @@
     }).filter(function (l) { return l && !isHashtagLine(l); });
     var r = emptyRecipe();
     var src = origin || "caption";
+
     r.title = titleFrom(rawLines);
     var lines = [];
     rawLines.forEach(function (l) {
@@ -1480,7 +1494,9 @@
         var p = clean(stripEmoji(l));
         if (i === 0 && r.title && p.indexOf(r.title) !== -1) return;
         if (SUBHEAD_WORD.test(p.replace(/:\s*$/, ""))) { lastIng = false; ingredients.push(GROUP_MARK + groupName(p)); return; }
+        if (/\b\d+\s*kcal\b|^\s*[EKF]:\s*\d|\b(eiweiß|protein|kohlenhydrate|fett)\s*:?\s*\d+\s*g\b/i.test(p)) return; // Nährwert-Angaben
         if (looksLikeIngredient(l)) { ingredients.push(l); lastIng = true; return; }
+        if (src === "ocr" && p.split(/\s+/).length <= 4 && !/[.!?:]$/.test(p)) { var oi = parseIngredientLine(p); if (oi && (oi.aisle !== "Sonstiges" || oi.nameOriginal)) { ingredients.push(l); lastIng = true; return; } }
         // kurze Zeile mitten in einer Zutatenliste ("Gurke, Tomaten nach Belieben")
         if (lastIng && p.length < 45 && !/[.!]$/.test(p) && !/^(so|und|dann|jetzt)\b/i.test(p)) { ingredients.push(l); return; }
         lastIng = false;
@@ -1653,16 +1669,18 @@
   // Text aus vielen Videobildern (Live Text je Bild): gleiche und sich wiederholende Zeilen zusammenfassen,
   // Bedienelemente von Instagram weglassen, Reihenfolge des ersten Auftretens behalten
   var IG_UI = /^(gefällt|liked by|folgen|follow|following|abonniert|audio(?:-original)?|original audio|originalton|reels?|kommentare?|comments?|teilen|share|senden|send|mehr|more|… mehr|\.\.\. more|gesponsert|sponsored|\d+(?:[.,]\d+)?\s*(?:k|mio|tsd)?\s*(?:likes?|kommentare|comments|aufrufe|views)?|\d{1,2}:\d{2}|lte|5g|\d+\s*%|@[\w.]+|#\w+)$/i;
-  var IG_UI_START = /^(gefällt|liked by|alle \d+ kommentare|view all|kommentieren|add a comment|vor \d+ (?:min|std|tag)|\d+ (?:min|std|h|d|w) ago)/i;
+  var IG_UI_START = /^(gefällt|liked by|alle \d+ kommentare|view all|kommentieren|kommentar hinzufügen|add a comment|vor \d+ (?:min|std|tag)|\d+ (?:min|std|h|d|w) ago|‹|one sec|[\w.]+ und \d+ weitere|.*\bsind follower\b|.*\bfollowed by\b)/i;
   function mergeFrameText(text) {
-    var lines = String(text || "").split(/\n+/).map(function (l) { return clean(stripEmoji(l)); }).filter(function (l) { return l.length >= 2 && !IG_UI.test(l) && !IG_UI_START.test(l); });
+    var lines = String(text || "").split(/\n+/).map(function (l) { return clean(stripEmoji(l)); }).filter(function (l) {
+      return l.length >= 2 && !IG_UI.test(l) && !IG_UI_START.test(l) && !/^[\W\d]{1,4}$/.test(l) && !/^[a-z0-9_-]+\.[a-z]{2,6}$/i.test(l); // Uhrzeit, Zahlen, Symbole, "fitgirls.wiki"
+    });
     var out = [], norm = function (l) { return lower(l).replace(/[^a-zäöüß0-9]+/g, ""); };
     lines.forEach(function (l) {
       var n = norm(l); if (n.length < 2) return;
       for (var i = 0; i < out.length; i++) {
         var o = norm(out[i]);
-        if (o === n || o.indexOf(n) !== -1) return;           // schon da (oder Teil einer längeren Zeile)
-        if (n.indexOf(o) !== -1) { out[i] = l; return; }       // längere Fassung derselben Zeile (Text baut sich auf)
+        if (o === n || (o.indexOf(n) === 0 && n.length >= 6)) return;   // schon da (oder Anfang einer längeren Zeile)
+        if (n.indexOf(o) === 0 && o.length >= 6) { out[i] = l; return; } // längere Fassung derselben Zeile (Text baut sich auf)
       }
       out.push(l);
     });
@@ -2461,6 +2479,8 @@
       var est = estimateTimeFromSteps(r.steps);
       if (est) { r.timeTotal = est; r.timeEstimated = true; r.provenance.timeTotal = "geschätzt"; }
     }
+    // Titel ist nur eine Zutat ("Stückige Tomaten"): Gerichtsname aus dem Text bevorzugen
+    if (r.title && r.dishTitle && lower(r.dishTitle) !== lower(r.title) && r.ingredients.some(function (i) { return lower(i.name) === lower(r.title) || lower(i.raw) === lower(r.title); })) { r.title = r.dishTitle; r.titleGuessed = true; }
     // Allgemeiner Ein-Wort-Titel ("Curry", "Kuchen"): genaueren Namen aus Text oder Hashtag nehmen
     var isGeneric = function (t) { return !t || GENERIC_TITLE.test(clean(t)); };
     var better = function (base) {
