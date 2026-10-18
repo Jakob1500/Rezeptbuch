@@ -405,5 +405,25 @@ check("Niederländisch erkannt", K.detectLang(nlR) === "nl", K.detectLang(nlR));
 K.uebersetzeZutaten(nlR, ["400 g Tofu", "1 Dose schwarze Bohnen"]);
 check("Zutaten-Übersetzung eingelesen", nlR.ingredients[1].unit === "Dose" && /bohnen/i.test(nlR.ingredients[1].name) && nlR.ingredients[1].nameOriginal, nlR.ingredients[1]);
 
+// Video: gesprochener Text und Text aus Videobildern (Kurzbefehl, iPhone)
+const trEn = K.analyse({ transcript: "Hey guys, welcome back. Today we are making a creamy lentil curry. First add one onion and two cloves of garlic to a pan with some olive oil. Then add 200 grams of red lentils and one can of coconut milk. Stir in 2 tablespoons of curry powder and let it simmer for 20 minutes. Finally add a handful of spinach and serve with rice. Make sure to follow for more recipes." }).recipe;
+check("Transkript EN: Zutaten mit Mengen", trEn.ingredients.length >= 5 && trEn.ingredients.some(i => i.key === "rote linse" && i.qty === 200) && trEn.ingredients.some(i => i.unit === "Dose"), trEn.ingredients.map(i => [i.qty, i.unit, i.name]));
+check("Transkript EN: Schritte ohne Begrüßung/Werbung", trEn.steps.length === 4 && !trEn.steps.some(s => /welcome|follow/i.test(s)), trEn.steps);
+check("Transkript EN: Titel aus 'we are making'", /linsen-curry/i.test(trEn.title), trEn.title);
+const trDe = K.analyse({ transcript: "Hallo ihr Lieben. Heute gibt es Ofengemüse. Zuerst schneidest du 500 Gramm Kartoffeln und eine rote Paprika klein. Dann kommen zwei Esslöffel Olivenöl und ein Teelöffel Paprikapulver dazu. Alles gut vermischen und 30 Minuten bei 200 Grad backen. Zum Schluss 200 Gramm Feta darüber bröseln." }).recipe;
+check("Transkript DE: Nomen ohne Verbreste", trDe.ingredients.some(i => i.name === "Feta" && i.qty === 200) && trDe.ingredients.some(i => /paprika/i.test(i.name) && i.qty === 1), trDe.ingredients.map(i => i.name));
+check("Transkript DE: 4 Schritte", trDe.steps.length === 4, trDe.steps);
+const fr = K.mergeFrameText("Linsen-Curry\nGefällt 1.234 Mal\n200 g rote\n200 g rote Linsen\nLinsen-Curry\n1 Dose Kokosmilch\n12:30\n@veganchef\n1 Dose Kokosmilch\nAlles 20 Min köcheln");
+check("Videobilder: doppelte Zeilen und Instagram-Bedienung weg", fr === "Linsen-Curry\n200 g rote Linsen\n1 Dose Kokosmilch\nAlles 20 Min köcheln", fr);
+// Nährwerte: neue Zuordnungen, niederländische Namen, Arbeitsschritte sind keine Zutaten
+const NW2 = require("../daten/naehrwerte.json");
+const nwR = K.analyse({ caption: "Test\nZutaten:\n300 g Austernpilze\n200 ml Rotwein\n1 Feta\n2 el olijfolie\n3 tenen knoflook\nablöschen.\nEINRÜHREN\nZubereitung:\n1. Alles braten." }).recipe;
+check("Arbeitsschritte nicht als Zutat", !nwR.ingredients.some(i => /ablöschen|einrühren/i.test(i.name)), nwR.ingredients.map(i => i.name));
+check("Niederländische Zutaten übersetzt", nwR.ingredients.some(i => i.name === "Olivenöl" && i.unit === "EL") && nwR.ingredients.some(i => /knoblauch/i.test(i.name)), nwR.ingredients.map(i => i.name));
+K.berechneNaehrwerte(nwR, NW2, null, {});
+check("Nährwerte: Austernpilze, Rotwein, Feta bekannt", nwR.nutrition.coverage.unmatched.length === 0, nwR.nutrition.coverage.unmatched);
+check("Portionen: 'for 1-2 hours' ist keine Portionsangabe", K.analyse({ caption: "Stew\nIngredients:\n* 2 cups lentils, soaked for 1-2 hours\n* 1 onion\nMethod:\n1. Cook everything." }).recipe.servings !== 1);
+check("Englischer Titel erkannt", K.isEnglishTitle("Romesco-Style Butter Beans") && !K.isEnglishTitle("Linsen-Curry") && !K.isEnglishTitle("Pasta alla vodka"));
+
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);
