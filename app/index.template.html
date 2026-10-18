@@ -116,6 +116,12 @@ a.btn { text-decoration: none; }
 .steps { margin: 0; padding: 0; list-style: none; display: grid; gap: 0; }
 .steps li { display: grid; grid-template-columns: 28px 1fr; gap: 10px; padding: 12px 16px; position: relative; }
 .steps li + li::before { content: ""; position: absolute; top: 0; left: 54px; right: 0; height: 1px; background: var(--line); }
+.snip { display: flex; gap: 8px; align-items: center; margin: 4px 0 2px; }
+.snip code { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 0.78rem; background: var(--surface-2); border-radius: 8px; padding: 6px 8px; }
+.snip button { flex: none; border: 0; background: var(--surface-2); border-radius: 8px; padding: 6px 10px; font-size: 0.8rem; font-weight: 600; color: var(--accent); }
+.build ol { margin: 0; padding-left: 20px; } .build li { margin: 0 0 10px; line-height: 1.4; } .build li b { font-weight: 650; }
+.steps .ing-chips { grid-column: 2; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.steps .ing-chips span { font-size: 0.78rem; background: var(--surface-2); border-radius: 999px; padding: 3px 9px; color: var(--muted); }
 .steps li.head { display: block; padding: 14px 16px 4px; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
 .steps li.head + li::before, .steps li + li.head::before { display: none; }
 .hero .desc { margin: 6px 0 0; color: var(--muted); font-size: 0.92rem; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
@@ -268,7 +274,7 @@ a { color: var(--accent); }
 (function () {
   "use strict";
   var K = window.RezeptKern, NW = NAEHRWERTE;
-  var APP_VERSION = "0.6.0";
+  var APP_VERSION = "0.7.0";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -468,6 +474,19 @@ a { color: var(--accent); }
     if (e.input.caption) { try { e.typ = K.recipeLikelihood(res, e.input.caption, e.input.url).typ || e.typ; } catch (x) { /* egal */ } }
     e.recipe = r; e.updatedAt = Date.now();
   }
+  // Unbekannte Zutaten an den Betreiber melden (nur der Zutatenname, kein Rezept, keine Person).
+  // Erst aktiv, wenn eine Melde-Adresse eingetragen ist UND die Nutzerin zugestimmt hat.
+  var MELDE_URL = window.MELDE_URL || ""; // z. B. ein ntfy-Thema – wird erst nach Freigabe durch Jakob eingetragen
+  function meldeUnbekannte() {
+    if (!MELDE_URL || S.prefs.melden !== true || !navigator.onLine) return;
+    var sent = S.meta.gemeldet || {}, neu = [];
+    Object.keys(S.recipes).forEach(function (id) { var n = S.recipes[id].recipe.nutrition; ((n && n.coverage.unmatched) || []).forEach(function (u) { if (!sent[u] && neu.indexOf(u) === -1) neu.push(u); }); });
+    if (!neu.length) return;
+    try {
+      fetch(MELDE_URL, { method: "POST", body: "Unbekannte Zutaten (Rezeptbuch " + APP_VERSION + "): " + neu.slice(0, 40).join(", "), headers: { "Title": "Rezeptbuch: Nährwerte fehlen" } })
+        .then(function (res) { if (res.ok) { neu.forEach(function (u) { sent[u] = Date.now(); }); S.meta.gemeldet = sent; save("meta"); } }, function () {});
+    } catch (x) { /* offline: später erneut */ }
+  }
   // Neuer Analyse-Kern: alle Rezepte einmal neu auswerten (Favorit, Titel von dir, „gekocht“ bleiben)
   function reanalyseAll() {
     if (S.meta.kern === K.VERSION) return 0;
@@ -599,7 +618,7 @@ a { color: var(--accent); }
     var r = e.recipe, t = titleOf(e);
     var sub = [];
     var diet = (r.diet || [])[0]; if (diet) sub.push(diet);
-    if (r.source.account) sub.push("@" + r.source.account);
+    // Creator erst im geöffneten Rezept zeigen
     var m = missingOf(r);
     var badge = e.example ? '<span class="badge">Beispiel</span>' : (!K.completeness(r).enough ? '<span class="badge warn">unvollständig</span>' : (m.total >= 3 && m.missing <= 2 ? '<span class="badge ok">' + (m.missing ? m.missing + " fehlt" + (m.missing > 1 ? "en" : "") : "alles da") + '</span>' : ''));
     return '<button class="row" data-a="open" data-id="' + esc(e.id) + '">' + glyph(r) +
@@ -756,19 +775,24 @@ a { color: var(--accent); }
     var n = r.nutrition;
     var m = missingOf(r);
     var onList = S.shopping.list.some(function (x) { return x.id === id; });
+    var lastGroup = "";
     var ings = r.ingredients.map(function (i) {
-      var q = i.qty != null ? K.fmtQty(i.qty * f) + (i.qtyMax != null ? "–" + K.fmtQty(i.qtyMax * f) : "") : "";
+      var q = i.qty != null ? (i.qtyEstimated ? "≈ " : "") + sq(i, i.qty, f) + (i.qtyMax != null ? "–" + sq(i, i.qtyMax, f) : "") : "";
       var name = orig && i.nameOriginal ? i.nameOriginal : i.name;
       var have = haveKey(i.key);
-      return '<div class="row ing"><span class="dot' + (have ? " have" : "") + '"><span class="sr">' + (have ? "vorhanden" : "fehlt") + '</span></span>' +
+      var gh = "";
+      if ((i.group || "") !== lastGroup) { lastGroup = i.group || ""; gh = '<div class="row ing-group"><span class="main"><span class="small muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.04em">' + esc(lastGroup || "Weitere Zutaten") + '</span></span></div>'; }
+      return gh + '<div class="row ing"><span class="dot' + (have ? " have" : "") + '"><span class="sr">' + (have ? "vorhanden" : "fehlt") + '</span></span>' +
         '<span class="qty">' + esc(clean2(q + " " + unitText(i.unit))) + '</span><span class="main"><span>' + esc(name) + (i.optional ? ' <span class="muted small">(optional)</span>' : '') + '</span>' +
-        (i.note ? '<span class="sub">' + esc(i.note) + '</span>' : '') + '</span></div>';
+        ((i.note || i.qtyEstimated) ? '<span class="sub">' + esc([i.note, i.qtyEstimated ? "Menge geschätzt (im Rezept nicht angegeben)" : ""].filter(Boolean).join(" · ")) + '</span>' : '') + '</span></div>';
     }).join("");
     var stepList = orig && r.stepsOriginal ? r.stepsOriginal : r.steps;
-    var num = 0;
-    var steps = stepList.map(function (s2) {
+    var num = 0, sMap = K.stepIngredients(r);
+    var steps = stepList.map(function (s2, k) {
       if (/^## /.test(s2)) return '<li class="head">' + esc(s2.slice(3)) + '</li>';
-      num++; return '<li><span class="n">' + num + '</span><span>' + esc(s2) + '</span></li>';
+      num++;
+      var seen = {}, chips = (sMap[k] || []).map(function (n) { var i = r.ingredients[n]; if (!i || seen[i.name]) return ""; seen[i.name] = 1; return '<span>' + esc(clean2((i.qty != null ? (i.qtyEstimated ? "≈" : "") + sq(i, i.qty, f) + " " : "") + unitText(i.unit) + " " + i.name)) + '</span>'; }).join("");
+      return '<li><span class="n">' + num + '</span><span>' + esc(s2) + '</span>' + (chips ? '<span class="ing-chips">' + chips + '</span>' : '') + '</li>';
     }).join("");
     var labelGroups = {};
     visibleLabels(r).forEach(function (l) { if (l.gruppe === "Gang") return; (labelGroups[l.gruppe] = labelGroups[l.gruppe] || []).push(l); });
@@ -782,7 +806,7 @@ a { color: var(--accent); }
         [[v.kcal, "kcal"], [fmtG(v.protein), "Eiweiß g"], [fmtG(v.carbs), "Kohlenh. g"], [fmtG(v.fat), "Fett g"]].map(function (x) { return '<div><b>' + x[0] + '</b><span>' + x[1] + '</span></div>'; }).join("") + '</div>' +
         '<div class="row"><span class="main"><span class="sub">' + (n.reliable ? "Berechnet aus " + n.coverage.matched + " Zutaten." : "Nur teilweise berechnet: " + n.coverage.matched + " von " + (n.coverage.matched + n.coverage.unmatched.length) + " Zutaten bekannt.") +
         (r.servingsEstimated ? " Portionen im Rezept geschätzt (" + esc(r.servingsBasis) + ")." : "") + '</span></span></div>' +
-        (n.coverage.unmatched.length ? n.coverage.unmatched.map(function (u) { return '<button class="row" data-a="zuordnen" data-id="' + esc(id) + '" data-name="' + esc(u) + '"><span class="main"><span>' + esc(u) + '</span><span class="sub">Unbekannt. Einmal zuordnen, dann gilt es für alle Rezepte.</span></span>' + ic("chev", "chev") + '</button>'; }).join("") : "") +
+        (n.coverage.unmatched.length ? '<div class="row"><span class="main"><span class="sub">Noch ohne Nährwert: ' + esc(n.coverage.unmatched.join(", ")) + '. Diese Zutaten werden zentral ergänzt und mit dem nächsten Update nachgerechnet.</span></span></div>' : "") +
         '</div></section>';
     }
     var src = r.source.url ? '<a class="row" href="' + esc(r.source.url) + '" target="_blank" rel="noopener"><span class="main"><span class="title">Original auf Instagram</span><span class="sub">' + (r.source.account ? "@" + esc(r.source.account) : "") + '</span></span>' + ic("chev", "chev") + '</a>' : "";
@@ -834,24 +858,31 @@ a { color: var(--accent); }
   }
   // Kochmodus: ein Schritt pro Bildschirm, große Schrift, Bildschirm bleibt an
   var wakeLock = null;
+  // Umgerechnete Menge: Stückzahlen (Zwiebeln, Zehen, Dosen …) auf halbe Stück runden, nie unter ½
+  function sq(i, v, f) {
+    var x = v * f;
+    if (f !== 1 && (!i.unit || /^(Stk|Zehe|Dose|Glas|Bund|Pck|Stange|Zweig|Blatt|Scheibe|Becher|Handvoll|Prise)$/.test(i.unit))) x = Math.max(0.5, Math.round(x * 2) / 2);
+    return K.fmtQty(x);
+  }
   function stepIngredients(r, step, f) {
     var low = step.toLowerCase();
     return r.ingredients.filter(function (i) {
       var w = [i.name, i.nameOriginal || "", i.key].join(" ").toLowerCase().split(/[\s-]+/).filter(function (x) { return x.length > 3; });
       return w.some(function (x) { return low.indexOf(x.slice(0, Math.max(4, x.length - 2))) !== -1; });
-    }).map(function (i) { return clean2((i.qty != null ? K.fmtQty(i.qty * f) + " " : "") + unitText(i.unit) + " " + i.name); });
+    }).map(function (i) { return clean2((i.qty != null ? sq(i, i.qty, f) + " " : "") + unitText(i.unit) + " " + i.name); });
   }
   // Schritte ohne Zwischenüberschriften; die Überschrift steht über dem Schritt
   function cookList(r) {
     var out = [], head = "";
-    (r.steps || []).forEach(function (st) { if (/^## /.test(st)) { head = st.slice(3); return; } out.push({ t: st, h: head }); head = ""; });
+    (r.steps || []).forEach(function (st, k) { if (/^## /.test(st)) { head = st.slice(3); return; } out.push({ t: st, h: head, k: k }); head = ""; });
     return out;
   }
   function renderCook() {
     var c = UI.cook; if (!c) { $("#layer").innerHTML = ""; return; }
     var e = S.recipes[c.id], r = e.recipe, cl = cookList(r), k = c.step, last = k === cl.length - 1;
     var serv = UI.servings[c.id] || defaultServings(r), f = r.servings ? serv / r.servings : 1;
-    var ings = stepIngredients(r, cl[k].t, f);
+    var sMap = K.stepIngredients(r), seenC = {};
+    var ings = (sMap[cl[k].k] || []).map(function (n) { var i = r.ingredients[n]; if (!i || seenC[i.name]) return null; seenC[i.name] = 1; return clean2((i.qty != null ? (i.qtyEstimated ? "≈ " : "") + sq(i, i.qty, f) + " " : "") + unitText(i.unit) + " " + i.name); }).filter(Boolean);
     $("#layer").innerHTML = '<div class="cook" role="dialog" aria-modal="true" aria-label="Kochmodus"><div class="bar"><button class="iconbtn" data-a="cook-close" aria-label="Kochmodus beenden">' + ic("x") + '</button>' +
       '<span class="stepno">Schritt ' + (k + 1) + ' von ' + cl.length + '</span><span style="width:44px"></span></div>' +
       '<div class="body"><div class="dots" aria-hidden="true">' + cl.map(function (_, j) { return '<i class="' + (j <= k ? "on" : "") + '"></i>'; }).join("") + '</div>' +
@@ -1062,7 +1093,7 @@ a { color: var(--accent); }
         '<li>Die Werte sind keine Ernährungs- oder Gesundheitsberatung.</li><li>Du kannst alle Zahlen in den Einstellungen ausblenden.</li></ul>' +
         '<p class="small muted">' + esc(BLS_HINWEIS) + '</p>', false,
         '<p><b>Schwellen pro Portion:</b> proteinreich ab 20 % der Energie aus Eiweiß · ballaststoffreich ab 3 g je 100 kcal · eisenreich ab 4,2 mg · calciumreich ab 240 mg · magnesiumreich ab 112,5 mg · Vitamin-C-reich ab 24 mg (je 30 % der Nährstoffbezugswerte nach Europäisches Parlament &amp; Rat der Europäischen Union, 2011) · Omega-3-reich ab 0,6 g je 100 kcal.</p>' +
-        '<p><b>Wann Werte als verlässlich gelten:</b> wenn mindestens 80 % der Zutaten (ohne Gewürze) zugeordnet sind. Sonst steht „teilweise berechnet“ dabei, und die App vergibt keine Labels. Die App unterscheidet roh, gekocht und abgetropft (z. B. Reis, Kichererbsen aus der Dose). Unbekannte Zutaten kannst du einmal zuordnen.</p>') :
+        '<p><b>Wann Werte als verlässlich gelten:</b> wenn mindestens 80 % der Zutaten (ohne Gewürze) zugeordnet sind. Sonst steht „teilweise berechnet“ dabei, und die App vergibt keine Labels. Die App unterscheidet roh, gekocht und abgetropft (z. B. Reis, Kichererbsen aus der Dose). Unbekannte Zutaten ergänzt der Betreiber zentral; sie werden mit dem nächsten Update nachgerechnet.</p>') :
         sec("scale", "Nährwerte", '<p>Du hast die Nährwerte ausgeblendet. Die App zeigt keine Kalorien, Nährwerte oder Labels wie „proteinreich“. Du kannst das in den Einstellungen jederzeit ändern.</p>')) +
       sec("cloud", "Wo die App herkommt",
         '<p>Die App ist eine Webseite, die du auf den Home-Bildschirm legst (heise online, o. J.). Die Dateien liefert GitHub Pages aus, ein Dienst von GitHub (gehört zu Microsoft, USA; GitHub, o. J.-b).</p>' +
@@ -1094,16 +1125,35 @@ a { color: var(--accent); }
     ["Max Rubner-Institut. (2025). <i>Bundeslebensmittelschlüssel (BLS)</i> (Version 4.0) [Datensatz].", "https://doi.org/10.25826/Data20251217-134202-0"],
     ["Meta Platforms. (o. J.). <i>oEmbed – Instagram Platform</i>. Abgerufen am 18. Oktober 2026, von", "https://developers.facebook.com/documentation/instagram-platform/oembed"]
   ];
+  var APP_URL = "https://jakob1500.github.io/Rezeptbuch/";
+  var SC_NAME = "Ins Rezeptbuch";
+  function snip(t) { return '<div class="snip"><code>' + esc(t) + '</code><button data-a="copy-item" data-t="' + esc(t) + '">Kopieren</button></div>'; }
+  function runShortcut(text) {
+    var u = "shortcuts://run-shortcut?name=" + encodeURIComponent(SC_NAME) + (text ? "&input=text&text=" + encodeURIComponent(text) : "");
+    try { location.href = u; } catch (x) { /* kein Kurzbefehl */ }
+  }
   function setupSheet() {
     var link = window.KURZBEFEHL_LINK || "";
-    sheet('<h2>„Ins Rezeptbuch“ einrichten</h2>' +
-      '<div class="guide" style="border:0"><ol>' +
-      '<li><span class="gi">' + ic("plus") + '</span><span>Tippe unten auf „Kurzbefehl hinzufügen“. iOS fragt einmal nach, das bestätigst du.</span></li>' +
-      '<li><span class="gi">' + ic("share") + '</span><span>In Instagram bei einem Rezept auf Teilen tippen, dann „Ins Rezeptbuch“ wählen.</span></li>' +
-      '<li><span class="gi">' + ic("check") + '</span><span>Beim ersten Mal fragt iOS, ob der Kurzbefehl instagram.com öffnen darf. Wähle „Immer erlauben“.</span></li></ol></div>' +
-      (link ? '<a class="btn accent" href="' + esc(link) + '" target="_blank" rel="noopener">Kurzbefehl hinzufügen</a>' :
-        '<div class="note">Der fertige Kurzbefehl ist noch in Arbeit. Sobald er bereitsteht, erscheint hier der Knopf zum Hinzufügen.</div>') +
-      '<p class="small muted">Der Kurzbefehl liest nur die öffentliche Caption des Posts, den du teilst. Ohne Anmeldung, ohne Zugriff auf dein Instagram-Konto.</p>' +
+    var ok = !!S.meta.shortcutOk;
+    sheet('<h2>Aus Instagram ins Rezeptbuch</h2>' +
+      (ok ? '<div class="note info"><b>Eingerichtet.</b><span>In Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“. Oder „Link kopieren“ und hier unter „Hinzufügen“ einfügen.</span></div>' : '') +
+      (ok && !UI.showBuild ? '<button class="btn soft" data-a="show-build">Bauanleitung anzeigen</button>' : link ? '<p class="small">Tippe auf „Kurzbefehl hinzufügen“ und bestätige. Danach in Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“.</p><a class="btn accent" href="' + esc(link) + '" target="_blank" rel="noopener">Kurzbefehl hinzufügen</a>' :
+      '<p class="small">Einmal in der Kurzbefehle-App anlegen (ca. 5 Minuten). Danach reicht in Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“. Die App speichert das Rezept sofort.</p>' +
+      '<div class="build"><ol>' +
+      '<li>Kurzbefehle-App → „+“ → Name <b>' + SC_NAME + '</b>.' + snip(SC_NAME) + '</li>' +
+      '<li>Oben auf das Info-Symbol (i): <b>Im Share-Sheet anzeigen</b> einschalten. Bei „Empfängt“ nur <b>URLs</b> und <b>Text</b> lassen. Darunter „Wenn keine Eingabe“: <b>Zwischenablage verwenden</b>.</li>' +
+      '<li>Aktion <b>Text abgleichen</b>: Muster einfügen, Text = <b>Kurzbefehleingabe</b>.' + snip("https?://(www\\.)?instagram\\.com/(p|reel|reels|tv)/[A-Za-z0-9_-]+") + '</li>' +
+      '<li>Aktion <b>Objekt aus Liste abrufen</b> (Erstes Objekt) → lange drücken, „Umbenennen“ in <b>Link</b>.</li>' +
+      '<li>Aktion <b>Text</b>: zuerst die Variable <b>Link</b>, direkt dahinter:' + snip("/embed/captioned/") + '</li>' +
+      '<li>Aktion <b>Inhalt von URL abrufen</b> (nimmt den Text darüber).</li>' +
+      '<li>Aktion <b>Text übersetzen</b>: Text = <b>Inhalt von URL</b>, von <b>Ermitteln</b>, nach <b>Deutsch</b>.</li>' +
+      '<li>Dreimal Aktion <b>URL-Kodierung</b> (Suche „Kodier“): je einmal für <b>Link</b>, <b>Inhalt von URL</b> und <b>Übersetzter Text</b>.</li>' +
+      '<li>Aktion <b>URL</b>: Adresse einfügen und die drei kodierten Variablen an die Stellen setzen:' + snip(APP_URL + "#u=LINK&t=INHALT&d=UEBERSETZT") + '</li>' +
+      '<li>Aktion <b>URLs öffnen</b>. Fertig.</li>' +
+      '</ol></div>' +
+      '<p class="small muted">Beim ersten Mal fragt iOS, ob der Kurzbefehl instagram.com abrufen und die Seite öffnen darf: „Immer erlauben“. Ist das Rezept deutsch, gibt der Übersetzer den Text unverändert zurück.</p>') +
+      '<p class="small muted">Der Kurzbefehl liest nur die öffentliche Vorschau des Posts, den du teilst. Ohne Anmeldung, ohne Zugriff auf dein Instagram-Konto. Alles bleibt auf deinem iPhone.</p>' +
+      '<button class="btn" data-a="sc-test">' + ic("play") + 'Kurzbefehl jetzt testen</button>' +
       '<button class="btn soft" data-a="close-sheet">Schließen</button>');
     S.meta.setupAsked = true; save("meta");
   }
@@ -1243,10 +1293,27 @@ a { color: var(--accent); }
         return true;
       }
     }
-    var emb = /Gefällt|Liked by|class="Caption"/.test(text) ? K.parseInstagramEmbed(text) : null;
+    var emb = /Gefällt|Liked by|class="Caption"|Profil ansehen|View profile/.test(text) ? K.parseInstagramEmbed(text) : null;
     var caption = emb ? emb.caption : text;
     var account = emb ? emb.account : (p.a || "");
-    startDraft({ caption: caption, url: url, account: account, ocrText: p.o || "", transcript: p.s || "", captionDe: p.d || "" });
+    var de = p.d || "";
+    if (de && /Gefällt|class="Caption"|Profil ansehen/.test(de)) { var embDe = K.parseInstagramEmbed(de); if (embDe) de = embDe.caption; }
+    if (de && caption && de.replace(/\s+/g, " ").trim() === caption.replace(/\s+/g, " ").trim()) de = ""; // war schon deutsch
+    if (url && /instagram\.com/.test(url)) { S.meta.shortcutOk = true; save("meta"); }
+    // Testlauf aus der Einrichtung
+    if (/\/p\/C0Test\/?$/.test(url)) { setTimeout(function () { toast("Der Kurzbefehl funktioniert. Jetzt in Instagram teilen."); }, 300); return false; }
+    var input = { caption: caption, url: url, account: account, ocrText: p.o || "", transcript: p.s || "", captionDe: de };
+    // schon gespeichert? Dann öffnen statt doppelt anlegen
+    var same = url ? entries().filter(function (e) { return e.input && e.input.url && e.input.url.split("?")[0].replace(/\/$/, "") === url.split("?")[0].replace(/\/$/, ""); })[0] : null;
+    if (same) { UI.tab = "rezepte"; UI.detail = same.id; setTimeout(function () { toast("Schon im Rezeptbuch"); }, 300); return true; }
+    startDraft(input);
+    // Rezept erkannt: sofort speichern, ohne weiteren Tipp
+    if (UI.draft && UI.draft.like && UI.draft.like.recipe) {
+      var out = addRecipe(UI.draft.res, { input: input, typ: UI.draft.like.typ });
+      UI.draft = null; UI.tab = "rezepte"; UI.detail = out.id;
+      setTimeout(function () { toast(out.dupe ? "Schon im Rezeptbuch" : "Im Rezeptbuch gespeichert"); }, 300);
+      return true;
+    }
     UI.tab = "neu"; UI.detail = null;
     return true;
   }
@@ -1308,6 +1375,9 @@ a { color: var(--accent); }
       case "back": UI.detail = null; render(); break;
       case "settings": settingsSheet(); break;
       case "setup": setupSheet(); render(); break;
+      case "show-build": UI.showBuild = true; setupSheet(); break;
+      case "sc-run-link": closeSheet(); UI.pasteText = ""; runShortcut(el.dataset.t); break;
+      case "sc-test": closeSheet(); toast("Kurzbefehl wird mit einem Beispiel-Link gestartet …"); setTimeout(function () { runShortcut("https://www.instagram.com/p/C0Test/"); }, 400); break;
       case "close-sheet": closeSheet(); break;
       case "guide-ok": S.meta.guides[el.dataset.k] = true; save("meta"); render(); break;
       case "info": infoSheet(); break;
@@ -1356,7 +1426,10 @@ a { color: var(--accent); }
         var txt2 = ($("#paste").value || "").trim(); UI.pasteText = txt2;
         if (!txt2) { toast("Bitte erst Text einfügen"); break; }
         if (/^https?:\/\/(www\.)?instagram\.com\/\S+$/i.test(txt2)) {
-          sheet('<h2>Nur ein Link</h2><p class="small">Aus einem Link allein kann die App den Text nicht holen. Am einfachsten geht es mit dem Kurzbefehl „Ins Rezeptbuch“ direkt aus Instagram. Alternativ: In Instagram die Caption kopieren und hier einfügen.</p><button class="btn accent" data-a="setup">Kurzbefehl einrichten</button><button class="btn soft" data-a="close-sheet">Schließen</button>');
+          // Link aus Instagram („Link kopieren“): der Kurzbefehl holt die Beschreibung und kommt zurück
+          if (S.meta.shortcutOk) { UI.pasteText = ""; runShortcut(txt2); break; }
+          sheet('<h2>Link erkannt</h2><p class="small">Den Text hinter dem Link holt der Kurzbefehl „' + SC_NAME + '“. Ist er schon eingerichtet, starte ihn direkt. Sonst richte ihn einmal ein.</p>' +
+            '<button class="btn accent" data-a="sc-run-link" data-t="' + esc(txt2) + '">' + ic("play") + 'Kurzbefehl starten</button><button class="btn" data-a="setup">Einrichten</button><button class="btn soft" data-a="close-sheet">Schließen</button>');
           break;
         }
         var emb2 = /Gefällt|Liked by|class="Caption"/.test(txt2) ? K.parseInstagramEmbed(txt2) : null;
@@ -1406,6 +1479,7 @@ a { color: var(--accent); }
     readHashImport();
     render();
     if (upd) toast(upd + (upd === 1 ? " Rezept" : " Rezepte") + " mit der verbesserten Erkennung neu ausgewertet");
+    setTimeout(meldeUnbekannte, 3000);
   });
   if ("serviceWorker" in navigator && /^https:/.test(location.protocol) && !/claude/.test(location.hostname)) {
     try {

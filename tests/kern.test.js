@@ -425,5 +425,18 @@ check("Nährwerte: Austernpilze, Rotwein, Feta bekannt", nwR.nutrition.coverage.
 check("Portionen: 'for 1-2 hours' ist keine Portionsangabe", K.analyse({ caption: "Stew\nIngredients:\n* 2 cups lentils, soaked for 1-2 hours\n* 1 onion\nMethod:\n1. Cook everything." }).recipe.servings !== 1);
 check("Englischer Titel erkannt", K.isEnglishTitle("Romesco-Style Butter Beans") && !K.isEnglishTitle("Linsen-Curry") && !K.isEnglishTitle("Pasta alla vodka"));
 
+// Zutaten je Schritt, Gruppen und geschätzte Mengen
+const grp = K.analyse({ caption: "Linsensalat\nZutaten:\n200 g Linsen\n1 Gurke\nDressing\n2 EL Tomatenmark\n1 EL Leinöl\nZubereitung:\n1. Die Linsen 20 Minuten kochen.\n2. Alle Zutaten für das Dressing verrühren.\n3. Linsen mit den restlichen Zutaten vermengen." }).recipe;
+const gm = K.stepIngredients(grp), nm = (k) => gm[k].map(n => grp.ingredients[n].name);
+check("Gruppe 'Dressing' erkannt", grp.ingredients.filter(i => i.group === "Dressing").length === 2, grp.ingredients.map(i => [i.group, i.name]));
+check("Schritt-Zutaten: Linsen", nm(0).join() === "Linsen", nm(0));
+check("Schritt-Zutaten: 'alle Zutaten für das Dressing'", nm(1).length === 2 && nm(1).includes("Tomatenmark"), nm(1));
+check("Schritt-Zutaten: 'restliche Zutaten' = Gurke", nm(2).includes("Gurke") && !nm(2).includes("Tomatenmark"), nm(2));
+const est = K.analyse({ caption: "Pasta\nFür 2 Portionen\nZutaten:\nSpaghetti\nOlivenöl\n2 Tomaten\nSalz\nZubereitung:\n1. Spaghetti kochen.\n2. Mit Öl und Tomaten mischen." }).recipe;
+const sp = est.ingredients.find(i => i.key === "spaghetti");
+check("Fehlende Menge geschätzt und markiert", sp.qty === 200 && sp.unit === "g" && sp.qtyEstimated, sp);
+check("Salz bleibt ohne Menge", est.ingredients.find(i => i.key === "salz").qty == null);
+check("Erzählsatz ist kein Schritt", !K.analyse({ caption: "Curry\nZutaten:\n200 g Reis\n1 Zwiebel\n2 EL Öl\nZubereitung:\n1. Reis kochen.\n2. Meine Mutter hat das früher oft gemacht und ich liebe es.\n3. Zwiebel anbraten." }).recipe.steps.some(s => /Mutter/.test(s)));
+
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

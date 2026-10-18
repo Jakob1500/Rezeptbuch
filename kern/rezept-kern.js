@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.3.1";
+  var VERSION = "0.3.2";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -452,7 +452,7 @@
   var BULLET_RE = /^[\s\-–—•*·▪◦●○■□►▶▸➤➜➡✓✔☑✗×+>|]+/u;
 
   function stripEmoji(s) { return String(s || "").replace(EMOJI_RE, " ").replace(/\s{2,}/g, " ").trim(); }
-  function clean(s) { return String(s == null ? "" : s).replace(/\uFFFD/g, " ").replace(/\s+/g, " ").trim(); }
+  function clean(s) { return String(s == null ? "" : s).replace(/[\uFFFD\u2060\u200B-\u200D\uFEFF]/g, " ").replace(/\s+/g, " ").trim(); }
   function lower(s) { return String(s || "").toLowerCase(); }
 
   var ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", ndash: "–", mdash: "—",
@@ -1036,6 +1036,13 @@
     return t.replace(/^[a-zäöü]/, function (c) { return c.toUpperCase(); });
   }
 
+  var GROUP_MARK = "\u0001G:";
+  // "Für das Dressing:" -> "Dressing", "MISO SAUCE" -> "Miso-Sauce"
+  function groupName(t) {
+    var g = clean(stripEmoji(String(t))).replace(/:\s*$/, "").replace(/^\W*(?:zutaten\s+)?(?:für|for)\s+(?:den|die|das|the)?\s*/i, "").replace(/^zutaten\s*/i, "");
+    if (g === g.toUpperCase()) g = g.toLowerCase();
+    return g.replace(/^./, function (c) { return c.toUpperCase(); });
+  }
   var SUBHEAD_WORD = /^(?:(?:für (?:das|den|die)|for the)\s+)?(dressing|sauce|soße|sosse|marinade|topping|toppings|teig|füllung|glasur|glaze|creme|frosting|crust|filling|dough|beilage|chutney|kräuteröl|streusel|boden|base|garnish|garnitur)$/i;
   function titleFrom(lines) {
     var cands = [];
@@ -1276,7 +1283,7 @@
   // ---------------------------------------------------------------------------
   // Schritte bereinigen: Werbung/Erzähltext raus, Zutaten zurück, Überschriften, Bruchstücke, °F -> °C
   // ---------------------------------------------------------------------------
-  var CTA = /(\bcomment\b|kommentier|\bdm\b|\bdms\b|inbox|link (?:is )?in (?:my |the )?bio|link in der bio|\bfollow\b|folge mir|folgt mir|save (?:this|for later)|speicher(?:t|e)? (?:dir|euch)|\bshare\b|teil(?:t|e) (?:das|den|es)|membership|subscribe|abonnier|newsletter|website|\bapp\b|use code|rabatt|discount|for less than|access to|giveaway|gewinnspiel|werbung|anzeige|sponsored|pinned (?:in )?comment|angepinnt|(?:full )?recipe (?:is )?(?:on|in|at)|rezept (?:gibt'?s |findest du )?(?:auf|im|in)|get (?:it|the recipe)|send (?:it|you)|schick(?:e)? (?:dir|euch)|my (?:cook)?book|mein (?:koch)?buch|amazon|tesco|out now|over \d+ (?:people|of you)|already cooking|abspeichern|speichern (?:&|und) |auf meinem profil|in meinem profil|highlight|nicht kennst|link in my|see my page)/i;
+  var CTA = /(\bcomment\b|kommentier|\bdm\b|\bdms\b|inbox|link (?:is )?in (?:my |the )?bio|link in der bio|\bfollow\b|folge mir|folgt mir|folgt uns|folge uns|für mehr (?:\w+ )*rezepte|for more (?:\w+ )*recipes|save (?:this|for later)|speicher(?:t|e)? (?:dir|euch)|\bshare\b|teil(?:t|e) (?:das|den|es)|membership|subscribe|abonnier|newsletter|website|\bapp\b|use code|rabatt|discount|for less than|access to|giveaway|gewinnspiel|werbung|anzeige|sponsored|pinned (?:in )?comment|angepinnt|(?:full )?recipe (?:is )?(?:on|in|at)|rezept (?:gibt'?s |findest du )?(?:auf|im|in)|get (?:it|the recipe)|send (?:it|you)|schick(?:e)? (?:dir|euch)|my (?:cook)?book|mein (?:koch)?buch|amazon|tesco|out now|over \d+ (?:people|of you)|already cooking|abspeichern|speichern (?:&|und) |auf meinem profil|in meinem profil|highlight|nicht kennst|link in my|see my page)/i;
   var FILLER = /^(genießen|geniessen|enjoy|guten appetit|lass(?:t)? es (?:dir|euch) schmecken|an guadn|have fun|viel spaß|fertig|done|serve!?|yum+|so good|lecker)[!.\s]*$/i;
   var EN_IMP = /^(?:[^,]{0,70},\s*)?(?:(?:then|next|now|finally|meanwhile|first|also|and)\s+)?(add|mix|stir|cook|bake|heat|preheat|place|pour|blend|combine|chop|slice|dice|mince|toss|serve|season|bring|reduce|simmer|roast|fry|saut[eé]|whisk|fold|transfer|top|garnish|drain|rinse|let|remove|spread|roll|cut|grate|squeeze|sprinkle|drizzle|marinate|coat|arrange|layer|divide|mash|boil|steam|grill|toast|warm|set|leave|allow|prepare|peel|soak|press|wrap|fill|form|shape|assemble|finish|throw|put|cover|line|flip|turn|repeat|store|keep|refrigerate|chill|freeze|melt|beat|knead|scoop|pulse|process|microplane|shred|crumble|massage|dress|plate|dish|use|scatter|sear|brown|char|deglaze|braise|poach|blanch|pur[eé]e|strain|sift|measure|grease|check|taste|adjust|return|stuff|blitz|smash|break|pat|crisp|lower|increase|rest|wait|cool|slide|pop|tip|sauté|squish|dice)\b/i;
   var DE_INF_END = /\b[a-zäöüß-]+(?:en|ern|eln)[.!…]*\s*$/;
@@ -1290,11 +1297,30 @@
   function capsToSentence(t) {
     return String(t).replace(/\b([A-ZÄÖÜ]{2,})\b/g, function (w) { return /^(BBQ|DIY|TK|XXL|USA|UK|EL|TL|PS|OK|TV|AI)$/.test(w) ? w : w.toLowerCase(); }).replace(/^\s*([a-zäöü])/, function (c) { return c.toUpperCase(); });
   }
-  function isInstruction(st, lang) {
-    var l = lower(st);
-    if (lang === "en") return EN_IMP.test(st) && !/\b(let it be|you['’]ve never|have you ever|you won['’]t|you['’]ll love)\b/i.test(st);
-    if (lang === "de") return (STEP_VERBS.test(st) || DE_VERBS.test(st) || DE_INF_END.test(st) || /(rühren|braten|kochen|backen|geben|legen)\b/i.test(st)) && !/^(ich|wir|mein|unser|heute|das ist|es ist|\d+ tage)\b/i.test(st);
-    return EN_IMP.test(st) || STEP_VERBS.test(st) || DE_VERBS.test(st);
+  // Koch-Handlungen: deutsche Verbstämme mit trennbaren Vorsilben ("andünsten", "einrühren", "untermengen") und englische Verben
+  var DE_ACT = /(?:^|[\s,(])(?:an|auf|aus|ein|mit|unter|durch|zu|ab|hinein|heraus|dazu|hinzu|über|darüber|nach|vor|weg|zusammen|um|ver|zer|be|ge|unterm|her)?(?:dünst|rühr|meng|tauch|leg|gieß|giess|drück|press|schwenk|streu|heb|brat|koch|back|gar|röst|misch|mix|püri|schneid|würfel|hack|reib|teil|geb|gib|füll|form|roll|knet|weich|mari|träufel|würz|abschmeck|servier|garnier|kühl|hitz|heiz|wend|dreh|deck|lass|lässt|stell|schäl|wasch|spül|tupf|zupf|schicht|streich|quell|zieh|reduzier|blanchier|dämpf|grill|frittier|toast|brösel|kleiner|schlag|sieb|glasier|karamellisier|lösch|tunk|halbier|viertel|köchel|simmer|schütt|wickel|bestreu|beträufel|leg|ordne|platzier|füg|nimm|nehm|verquirl|quirl|emulgier|sprüh|pinsel|bestreich|lager|frier|tau|zerkleiner|zerdrück|stampf|reib|ras|hobel|portionier|richt|pürier|vermeng|vermisch|schwitz|anschwitz|schmor|brutzel|bräun|garnier|dekorier|tränk|schöpf|abschöpf|klopf|raspel|hobel)(?:e|en|t|st|est|el|eln|ern|n|eren|ert)?\b/;
+  var EN_ACT = /\b(add|mix|stir|cook|bake|heat|preheat|place|pour|blend|combine|chop|slice|dice|mince|toss|serve|season|bring|reduce|simmer|roast|fry|saut[eé]|whisk|fold|transfer|top|garnish|drain|rinse|reserve|remove|spread|roll|cut|grate|squeeze|sprinkle|drizzle|marinate|coat|arrange|layer|divide|mash|boil|steam|grill|toast|soak|knead|shape|form|press|wrap|fill|cover|chill|freeze|refrigerate|melt|beat|cream|scoop|flip|turn|let|leave|allow|set aside|cool|rest|squash|crumble|massage|peel|core|halve|quarter|line|grease|brush|pulse|process|puree|strain|sift|scatter|finish|assemble|stuff|plate|portion)(?:s|ed|ing)?\b/i;
+  function isInstruction(st, lang, strict) {
+    if (/\?\s*$/.test(st) || /\b(unterstützen|support us|folgt uns|follow (?:me|us))\b/i.test(st)) return false;
+    var stl = st.replace(/^[A-ZÄÖÜ]/, function (c) { return c.toLowerCase(); });
+    if (/\b(let it be|you['’]ve never|have you ever|you won['’]t|you['’]ll love|ich liebe|i love|my favou?rite|mein liebling|must try)\b/i.test(st) || /\bwenn du\b.*\b(magst|liebst|willst)\b/i.test(st)) return false;
+    if (/\b(schmeckt|schmecken|tastes?|ist ein|is a)\b/i.test(st) && !/\babschmeck/i.test(st)) return false;
+    if (lang !== "en" && /\b(wird|werden)\b.*\b\w*ge\w+(t|en)\b/i.test(st) && !/\b(ich|wir)\b/i.test(st)) return true; // "Die Haferflocken werden … aufgekocht"
+    if (lang !== "en" && /^(dann|danach|anschließend|zuerst|zum schluss|jetzt|nun)\b/i.test(st) && DE_ACT.test(lower(st))) return true;
+    if (strict) {
+      // Fließtext ohne Rezept-Überschrift: nur klare Anweisungen (Befehlsform am Anfang, Infinitiv am Ende)
+      if (/\b(i|i'm|i’m|we|my|you['’]ll|that['’]s|ich|wir|mein)\b/i.test(st.replace(/\([^)]*\)/g, " "))) return false;
+      if (lang === "en") return EN_IMP.test(st.replace(/^\w+ly\s+/i, ""));
+      var main = stl.replace(/\([^)]*\)/g, " ").split(/[,;]\s|\s[–-]\s/)[0];
+      return DE_INF_END.test(st.replace(/\s*\([^)]*\)\s*[.!]?\s*$/, ".")) || DE_ACT.test(main) || DE_INF_END.test(main) || /^\w+en Sie\b/.test(st);
+    }
+    var narrative = /\b(let it be|you['’]ve never|have you ever|you won['’]t|you['’]ll love|ich liebe|i love|my favou?rite|mein liebling|follow|folg|kommentier|comment)\b/i.test(st) || /^(ich|wir|mein|unser|heute|das ist|es ist|i|we|my|our|today|this is|\d+ (tage|days))\b/i.test(st);
+    if (narrative) return false;
+    if (/^\s*(eiweiß|protein|fett|fat|kohlenhydrate|carbs|kcal|kalorien|ballaststoffe)\b/i.test(st)) return false;
+    if (st.length < 100 && /\b(in (?:eine|die|den|das|einen)|auf (?:den|die|das)|drüber|darüber|on top|into a|onto)\b/i.test(st)) return true; // "Alles in eine Bowl, Dressing drüber"
+    if (lang === "en") return EN_IMP.test(st) || EN_ACT.test(st) || STEP_VERBS.test(st);
+    if (lang === "de") return DE_ACT.test(stl) || STEP_VERBS.test(st) || DE_VERBS.test(st) || DE_INF_END.test(st);
+    return EN_IMP.test(st) || EN_ACT.test(st) || DE_ACT.test(stl) || STEP_VERBS.test(st) || DE_VERBS.test(st) || DE_INF_END.test(st);
   }
   function cleanSteps(raw, trusted) {
     var out = [], desc = [], ings = [];
@@ -1303,8 +1329,19 @@
     raw.forEach(function (st) {
       st.split(/\s*\/\s*(?=[A-ZÄÖÜ]{3,}\b)/).forEach(function (p) { if (clean(p)) list.push(clean(p)); });
     });
+    // Bruchstücke vorab zusammenführen ("Mit Olivenöl beträufeln und mit" + "Salz und Pfeffer würzen.")
+    var joined = [];
+    list.forEach(function (st) {
+      var prev = joined[joined.length - 1], c = clean(stripEmoji(st));
+      if (prev && !/:\s*$/.test(prev) && !/^#/.test(c) && (/\b(und|oder|mit|von|zu|auf|bei|bis|in|and|or|with|to|at|of|the|den|die|das|dem|einer|einem|eine|ein)$/i.test(prev) || (/^[a-zäöü]/.test(c) && !/[.!?:)]$/.test(prev)))) joined[joined.length - 1] = prev + " " + c;
+      else joined.push(c);
+    });
+    list = joined;
     list.forEach(function (st) {
       var t = clean(stripEmoji(st));
+      // Werbung am Ende eines langen Schritts abschneiden ("… mit Puderzucker bestreuen für mehr Rezepte folgt uns")
+      var ctaAt = t.search(CTA);
+      if (ctaAt > 40) t = t.slice(0, ctaAt).replace(/[\s,;–-]+(?:für|for)?\s*$/i, "").replace(/[\s,;]+$/, "");
       if (!t || t.length < 3) return;
       if (/^(fett|fat|kohlenhydrate|kh|carbs?|protein|eiweiß|eiweiss|kalorien|kcal|calories|ballaststoffe|fib(?:re|er)|zucker|portionen|servings|schwierigkeit\w*|zubereitungszeit|kochzeit|nährwerte|makros?)\b[^.]{0,40}[:|]/i.test(t) || /schwierigkeitsgrad/i.test(t) && t.length < 80) return;
       if (/^(euer|eure|deine?|your|xoxo|love|big love)\s+\S+$/i.test(t)) return; // Signatur "Euer Gian"
@@ -1323,13 +1360,14 @@
       if (caps) t = capsToSentence(t);
       t = capsToSentence(t.replace(/\b([A-ZÄÖÜ]{3,})\b/, function (w) { return w; }));
       var lang = langOfText(t);
-      var instr = isInstruction(t, lang);
+      var instr = isInstruction(t, lang, !trusted);
       // Erzählung in der Ich-Form oder Hintergrund ("Meine Mutter hat …", "Normalerweise wird …")
       if (/^(hi|hallo|hey|normalerweise|eigentlich|ursprünglich|traditionell|es gibt|dieses rezept|this recipe|meine?|my|ich|i|wir|we)\b/i.test(t) && !/^(ich|i|wir|we)\s+(gebe|mische|brate|koche|add|mix|stir)\b/i.test(t)) { desc.push(t); return; }
       if (/\b(ich|mein\w*|wir|unser\w*|I|my|we|our)\b/.test(t) && !(STEP_VERBS.test(t.split(/\s+/).slice(0, 8).join(" ")) || DE_VERBS.test(t.split(/\s+/).slice(0, 8).join(" ")) || EN_IMP.test(t))) { desc.push(t); return; }
       if (NARRATIVE.test(t) && !instr) { desc.push(t); return; }
       if (!trusted && !instr) { desc.push(t); return; }
-      if (trusted && !instr && (lang === "en" || lang === "de") && (NARRATIVE.test(t) || /^(ich|wir|i|we|my|mein|heute|today|\d+ (tage|days))\b/i.test(t) || t.length > 60 && !/\d/.test(t.replace(/^\d+[.)]\s*/, "")))) { desc.push(t); return; }
+      // Nur echte Arbeitsschritte: ohne Koch-Handlung ist es Beschreibung oder Tipp (auch in nummerierten Listen)
+      if (trusted && !instr && (lang === "en" || lang === "de" || lang === "?") && !/\d+\s*(min|minuten|minutes|°|grad|std|stunden)/i.test(t)) { desc.push(t); return; }
       out.push(fToC(t));
     });
     // Bruchstücke zusammenführen ("preheat your oven to" + "230 °C (note …")
@@ -1392,6 +1430,7 @@
       if (!plain || NOISE.test(plain) || /^[\W_]+$/.test(plain)) return;
       if (HEAD_ING.test(plain) && (plain.length < 50 || /^\W*[a-zäöüß' ]+\s*(\([^)]*\))?\s*:/i.test(plain))) {
         mode = "ing";
+        if (/^\W*für (den|die|das) /i.test(plain)) ingredients.push(GROUP_MARK + groupName(plain));
         var after = plain.replace(HEAD_ING, "").replace(/^\s*(\([^)]*\))?[\s:]*/, "");
         var sv = findServings(plain); if (sv) r.servings = sv;
         if (after) after.split(/\s*[,;]\s*(?=\d|[A-ZÄÖÜ])/).forEach(function (a) { if (looksLikeIngredient(a)) ingredients.push(a); });
@@ -1403,8 +1442,8 @@
         if (after2.length > 3) steps.push(after2);
         return;
       }
-      if (mode === "ing" && SUBHEAD_WORD.test(plain)) return; // Unterüberschrift ohne Doppelpunkt
-      if (mode === "ing" && !/\d/.test(plain) && (/:\s*$/.test(plain) || (plain === plain.toUpperCase() && /[A-ZÄÖÜ]{3}/.test(plain) && plain.split(/\s+/).length <= 5))) return; // "Glaze:", "MISO SAUCE"
+      if (mode === "ing" && SUBHEAD_WORD.test(plain)) { ingredients.push(GROUP_MARK + groupName(plain)); return; } // Unterüberschrift ohne Doppelpunkt
+      if (mode === "ing" && !/\d/.test(plain) && (/:\s*$/.test(plain) || (plain === plain.toUpperCase() && /[A-ZÄÖÜ]{3}/.test(plain) && plain.split(/\s+/).length <= 5))) { ingredients.push(GROUP_MARK + groupName(plain)); return; } // "Glaze:", "MISO SAUCE"
       // "Topping: Joghurt oder Skyr, Kokosraspeln" – Liste hinter einer Unterüberschrift
       var sub = plain.match(/^(toppings?|topping-ideen|garnish|garnitur|deko|zum servieren|to serve|für das topping|for the topping|extras?|optional)\s*:\s*(.{3,})$/i);
       if (sub && (mode === "ing" || ingredients.length)) {
@@ -1417,7 +1456,7 @@
         if (looksLikeIngredient(line) || (plain.length < 45 && !/[.!?]$/.test(plain) && BULLET_RE.test(line))) {
           ingredients.push(line); return;
         }
-        if (/^(für|for)\b.{0,30}:$/i.test(plain)) return; // Unterüberschrift "Für die Sauce:"
+        if (/^(für|for)\b.{0,30}:$/i.test(plain)) { ingredients.push(GROUP_MARK + groupName(plain)); return; } // Unterüberschrift "Für die Sauce:"
         // Kommaliste kurzer Namen: "herbs, chili flakes, olive oil, salt & pepper"
         var segs = plain.split(/\s*,\s*/);
         if (!startsQty && segs.length >= 2 && segs.every(function (x) { return x && x.split(/\s+/).length <= 4; }) && !isStepLike(plain) && !segs.slice(1).some(function (x) { return /\b(chopped|diced|sliced|minced|grated|torn|roughly|finely|peeled|drained|rinsed|gehackt|geschnitten|gewürfelt|gerieben|geschält|fein|grob|abgetropft)\b/i.test(x); })) {
@@ -1440,7 +1479,7 @@
       loose.forEach(function (l, i) {
         var p = clean(stripEmoji(l));
         if (i === 0 && r.title && p.indexOf(r.title) !== -1) return;
-        if (SUBHEAD_WORD.test(p.replace(/:\s*$/, ""))) { lastIng = false; return; }
+        if (SUBHEAD_WORD.test(p.replace(/:\s*$/, ""))) { lastIng = false; ingredients.push(GROUP_MARK + groupName(p)); return; }
         if (looksLikeIngredient(l)) { ingredients.push(l); lastIng = true; return; }
         // kurze Zeile mitten in einer Zutatenliste ("Gurke, Tomaten nach Belieben")
         if (lastIng && p.length < 45 && !/[.!]$/.test(p) && !/^(so|und|dann|jetzt)\b/i.test(p)) { ingredients.push(l); return; }
@@ -1461,17 +1500,25 @@
 
     // "Plant-based cream + veggie broth" -> zwei Zutaten
     ingredients = [].concat.apply([], ingredients.map(function (l) {
+      if (String(l).indexOf(GROUP_MARK) === 0) return [l];
       var p = clean(stripEmoji(l).replace(BULLET_RE, ""));
       var parts = p.split(/\s+\+\s+/);
       return parts.length > 1 && parts.every(function (x) { return x.split(/\s+/).length <= 5; }) ? parts : [l];
     }));
     // Zeilen, die eher Schritte sind, in die Zubereitung verschieben
     ingredients = ingredients.filter(function (l) {
+      if (String(l).indexOf(GROUP_MARK) === 0) return true;
       var p = clean(stripEmoji(l).replace(BULLET_RE, ""));
       if (p.length > 30 && isStepLike(p) && !(readQuantity(p) && readUnit(readQuantity(p).rest))) { expanded.push(l); return false; }
       return true;
     });
-    r.ingredients = ingredients.map(parseIngredientLine).filter(Boolean);
+    var grp = "";
+    r.ingredients = [];
+    ingredients.forEach(function (l) {
+      if (String(l).indexOf(GROUP_MARK) === 0) { grp = String(l).slice(GROUP_MARK.length); return; }
+      var ing = parseIngredientLine(l);
+      if (ing) { if (grp) ing.group = grp; r.ingredients.push(ing); }
+    });
     // Zutaten stehen nur im Fließtext der Zubereitung ("blend 1 can white beans, 2 cups of peas …")
     if (r.ingredients.filter(function (i) { return i.qty != null; }).length < 3) {
       var inline = extractInlineIngredients(expanded.join(" \n "));
@@ -1739,7 +1786,7 @@
       if (/(^|,\s*)(v|vegan|vegane?r?|pflanzlich)(\s*,|$)/i.test(i.note || "")) return "vegan " + lower(i.name);
       return lower(i.name + " " + (i.note || ""));
     }).join(" | ");
-    var allText = lower(r.title + " | " + ingText + " | " + r.steps.join(" | ") + " | " + (r.keywords || "") + " | " + (r.blogCategory || ""));
+    var allText = lower(r.title + " | " + ingText + " | " + r.steps.join(" | ") + " | " + (r.description || "") + " | " + (r.keywords || "") + " | " + (r.blogCategory || ""));
 
     // Ernährungsstil
     var diet = [];
@@ -1861,7 +1908,7 @@
 
   function ingredientQuality(list) {
     if (!list || !list.length) return 0;
-    var withQty = list.filter(function (i) { return i.qty != null || /prise|etwas|nach geschmack|to taste|optional/i.test(i.raw); }).length;
+    var withQty = list.filter(function (i) { return (i.qty != null && !i.qtyEstimated) || /prise|etwas|nach geschmack|to taste|optional/i.test(i.raw); }).length;
     return list.length * (0.4 + 0.6 * (withQty / list.length));
   }
 
@@ -2205,6 +2252,52 @@
     r.ingredients = out; r.ingredientsTranslated = true;
     return r;
   }
+  // Welche Zutaten werden in welchem Schritt verwendet? -> [[Zutat-Index, …], …] je Schritt (Überschriften: [])
+  function stepIngredients(r) {
+    var steps = r.steps || [], ings = r.ingredients || [];
+    var heads = ings.map(function (i) {
+      var names = [i.name, i.nameOriginal || ""].concat(i.key ? [i.key] : []).join(" ").toLowerCase().replace(/[()]/g, " ");
+      var w = names.split(/[\s,\/]+/).filter(function (x) { return x.length >= 3 && !ADJ_WORD.test(x) && !/^(und|oder|and|or|mit|with|von|für|frisch|frische|gehackt|getrocknet|gemahlen|gekocht|gekochte|braune|rote|grüne|weiße|schwarze|dunkle|helle|vegane|veganer|veganes|pflanzliche|pflanzlicher|neutrales|extra|fein|grob)$/.test(x); });
+      return w.map(function (x) { return x.replace(/(e|en|n|s|er)$/, "").replace(/-$/, ""); }).filter(function (x) { return x.length >= 3 && !/^(aus|dem|der|die|das|den|vom|zum|glas|dose|pck|packung|koro|bio|light)$/.test(x); });
+    });
+    var used = {};
+    var res = steps.map(function (st, si) {
+      if (/^## /.test(st)) return [];
+      var low = " " + lower(st).replace(/[^a-zäöüß0-9 -]+/g, " ") + " ";
+      var hits = [];
+      ings.forEach(function (i, n) {
+        var ok = heads[n].some(function (h) {
+          if (h.length <= 3) return new RegExp("[\\s-]" + escapeRe(h) + "(e|en|n|s)?[\\s-]").test(low);
+          return new RegExp("[\\s-]" + escapeRe(h) + "[a-zäöüß]*").test(low) || new RegExp("[a-zäöüß]{3,}" + escapeRe(h) + "(e|en|n|s|würfel|stücke|scheiben)?[\\s-]").test(low);
+        });
+        if (ok) hits.push(n);
+      });
+      // "Paprika" nicht zusätzlich, wenn nur "Paprikapulver" gemeint ist
+      hits = hits.filter(function (n) {
+        return !hits.some(function (m) {
+          if (m === n) return false;
+          var a = lower(ings[n].name), b = lower(ings[m].name);
+          return b.length > a.length && b.indexOf(a) !== -1 && low.indexOf(b) !== -1 && low.split(b).join("").indexOf(a) === -1;
+        });
+      });
+      hits.forEach(function (n) { used[n] = 1; });
+      return hits;
+    });
+    // "Alle Zutaten für das Dressing …": Zutaten dieser Gruppe; "restliche Zutaten": bisher ungenutzte
+    steps.forEach(function (st, si) {
+      var l = lower(st);
+      if (!/\b(alle\w*\s+(?:\w+\s+)?zutaten|all (?:the )?(?:\w+ )?ingredients|restlichen|übrigen|remaining)\b/.test(l)) return;
+      var groups = {}; ings.forEach(function (i) { if (i.group) groups[lower(i.group)] = 1; });
+      var g = Object.keys(groups).filter(function (gn) { return gn.split(/[\s-]+/).some(function (w) { return w.length > 3 && l.indexOf(w.replace(/(e|en|s)$/, "")) !== -1; }); })[0];
+      var dry = /trocken|dry/.test(l), wet = /flüssig|nass|wet/.test(l);
+      var LIQ = /(drink|milch|joghurt|öl$|^öl|wasser|saft|sirup|sahne|creme|butter|essig|sauce|soße)/;
+      if (g) { ings.forEach(function (i, n) { if (lower(i.group || "") === g && res[si].indexOf(n) === -1 && !(dry && LIQ.test(i.key || "")) && !(wet && !LIQ.test(i.key || ""))) { res[si].push(n); used[n] = 1; } }); return; }
+      if (/\b(für|for) (den|die|das|the)\b/.test(l) && !/restlich|übrig|remaining/.test(l)) return; // Gruppe unbekannt: lieber nichts
+      ings.forEach(function (i, n) { if (!used[n] && !i.staple && res[si].indexOf(n) === -1) { res[si].push(n); used[n] = 1; } });
+    });
+    return res;
+  }
+
   // Ist ein Titel (noch) englisch? ("Romesco-Style Butter Beans" ja, "Linsen-Curry" nein)
   function isEnglishTitle(t) {
     t = String(t || ""); if (!t || /[äöüß]/i.test(t) || /\b(alla|al|all['’]\S*|con|di|de|à la|aus|einem|einer|mit|und|vom|im|auf|nach|art)\b/i.test(t)) return false;
@@ -2341,6 +2434,28 @@
     r.servingsPending = "energie"; r.askServings = true;
   }
 
+  // Fehlende Mengen nach Faustregeln schätzen (als "geschätzt" markiert); Gewürze bleiben "nach Geschmack"
+  var QTY_RULES = [
+    [/^(olivenöl|öl|neutrales öl|rapsöl|sesamöl|kokosöl)$/, 1, "EL"], [/^knoblauch/, 1, "Zehe"], [/^(zwiebel|rote zwiebel|weiße zwiebel|schalotte)$/, 1, ""],
+    [/^frühlingszwiebel/, 2, ""], [/^(petersilie|frische petersilie|koriander|basilikum|schnittlauch|dill|minze)$/, 0.5, "Bund"],
+    [/^(zitronensaft|limettensaft)$/, 1, "EL"], [/^(zitrone|limette)$/, 1, ""], [/^(sojasauce|tomatenmark|honig|ahornsirup|agavendicksaft)$/, 1, "EL"],
+    [/^senf/, 1, "TL"], [/^(hefeflocke|hefeflocken|parmesan|veganer parmesan)$/, 2, "EL"], [/^(butter|vegane butter|margarine)$/, 1, "EL"],
+    [/^(kokosmilch)$/, 1, "Dose"], [/^(passierte tomaten|gehackte tomaten|stückige tomaten)$/, 400, "g"], [/^feta$/, 100, "g"], [/^mozzarella$/, 125, "g"],
+    [/^(nudel|nudeln|pasta|spaghetti|penne|rigatoni|fusilli|farfalle|tagliatelle)$/, 100, "g", true], [/^(reis|basmatireis|vollkornreis)$/, 75, "g", true],
+    [/^tofu/, 100, "g", true], [/^(gemüsebrühe|brühe)$/, 250, "ml"], [/^(spinat|babyspinat)$/, 50, "g", true]
+  ];
+  function estimateMissingQty(r) {
+    var serv = r.servings || 2;
+    r.ingredients.forEach(function (i) {
+      if (i.qty != null || i.optional || isSpice(i) || /^(salz|pfeffer|wasser)/.test(i.key || "")) return;
+      if (/nach (belieben|geschmack)|to taste|optional/i.test(i.raw || "")) return;
+      for (var n = 0; n < QTY_RULES.length; n++) {
+        var q = QTY_RULES[n];
+        if (q[0].test(i.key || "")) { i.qty = q[3] ? q[1] * serv : q[1]; if (!i.unit) i.unit = q[2]; i.qtyEstimated = true; break; }
+      }
+    });
+  }
+
   function finalize(r) {
     if (!r.timeTotal && r.steps.length) {
       var est = estimateTimeFromSteps(r.steps);
@@ -2377,7 +2492,7 @@
     // doppelte Zutaten zusammenfassen
     var seen = {};
     r.ingredients = r.ingredients.filter(function (i) {
-      var k = i.key + "|" + i.unit + "|" + i.qty;
+      var k = i.key + "|" + i.unit + "|" + i.qty + "|" + (i.group || "");
       if (seen[k]) return false; seen[k] = 1; return true;
     });
     // Titel: Caption-Titel leicht anpassen, Englisch direkt übersetzen; Original bleibt erhalten
@@ -2396,6 +2511,7 @@
     if (r.title) r.title = r.title.replace(/^[a-zäöü]/, function (c) { return c.toUpperCase(); });
     r.lang = detectLang(r);
     classify(r);
+    estimateMissingQty(r);
     if (r.titleFromIngredients) {
       var suf = { "Salat & Bowl": /dressing|salat|salad/i.test(r.steps.join(" ") + r.ingredients.map(function (i) { return i.raw; }).join(" ")) ? "Salat" : "Bowl", "Suppe & Eintopf": "Suppe", "Backen": "Kuchen", "Frühstück": "", "Sauce & Dip": "Dip" }[r.category];
       if (suf) r.title = r.titleFromIngredients.join("-") + "-" + suf;
@@ -3262,7 +3378,7 @@
     extractInlineIngredients: extractInlineIngredients, isStepLike: isStepLike, postType: postType, normalizeFancy: normalizeFancy, zuordnungsVorschlaege: zuordnungsVorschlaege,
     recipeId: recipeId, importNeue: importNeue, folgenVorschlag: folgenVorschlag, folgenAntwort: folgenAntwort, FOLGEN_ERNEUT_AB: FOLGEN_ERNEUT_AB,
     blogSuchplan: blogSuchplan, blogKandidaten: blogKandidaten, besteKandidaten: besteKandidaten, pruefeBlogTreffer: pruefeBlogTreffer,
-    parseRecipeHtml: parseRecipeHtml, inferServings: inferServings, uebersetzeSchritte: uebersetzeSchritte, uebersetzeZutaten: uebersetzeZutaten, mergeFrameText: mergeFrameText, isEnglishTitle: isEnglishTitle, parseTranscript: parseTranscript, detectLang: detectLang, rezeptStil: rezeptStil, cleanSteps: cleanSteps, langOfText: langOfText, dropEnglishHalf: dropEnglishHalf
+    parseRecipeHtml: parseRecipeHtml, inferServings: inferServings, uebersetzeSchritte: uebersetzeSchritte, uebersetzeZutaten: uebersetzeZutaten, mergeFrameText: mergeFrameText, isEnglishTitle: isEnglishTitle, stepIngredients: stepIngredients, parseTranscript: parseTranscript, detectLang: detectLang, rezeptStil: rezeptStil, cleanSteps: cleanSteps, langOfText: langOfText, dropEnglishHalf: dropEnglishHalf
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = api;
