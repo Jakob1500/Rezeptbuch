@@ -116,6 +116,10 @@ a.btn { text-decoration: none; }
 .steps { margin: 0; padding: 0; list-style: none; display: grid; gap: 0; }
 .steps li { display: grid; grid-template-columns: 28px 1fr; gap: 10px; padding: 12px 16px; position: relative; }
 .steps li + li::before { content: ""; position: absolute; top: 0; left: 54px; right: 0; height: 1px; background: var(--line); }
+.steps li.head { display: block; padding: 14px 16px 4px; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.steps li.head + li::before, .steps li + li.head::before { display: none; }
+.hero .desc { margin: 6px 0 0; color: var(--muted); font-size: 0.92rem; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.cook .stephead { margin: 0 0 6px; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
 .steps .n { width: 26px; height: 26px; border-radius: 50%; background: var(--surface-2); display: grid; place-items: center; font-size: 0.82rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .nutri { display: grid; grid-template-columns: repeat(4, 1fr); }
 .nutri div { padding: 12px 8px; text-align: center; display: grid; gap: 2px; }
@@ -264,7 +268,7 @@ a { color: var(--accent); }
 (function () {
   "use strict";
   var K = window.RezeptKern, NW = NAEHRWERTE;
-  var APP_VERSION = "0.4.1";
+  var APP_VERSION = "0.5.0";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -448,9 +452,28 @@ a { color: var(--accent); }
   }
   function reanalyse(e) {
     if (!e.input) return;
-    var res = K.analyse(e.input);
-    e.recipe = res.recipe; K.berechneNaehrwerte(e.recipe, NW, null, { zuordnungen: S.zuord });
-    e.updatedAt = Date.now();
+    var old = e.recipe;
+    var res = K.analyse(e.input), r = res.recipe;
+    // Übersetzungen behalten, solange sich der Originaltext nicht geändert hat
+    if (old && old.stepsTranslated && old.stepsOriginal && JSON.stringify(old.stepsOriginal) === JSON.stringify(r.steps)) {
+      r.stepsOriginal = old.stepsOriginal; r.steps = old.steps; r.stepsTranslated = true; r.lang = "de";
+    }
+    if (old && old.ingredientsTranslated && JSON.stringify(old.ingredients.map(function (i) { return i.rawOriginal || i.raw; })) === JSON.stringify(r.ingredients.map(function (i) { return i.raw; }))) {
+      r.ingredients = old.ingredients; r.ingredientsTranslated = true;
+    }
+    if (old && old.source && old.source.blogUrl && !r.source.blogUrl) r.source.blogUrl = old.source.blogUrl;
+    K.berechneNaehrwerte(r, NW, null, { zuordnungen: S.zuord });
+    if (e.input.caption) { try { e.typ = K.recipeLikelihood(res, e.input.caption, e.input.url).typ || e.typ; } catch (x) { /* egal */ } }
+    e.recipe = r; e.updatedAt = Date.now();
+  }
+  // Neuer Analyse-Kern: alle Rezepte einmal neu auswerten (Favorit, Titel von dir, „gekocht“ bleiben)
+  function reanalyseAll() {
+    if (S.meta.kern === K.VERSION) return 0;
+    var n = 0;
+    Object.keys(S.recipes).forEach(function (id) { var e = S.recipes[id]; if (!e.input) return; try { reanalyse(e); n++; } catch (x) { /* Rezept bleibt wie es war */ } });
+    var first = !S.meta.kern;
+    S.meta.kern = K.VERSION; save("meta"); if (n) save("recipes");
+    return first ? 0 : n;
   }
 
   // ------------------------------------------------------------------ Beispiele (selbst geschrieben, beim ersten Start)
@@ -549,7 +572,7 @@ a { color: var(--accent); }
     var hidden = !searching && S.prefs.diet !== "alles" ? all.length - mine.length : 0;
     var ex = all.some(function (e) { return e.example; });
     var enN = englishEntries().length;
-    var enHint = enN && !S.meta.trPending ? '<div class="banner">' + ic("lang") + '<div class="main"><b>' + enN + (enN === 1 ? " Rezept hat" : " Rezepte haben") + ' englische Schritte.</b> Jetzt auf Deutsch übersetzen.</div><button class="btn accent" data-a="translate">Übersetzen</button></div>' : '';
+    var enHint = enN && !S.meta.trPending ? '<div class="banner">' + ic("lang") + '<div class="main"><b>' + enN + (enN === 1 ? " Rezept hat" : " Rezepte haben") + ' Schritte in einer Fremdsprache.</b> Jetzt auf Deutsch übersetzen.</div><button class="btn accent" data-a="translate">Übersetzen</button></div>' : '';
     // Immer nur ein Hinweis auf einmal, der wichtigste zuerst
     var banner = [onboardBanner(), translateBanner(), enHint, backupBanner()].filter(Boolean)[0] || "";
     return head + banner + (S.prefs.onboarded ? guide("rezepte") : "") + tools + personal +
@@ -636,22 +659,29 @@ a { color: var(--accent); }
   // Ablauf: App kopiert die englischen Schritte mit Markierungen (#Rezept.Schritt#) -> Kurzbefehl
   // „Rezeptbuch übersetzen“ übersetzt auf dem iPhone und kopiert das Ergebnis -> App setzt es ein.
   var TR_MAX = 12000; // ca. 20 Rezepte pro Durchgang; bei Problemen kleiner stellen
-  function englishEntries() { return entries().filter(function (e) { var r = e.recipe; return r.steps.length && !r.stepsTranslated && K.detectLang(r) === "en"; }); }
+  var LANG_NAME = { en: "Englisch", nl: "Niederländisch", fr: "Französisch" };
+  var ING_OFFSET = 500; // Zutaten bekommen die Marken #n.501#, #n.502# …
+  function foreignLang(r) { var l = K.detectLang(r); return r.steps.length && !r.stepsTranslated && LANG_NAME[l] ? l : ""; }
+  function englishEntries() { return entries().filter(function (e) { return !!foreignLang(e.recipe); }); }
   function startTranslate(firstId) {
     var list = englishEntries();
     if (firstId) list.sort(function (a, b) { return (b.id === firstId) - (a.id === firstId); });
     if (!list.length) { toast("Alle Rezepte sind schon auf Deutsch"); return; }
+    // pro Durchgang nur eine Sprache, damit Apples Übersetzer sie sicher erkennt
+    var lang = foreignLang(list[0].recipe);
+    list = list.filter(function (e) { return foreignLang(e.recipe) === lang; });
     var lines = [], ids = [], len = 0;
     for (var n = 0; n < list.length; n++) {
       var r = list[n].recipe, block = [];
       if (!r.titleTranslated && r.titleOriginal && !/[äöüß]/i.test(titleOf(list[n]))) block.push("#" + n + ".0# " + (r.titleOriginal || r.title));
-      r.steps.forEach(function (st, k) { block.push("#" + n + "." + (k + 1) + "# " + st); });
+      r.steps.forEach(function (st, k) { block.push("#" + n + "." + (k + 1) + "# " + st.replace(/^## /, "")); });
+      if (lang !== "en") r.ingredients.forEach(function (i, k) { block.push("#" + n + "." + (ING_OFFSET + k + 1) + "# " + i.raw); });
       var bl = block.join("\n");
       if (ids.length && len + bl.length > TR_MAX) break;
       lines.push(bl); ids.push(list[n].id); len += bl.length;
     }
-    S.meta.trPending = { ids: ids, at: Date.now() }; save("meta");
-    copy(lines.join("\n\n"), ids.length + (ids.length === 1 ? " Rezept" : " Rezepte") + " zum Übersetzen kopiert");
+    S.meta.trPending = { ids: ids, at: Date.now(), lang: lang }; save("meta");
+    copy(lines.join("\n\n"), ids.length + (ids.length === 1 ? " Rezept" : " Rezepte") + " (" + LANG_NAME[lang] + ") zum Übersetzen kopiert");
     var go = function () { try { location.href = "shortcuts://run-shortcut?name=" + encodeURIComponent("Rezeptbuch übersetzen"); } catch (x) { /* kein Kurzbefehl verfügbar */ } };
     if (/claude|claudeusercontent/.test(location.hostname)) { setTimeout(translateSheet, 400); return; }
     setTimeout(go, 150);
@@ -686,13 +716,15 @@ a { color: var(--accent); }
       var translated = steps.filter(function (x, k) { return x !== r.steps[k]; }).length;
       if (translated < Math.ceil(r.steps.length / 2)) return;
       K.uebersetzeSchritte(r, steps);
+      var ingLines = r.ingredients.map(function (_, k) { return g[ING_OFFSET + k + 1] || ""; });
+      if (ingLines.some(Boolean)) { K.uebersetzeZutaten(r, ingLines); K.berechneNaehrwerte(r, NW, null, { zuordnungen: S.zuord }); }
       if (g[0] && !e.userTitle) { r.titleOriginal = r.titleOriginal || r.title; r.title = K.polishTitle(g[0]); r.titleTranslated = true; }
       e.updatedAt = Date.now(); done++;
     });
     if (!done) { toast("Keine Übersetzung erkannt. Bitte den übersetzten Text einfügen."); translateSheet(); return; }
     S.meta.trPending = null; save("meta"); save("recipes"); closeSheet(); render();
     var rest = englishEntries().length;
-    toast(done + (done === 1 ? " Rezept" : " Rezepte") + " übersetzt" + (rest ? ", " + rest + " noch auf Englisch" : ""));
+    toast(done + (done === 1 ? " Rezept" : " Rezepte") + " übersetzt" + (rest ? ", " + rest + " noch nicht auf Deutsch" : ""));
   }
 
   // ------------------------------------------------------------------ Ansicht: Detail
@@ -716,7 +748,11 @@ a { color: var(--accent); }
         (i.note ? '<span class="sub">' + esc(i.note) + '</span>' : '') + '</span></div>';
     }).join("");
     var stepList = orig && r.stepsOriginal ? r.stepsOriginal : r.steps;
-    var steps = stepList.map(function (s2, k) { return '<li><span class="n">' + (k + 1) + '</span><span>' + esc(s2) + '</span></li>'; }).join("");
+    var num = 0;
+    var steps = stepList.map(function (s2) {
+      if (/^## /.test(s2)) return '<li class="head">' + esc(s2.slice(3)) + '</li>';
+      num++; return '<li><span class="n">' + num + '</span><span>' + esc(s2) + '</span></li>';
+    }).join("");
     var labelGroups = {};
     visibleLabels(r).forEach(function (l) { if (l.gruppe === "Gang") return; (labelGroups[l.gruppe] = labelGroups[l.gruppe] || []).push(l); });
     var labels = Object.keys(labelGroups).map(function (g) {
@@ -734,7 +770,8 @@ a { color: var(--accent); }
     }
     var src = r.source.url ? '<a class="row" href="' + esc(r.source.url) + '" target="_blank" rel="noopener"><span class="main"><span class="title">Original auf Instagram</span><span class="sub">' + (r.source.account ? "@" + esc(r.source.account) : "") + '</span></span>' + ic("chev", "chev") + '</a>' : "";
     var blog = r.source.blogUrl ? '<a class="row" href="' + esc(r.source.blogUrl) + '" target="_blank" rel="noopener"><span class="main"><span class="title">Rezept auf dem Blog</span><span class="sub">' + esc(String(r.source.blogUrl).replace(/^https?:\/\//, "").slice(0, 60)) + '</span></span>' + ic("chev", "chev") + '</a>' : "";
-    var missing = !c.enough ? '<div class="note"><b>Noch unvollständig: ' + esc(c.missing.join(", ")) + '.</b><span>' + esc(nextHint(r, e)) + '</span></div>' : "";
+    var missing = !c.enough ? '<div class="note"><b>Noch unvollständig: ' + esc(c.missing.join(", ")) + '.</b><span>' + esc(nextHint(r, e)) + '</span>' +
+      (e.input ? '<button class="btn soft" data-a="add-text" data-id="' + esc(id) + '">' + ic("copy") + 'Fehlenden Text einfügen</button>' : '') + '</div>' : "";
     var unitWord = r.servingsUnit && r.servingsUnit !== "Portionen" && r.servingsUnit !== "Portion" ? r.servingsUnit : (serv === 1 ? "Portion" : "Portionen");
     var household = !UI.servings[id] && r.servings && serv !== r.servings && serv === S.prefs.persons;
     var meta = [];
@@ -745,21 +782,21 @@ a { color: var(--accent); }
       '<button class="iconbtn" data-a="more" data-id="' + esc(id) + '" aria-label="Mehr">' + ic("more") + '</button></div></header>' +
       '<section class="hero">' + '<div class="tags">' + (r.labels || []).filter(function (l) { return l.gruppe === "Gang"; }).map(function (l) { return '<span class="tag">' + esc(l.label) + '</span>'; }).join("") +
       (r.titleGuessed ? '<span class="badge warn">Titel vorgeschlagen</span>' : '') + (e.example ? '<span class="badge">Beispiel</span>' : '') + (orig ? '<span class="badge">Original</span>' : '') + '</div>' +
-      '<h1>' + esc(orig && r.titleOriginal ? r.titleOriginal : titleOf(e)) + '</h1>' + (meta.length ? '<p class="small muted">' + esc(meta.join(" · ")) + '</p>' : '') + '</section>' +
+      '<h1>' + esc(orig && r.titleOriginal ? r.titleOriginal : titleOf(e)) + '</h1>' + (r.description && !orig ? '<p class="desc">' + esc(r.description) + '</p>' : '') + (meta.length ? '<p class="small muted">' + esc(meta.join(" · ")) + '</p>' : '') + '</section>' +
       '<div class="facts"><div class="fact"><b>' + fmtMin(r.timeTotal) + '</b><span>' + (r.timeTotal ? minUnit(r.timeTotal) + (r.timeEstimated ? ", geschätzt" : "") : "Zeit unbekannt") + '</span></div>' +
       (showNutri() ? '<div class="fact"><b>' + (n && n.reliable && n.perServing ? n.values.kcal : "–") + '</b><span>kcal pro ' + (n && n.perUnit === "Stück" ? "Stück" : "Portion") + '</span></div>' :
         '<div class="fact"><b>' + esc(r.difficulty || "–") + '</b><span>Aufwand</span></div>') +
       '<div class="fact"><b class="num">' + (m.total ? (m.total - m.missing) + "/" + m.total : "–") + '</b><span>Zutaten da</span></div></div>' +
-      (r.steps.length ? '<button class="btn" data-a="cook" data-id="' + esc(id) + '">' + ic("play") + 'Kochen starten</button>' : '') +
+      (cookList(r).length ? '<button class="btn" data-a="cook" data-id="' + esc(id) + '">' + ic("play") + 'Kochen starten</button>' : '') +
       guide("detail") + missing +
       '<section class="sec"><div class="sec-head"><h2>Zutaten</h2><span class="stepper" role="group" aria-label="Portionen"><button data-a="serv" data-id="' + esc(id) + '" data-d="-1" aria-label="Weniger">−</button><output>' + serv + " " + esc(unitWord) + '</output><button data-a="serv" data-id="' + esc(id) + '" data-d="1" aria-label="Mehr">+</button></span></div>' +
       (household ? '<p class="have-line">Auf deinen Haushalt umgerechnet (' + S.prefs.persons + ' Personen, im Rezept ' + r.servings + ').</p>' : '') +
       (r.yieldText ? '<p class="have-line">' + esc(r.yieldText) + '</p>' : '') +
-      '<p class="have-line"><span class="dot have"></span>' + (m.missing ? "Grün: hast du. " + m.missing + (m.missing === 1 ? " Zutat fehlt." : " Zutaten fehlen.") : "Du hast alles zu Hause.") + '</p>' +
+      (m.total ? '<p class="have-line"><span class="dot have"></span>' + (m.missing ? "Grün: hast du. " + m.missing + (m.missing === 1 ? " Zutat fehlt." : " Zutaten fehlen.") : "Du hast alles zu Hause.") + '</p>' : '') +
       '<div class="group">' + (ings || '<div class="row"><span class="muted">Keine Zutaten erkannt.</span></div>') + '</div>' +
       (m.missing ? '<button class="btn ' + (onList ? "soft" : "accent") + '" data-a="to-list" data-id="' + esc(id) + '">' + ic(onList ? "check" : "bag") + (onList ? "Auf der Einkaufsliste · aktualisieren" : m.missing + " fehlende Zutaten auf die Liste") + '</button>' : '') + '</section>' +
       (steps ? '<section class="sec"><div class="sec-head"><h2>Zubereitung</h2>' + (orig && r.stepsOriginal ? '<span class="small muted">Original</span>' : '') + '</div>' +
-        (K.detectLang(r) === "en" && !r.stepsTranslated ? '<div class="note info"><b>Die Schritte sind noch auf Englisch.</b><span>Apples Übersetzer auf deinem iPhone macht sie deutsch, ohne Internet und kostenlos.</span><button class="btn accent" data-a="translate" data-id="' + esc(id) + '">' + ic("lang") + 'Auf Deutsch übersetzen</button></div>' : '') +
+        (foreignLang(r) ? '<div class="note info"><b>Die Schritte sind noch auf ' + LANG_NAME[foreignLang(r)] + '.</b><span>Apples Übersetzer auf deinem iPhone macht sie deutsch, ohne Internet und kostenlos.</span><button class="btn accent" data-a="translate" data-id="' + esc(id) + '">' + ic("lang") + 'Auf Deutsch übersetzen</button></div>' : '') +
         '<div class="group"><ol class="steps">' + steps + '</ol></div></section>' : '') +
       nut +
       (labels ? '<section class="sec"><div class="sec-head"><h2>Labels</h2></div><div class="group labels">' + labels + '</div></section>' : '') +
@@ -786,15 +823,21 @@ a { color: var(--accent); }
       return w.some(function (x) { return low.indexOf(x.slice(0, Math.max(4, x.length - 2))) !== -1; });
     }).map(function (i) { return clean2((i.qty != null ? K.fmtQty(i.qty * f) + " " : "") + unitText(i.unit) + " " + i.name); });
   }
+  // Schritte ohne Zwischenüberschriften; die Überschrift steht über dem Schritt
+  function cookList(r) {
+    var out = [], head = "";
+    (r.steps || []).forEach(function (st) { if (/^## /.test(st)) { head = st.slice(3); return; } out.push({ t: st, h: head }); head = ""; });
+    return out;
+  }
   function renderCook() {
     var c = UI.cook; if (!c) { $("#layer").innerHTML = ""; return; }
-    var e = S.recipes[c.id], r = e.recipe, k = c.step, last = k === r.steps.length - 1;
+    var e = S.recipes[c.id], r = e.recipe, cl = cookList(r), k = c.step, last = k === cl.length - 1;
     var serv = UI.servings[c.id] || defaultServings(r), f = r.servings ? serv / r.servings : 1;
-    var ings = stepIngredients(r, r.steps[k], f);
+    var ings = stepIngredients(r, cl[k].t, f);
     $("#layer").innerHTML = '<div class="cook" role="dialog" aria-modal="true" aria-label="Kochmodus"><div class="bar"><button class="iconbtn" data-a="cook-close" aria-label="Kochmodus beenden">' + ic("x") + '</button>' +
-      '<span class="stepno">Schritt ' + (k + 1) + ' von ' + r.steps.length + '</span><span style="width:44px"></span></div>' +
-      '<div class="body"><div class="dots" aria-hidden="true">' + r.steps.map(function (_, j) { return '<i class="' + (j <= k ? "on" : "") + '"></i>'; }).join("") + '</div>' +
-      '<p class="steptext">' + esc(r.steps[k]) + '</p>' +
+      '<span class="stepno">Schritt ' + (k + 1) + ' von ' + cl.length + '</span><span style="width:44px"></span></div>' +
+      '<div class="body"><div class="dots" aria-hidden="true">' + cl.map(function (_, j) { return '<i class="' + (j <= k ? "on" : "") + '"></i>'; }).join("") + '</div>' +
+      (cl[k].h ? '<p class="stephead">' + esc(cl[k].h) + '</p>' : '') + '<p class="steptext">' + esc(cl[k].t) + '</p>' +
       (ings.length ? '<div class="group">' + ings.map(function (t) { return '<div class="row"><span class="main"><span>' + esc(t) + '</span></span></div>'; }).join("") + '</div>' : '') + '</div>' +
       '<div class="foot2"><button class="btn soft" data-a="cook-prev"' + (k === 0 ? ' disabled style="opacity:.4"' : '') + '>Zurück</button>' +
       (last ? '<button class="btn accent" data-a="cook-done">Fertig gekocht</button>' : '<button class="btn" data-a="cook-next">Weiter</button>') + '</div></div>';
@@ -811,6 +854,13 @@ a { color: var(--accent); }
     var res = { recipe: r, completeness: K.completeness(r) };
     var nx = null;
     try { nx = K.analyse(Object.assign({}, inp, { url: r.source.url })).next; } catch (x) { nx = null; }
+    // Automatische Suche (Blog, Bilder, Ton) ist noch nicht eingebaut: ehrlicher Hinweis statt Versprechen
+    if (nx && /^(blogsuche|bilder|download|screenshot)$/.test(nx.action)) {
+      var wo = r.elsewhere && r.elsewhere.wo;
+      return wo === "video" || /\/(reel|reels|tv)\//.test(r.source.url || "") ? "Der Rest steckt vermutlich im Video. Zutaten und Schritte per Live-Text aus einem Bildschirmfoto kopieren und mit „Fehlenden Text einfügen“ ergänzen." :
+        "Der Rest steht nicht in der Beschreibung. Wenn du ihn findest (Kommentar, Blog, Video): kopieren und mit „Fehlenden Text einfügen“ ergänzen.";
+    }
+    if (nx && nx.action === "blog") return "In der Beschreibung steht ein Link. Dort Zutaten und Zubereitung kopieren und mit „Fehlenden Text einfügen“ ergänzen.";
     return nx ? nx.hint : "Du kannst fehlende Angaben später ergänzen.";
   }
 
@@ -919,7 +969,7 @@ a { color: var(--accent); }
       '<div class="btnrow"><button class="btn accent" data-a="backup">' + ic("cloud") + 'Jetzt sichern</button><label class="btn soft" for="restorefile">Sicherung laden</label></div>' +
       '<input type="file" id="restorefile" accept=".json,application/json" class="sr"></section>' +
       '<section class="sec"><div class="sec-head"><h2>Instagram</h2></div><div class="group"><button class="row" data-a="setup">' + ic("share") + '<span class="main"><span class="title">Kurzbefehl einrichten</span><span class="sub">„Ins Rezeptbuch“ im Teilen-Menü</span></span>' + ic("chev", "chev") + '</button></div></section>' +
-      '<section class="sec"><div class="sec-head"><h2>Sprache</h2></div><div class="group"><button class="row" data-a="translate">' + ic("lang") + '<span class="main"><span class="title">Zubereitung auf Deutsch übersetzen</span><span class="sub">' + englishEntries().length + ' Rezepte noch auf Englisch · Apples Übersetzer über den Kurzbefehl „Rezeptbuch übersetzen“</span></span>' + ic("chev", "chev") + '</button></div></section>' +
+      '<section class="sec"><div class="sec-head"><h2>Sprache</h2></div><div class="group"><button class="row" data-a="translate">' + ic("lang") + '<span class="main"><span class="title">Zubereitung auf Deutsch übersetzen</span><span class="sub">' + englishEntries().length + ' Rezepte noch nicht auf Deutsch · Apples Übersetzer über den Kurzbefehl „Rezeptbuch übersetzen“</span></span>' + ic("chev", "chev") + '</button></div></section>' +
       '<section class="sec"><div class="sec-head"><h2>Hilfe</h2></div><div class="group"><button class="row" data-a="guides-reset"><span class="main"><span class="title">Anleitungen wieder zeigen</span></span></button></div></section>' +
       '<section class="sec"><div class="sec-head"><h2>Datenschutz und Infos</h2></div><div class="group"><button class="row" data-a="info">' + ic("info") + '<span class="main"><span class="title">So funktioniert die App</span><span class="sub">Datenschutz, Quellen, Regeln von Instagram, Grenzen der Erkennung</span></span>' + ic("chev", "chev") + '</button></div></section>' +
       '<p class="foot"><span>' + esc(BLS_HINWEIS) + '</span><span>Rezeptbuch ' + APP_VERSION + ' · Kern ' + esc(K.VERSION) + '</span></p>' +
@@ -1212,6 +1262,15 @@ a { color: var(--accent); }
       case "fav": S.recipes[id].fav = !S.recipes[id].fav; save("recipes"); render(); toast(S.recipes[id].fav ? "Zu Favoriten hinzugefügt" : "Aus Favoriten entfernt"); break;
       case "more": moreSheet(id); break;
       case "cook": startCook(id); break;
+      case "add-text":
+        sheet('<h2>Fehlenden Text einfügen</h2><p class="small">Kopiere den Rest des Rezepts, zum Beispiel aus dem angepinnten Kommentar, der Nachricht oder vom Blog, und füge ihn hier ein. Die App liest Zutaten und Schritte daraus und ergänzt das Rezept.</p>' +
+          '<div class="field"><label for="addtext">Text</label><textarea class="input" id="addtext" placeholder="Zutaten … / Zubereitung …"></textarea></div>' +
+          '<div class="btnrow"><button class="btn" data-a="add-text-save" data-id="' + esc(id) + '">Übernehmen</button><button class="btn soft" data-a="close-sheet">Abbrechen</button></div>');
+        break;
+      case "add-text-save":
+        var at = (($("#addtext") || {}).value || "").trim(), ae = S.recipes[id];
+        if (at && ae && ae.input) { ae.input.commentText = (ae.input.commentText ? ae.input.commentText + "\n\n" : "") + at; reanalyse(ae); save("recipes"); toast("Rezept ergänzt"); }
+        closeSheet(); render(); break;
       case "cook-next": UI.cook.step++; renderCook(); break;
       case "cook-prev": if (UI.cook.step > 0) { UI.cook.step--; renderCook(); } break;
       case "cook-close": endCook(); break;
@@ -1302,7 +1361,7 @@ a { color: var(--accent); }
     if (ev.target.id === "restorefile" && ev.target.files[0]) ev.target.files[0].text().then(restore);
   });
   document.addEventListener("keydown", function (ev) {
-    if (UI.cook) { if (ev.key === "Escape") endCook(); if (ev.key === "ArrowRight" && UI.cook.step < S.recipes[UI.cook.id].recipe.steps.length - 1) { UI.cook.step++; renderCook(); } if (ev.key === "ArrowLeft" && UI.cook.step > 0) { UI.cook.step--; renderCook(); } return; }
+    if (UI.cook) { if (ev.key === "Escape") endCook(); if (ev.key === "ArrowRight" && UI.cook.step < cookList(S.recipes[UI.cook.id].recipe).length - 1) { UI.cook.step++; renderCook(); } if (ev.key === "ArrowLeft" && UI.cook.step > 0) { UI.cook.step--; renderCook(); } return; }
     if (ev.key === "Escape" && $("#layer").innerHTML) closeSheet();
   });
   window.addEventListener("hashchange", function () { if (readHashImport()) render(); });
@@ -1314,8 +1373,10 @@ a { color: var(--accent); }
   }).then(function () {
     applyTheme();
     seedExamples();
+    var upd = reanalyseAll();
     readHashImport();
     render();
+    if (upd) toast(upd + (upd === 1 ? " Rezept" : " Rezepte") + " mit der verbesserten Erkennung neu ausgewertet");
   });
   if ("serviceWorker" in navigator && /^https:/.test(location.protocol) && !/claude/.test(location.hostname)) {
     try { navigator.serviceWorker.register("sw.js").catch(function () {}); } catch (e) { /* offline-Funktion optional */ }

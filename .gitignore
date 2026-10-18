@@ -1,5 +1,7 @@
 # Private Daten – nie ins öffentliche Projekt
 daten/ig-export/
+daten/ig-export2/
+daten/ig-analyse2.json
 daten/ig-analyse.json
 daten/ig-posts.json
 *.zip

@@ -377,5 +377,33 @@ check("Trennbares Verb", K.rezeptStil("Geben Sie das Öl hinzu.") === "Das Öl h
 check("Ohne Sie unverändert", K.rezeptStil("Mit Olivenöl, Zitronenschale und Parmesan vermischen.") === "Mit Olivenöl, Zitronenschale und Parmesan vermischen.");
 check("Ihre -> die", K.rezeptStil("Heizen Sie Ihren Ofen auf 200 °C vor.") === "Den Ofen auf 200 °C vorheizen.", K.rezeptStil("Heizen Sie Ihren Ofen auf 200 °C vor."));
 
+// Schritte, Überschriften und Titel aus echten Captions (Export 2, Oktober 2026) – nachgebaut
+const lasCap = "LASAGNA SOUP (plant-based) 🥫\n\nI wasn’t 100% convinced… you HAVE to make this 🤤\n\nINGREDIENTS (serves 4)\n\n1 brown onion, finely diced\n2x 400g tins cooked brown lentils, drained + rinsed\nSmall glass white wine (or glug of cider)\n1.25 litres hot vegetable stock\nLarge handful fresh basil, leaves roughly chopped\nOlive oil, salt + black pepper\n\nMETHOD (pinned in comments 👇)";
+const las = K.analyse({ caption: lasCap }).recipe;
+check("2x 400g Dosen = 2 Dosen à 400 g", las.ingredients.some(i => i.qty === 2 && i.unit === "Dose" && /linsen/i.test(i.name)), las.ingredients.map(i => [i.qty, i.unit, i.name]));
+check("Liter erkannt", las.ingredients.some(i => i.unit === "l" && i.qty === 1.25));
+check("Basilikum mit Hinweis bleibt eine Zutat", las.ingredients.some(i => /basilikum/i.test(i.name) && /grob gehackt/.test(i.note)) && !las.ingredients.some(i => /^leaves/i.test(i.name)), las.ingredients.map(i => i.name));
+check("Lasagne-Suppe ist Suppe", las.category === "Suppe & Eintopf" && las.title === "Lasagne-Suppe", [las.title, las.category]);
+const lin = K.analyse({ caption: "10 Tage antientzündliche Rezepte für Faule ‼️ Heute ist Tag 4 und ich glaube mein Blick sagt alles 🙃\n\nRezept (2-3 Portionen)\n200g gekochte braune Linsen\n200g Süßkartoffel\n1/2 Gurke\n1/2 Avocado\n\nDressing\n2EL Tomatenmark\n1EL Leinöl\n\n1. Den Backofen auf 200 Grad vorheizen.\n2. Linsen und Süßkartoffel 20 Minuten backen.\n3. Alles mit dem Dressing vermischen." }).recipe;
+check("Erzähl-Zeile nicht als Schritt", lin.steps.length === 3 && /Backofen/.test(lin.steps[0]), lin.steps);
+check("'Dressing' ist keine Zutat", !lin.ingredients.some(i => /^dressing$/i.test(i.name)), lin.ingredients.map(i => i.name));
+check("Titel aus Hauptzutaten statt Zutatenzeile", lin.title === "Linsen-Süßkartoffel-Salat", lin.title);
+const kof = K.analyse({ caption: "If you’re celebrating: Shubh diwali! And if not you can celebrate this recipe for this vegan version of an Indian classic.\nMALAI KOFTA (3-4 servings, 1h prep time):\n-340g potatoes\nCook until fork tender and mash\n-2 blocks (400g) firm tofu\nKnead until it‘s a dough and shape into little balls.\n-\nWenn ihr feiert: Shubh diwali! Und wenn nicht, genießt dieses Rezept für eine vegane Version dieses indischen Klassikers.\nMALAI KOFTA (3-4 Portionen, 1 Stunde Zubereitungszeit):\n-340g Kartoffeln\nKochen, bis sie weich sind und zerdrücken\n-2 Blöcke (400g) Tofu\nKneten, bis ein Teig entsteht, und daraus kleine Kugeln formen." }).recipe;
+check("Zweisprachig mit Trennstrich: nur Deutsch", kof.steps.every(s => K.langOfText(s) !== "en") && kof.steps.length === 2, kof.steps);
+check("Titel ohne Portionsklammer", kof.title === "Malai Kofta", kof.title);
+const tt = (c) => K.analyse({ caption: c }).recipe.title;
+check("Titel: 'This super easy … is' -> Gericht", tt("This super easy Vegan Pot Pie is the cosiest dinner.\nComment PIE for the recipe") === "Vegan Pot Pie", tt("This super easy Vegan Pot Pie is the cosiest dinner.\nComment PIE for the recipe"));
+check("Titel: 'Gewinnspiel' ist kein Gericht", !/gewinnspiel/i.test(tt("Schnell gemacht 💪\n\n* Gewinnspiel / Anzeige *\n\nZutaten:\n200 g Tofu\n1 EL Sojasauce\n2 EL Hummus\nZubereitung:\n1. Tofu anbraten.")));
+check("Titel: Serie 'Nr. 5' + nächste Zeile", tt("FAVORITE SAUCE NR. 5 😋\nAmba 🥭\n\nAmba means mango in Marathi.\nRECIPE (10 servings):\n-1 onion\n-3 cloves garlic\nSauté for a few minutes.") === "Amba", tt("FAVORITE SAUCE NR. 5 😋\nAmba 🥭\n\nAmba means mango in Marathi.\nRECIPE (10 servings):\n-1 onion\n-3 cloves garlic\nSauté for a few minutes."));
+check("Titel: Zeit-Vorsatz entfernt", /kichererbsen/i.test(tt("15min tomato-chickpeas 😋\n\nRECIPE (1 serving):\n-1 onion, sliced\n-150g cherry tomatoes, halved\nSauté in oil\n-400g chickpeas")), tt("15min tomato-chickpeas 😋\n\nRECIPE (1 serving):\n-1 onion, sliced\n-150g cherry tomatoes, halved\nSauté in oil\n-400g chickpeas"));
+check("Kategorie: 'glatte Petersilie' ist kein Latte", K.analyse({ caption: "Veganer Schmortopf\n\n250 g Kräuterseitlinge\n1 Zwiebel\n150 ml Rotwein\n15 g glatte Petersilie" }).recipe.category !== "Getränk");
+check("Nährwert-Zeile nicht als Schritt", !K.analyse({ caption: "Pasta\nZutaten:\n200 g Nudeln\n1 Zwiebel\nZubereitung:\n1. Nudeln kochen.\n2. Zwiebel anbraten.\nFett: 34g\nPortionen: 2 | Schwierigkeitsgrad: einfach" }).recipe.steps.some(s => /Fett|Schwierigkeit/.test(s)));
+const hd = K.uebersetzeSchritte({ steps: ["## For the sauce", "Mix everything."] }, ["Für die Sauce", "Alles vermischen."]);
+check("Überschrift bleibt nach Übersetzung Überschrift", hd.steps[0] === "## Für die Sauce" && hd.steps[1] === "Alles vermischen.", hd.steps);
+const nlR = K.analyse({ caption: "Chipotle tofu bowl\nIngrediënten:\n400 g tofu\n1 blik zwarte bonen\nBereiding:\n1. Meng de tomatenpuree met de olie tot een marinade.\n2. Schep de tofu erdoor en bak 25 min." }).recipe;
+check("Niederländisch erkannt", K.detectLang(nlR) === "nl", K.detectLang(nlR));
+K.uebersetzeZutaten(nlR, ["400 g Tofu", "1 Dose schwarze Bohnen"]);
+check("Zutaten-Übersetzung eingelesen", nlR.ingredients[1].unit === "Dose" && /bohnen/i.test(nlR.ingredients[1].name) && nlR.ingredients[1].nameOriginal, nlR.ingredients[1]);
+
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);
