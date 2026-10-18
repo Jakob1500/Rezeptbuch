@@ -1,0 +1,149 @@
+<title>Rezept-Ordner</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: Kopf mit Kennzahlen, darunter Filterleiste und eine Liste von Rezeptkarten wie Karteikarten im Kasten.
+   Systemschrift, keine externen Ressourcen. Gleiche Farbwelt wie das Rezept-Labor. */
+:root {
+  --bg: #F1F5F2; --surface: #FFFFFF; --ink: #17221C; --muted: #55645B; --line: #D2DCD5;
+  --accent: #1D6946; --accent-ink: #FFFFFF; --accent-soft: #DCEEE3;
+  --tomato: #B3412A; --tomato-soft: #F8E3DD; --amber: #855700; --amber-soft: #F6ECD6;
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-head: ui-rounded, "SF Pro Rounded", -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0F1512; --surface: #17201B; --ink: #E3EBE5; --muted: #9AA99F; --line: #2B3931;
+  --accent: #6BC99A; --accent-ink: #0B1610; --accent-soft: #1B3328;
+  --tomato: #F0896D; --tomato-soft: #3A211B; --amber: #E6B55B; --amber-soft: #352A15; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0F1512; --surface: #17201B; --ink: #E3EBE5; --muted: #9AA99F; --line: #2B3931;
+  --accent: #6BC99A; --accent-ink: #0B1610; --accent-soft: #1B3328;
+  --tomato: #F0896D; --tomato-soft: #3A211B; --amber: #E6B55B; --amber-soft: #352A15; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 1rem; line-height: 1.5; }
+.wrap { max-width: 1100px; margin: 0 auto; padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 18px; }
+h1, h2, h3 { font-family: var(--font-head); margin: 0; line-height: 1.2; text-wrap: balance; }
+h1 { font-size: 1.6rem; font-weight: 750; }
+h2 { font-size: 1.05rem; font-weight: 700; }
+p { margin: 0; }
+.muted { color: var(--muted); } .small { font-size: 0.875rem; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.stat b { display: block; font-family: var(--font-head); font-size: 1.7rem; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.stat span { font-size: 0.85rem; color: var(--muted); }
+.note { background: var(--accent-soft); border-radius: 12px; padding: 12px 14px; font-size: 0.92rem; max-width: 80ch; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+input[type="search"], select { font: inherit; font-size: 1rem; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; min-height: 44px; }
+input[type="search"] { flex: 1 1 220px; min-width: 0; }
+button.chip { font: inherit; font-size: 0.875rem; min-height: 40px; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+button.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.card h3 { font-size: 1.02rem; font-weight: 700; overflow-wrap: anywhere; }
+.meta { font-size: 0.82rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.tag { font-size: 0.78rem; padding: 2px 9px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); }
+.tag.focus { background: var(--accent-soft); border-color: transparent; }
+.tag.warn { background: var(--amber-soft); border-color: transparent; color: var(--ink); }
+.nw { font-family: var(--font-mono); font-size: 0.82rem; font-variant-numeric: tabular-nums; }
+.state { font-size: 0.75rem; font-weight: 700; padding: 2px 9px; border-radius: 999px; justify-self: start; }
+.state.ok { background: var(--accent-soft); color: var(--accent); }
+.state.part { background: var(--amber-soft); color: var(--amber); }
+.card a { color: var(--accent); font-weight: 600; font-size: 0.9rem; text-underline-offset: 3px; }
+.empty { padding: 32px; text-align: center; color: var(--muted); }
+footer { font-size: 0.8rem; color: var(--muted); max-width: 80ch; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Rezept-Ordner</h1>
+    <p class="muted small">Dein Instagram-Export, analysiert vom Rezept-Kern. Ohne KI, ohne Zugriff auf Instagram.</p>
+  </header>
+  <div class="stats" id="stats"></div>
+  <p class="note" id="note"></p>
+  <div class="bar" role="group" aria-label="Filter">
+    <label class="small" for="q" style="position:absolute;left:-9999px">Suche</label>
+    <input id="q" type="search" placeholder="Suche nach Rezept, Zutat oder Creator">
+    <select id="cat" aria-label="Kategorie"><option value="">Alle Kategorien</option></select>
+    <select id="diet" aria-label="Ernährung"><option value="">Jede Ernährung</option><option>vegan</option><option>vegetarisch</option><option>pescetarisch</option><option>mit Fleisch</option></select>
+    <select id="sort" aria-label="Sortierung"><option value="t">A–Z</option><option value="time">Schnellste zuerst</option><option value="kcal">Wenigste kcal zuerst</option><option value="p">Meiste Eiweiß zuerst</option></select>
+  </div>
+  <div class="bar" id="types" role="group" aria-label="Art"></div>
+  <p class="small muted" id="count" aria-live="polite"></p>
+  <div class="list" id="list"></div>
+  <footer>Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Lizenz CC BY 4.0. Werte sind pro Portion berechnet, Stückgewichte sind Richtwerte. „teilweise“ heißt: nicht alle Zutaten konnten zugeordnet werden; dann werden keine Labels wie „eisenreich“ vergeben.</footer>
+</div>
+
+<script>
+var DATA = /*DATEN*/;
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
+  var R = DATA.r, S = DATA.stats;
+  var full = R.filter(function (r) { return r.typ === "vollständig in der Caption"; }).length;
+  var video = R.filter(function (r) { return r.typ !== "vollständig in der Caption"; }).length;
+  var nwOk = R.filter(function (r) { return r.nw && r.nw.ok; }).length;
+  $("stats").innerHTML = [[S.posts, "gespeicherte Posts"], [S.rezepte, "davon Rezepte"], [full, "komplett in der Caption"], [video, "Rest auf Blog, Video & Co."], [nwOk, "Nährwerte voll berechnet"]]
+    .map(function (x) { return '<div class="stat"><b>' + x[0] + '</b><span>' + x[1] + '</span></div>'; }).join("");
+  var unsorted = S.sammlungen["ohne Sammlung"] || 0;
+  $("note").textContent = unsorted + " deiner " + S.rezepte + " Rezepte liegen in keiner Sammlung, nur " + (S.rezepte - unsorted) +
+    " in „Inge“. Die App erkennt Rezepte deshalb selbst, statt sich auf einen Ordner zu verlassen. Die übrigen " + S.andere + " Posts (Reisen, Sport, KI …) werden übersprungen.";
+
+  var cats = {}; R.forEach(function (r) { cats[r.cat] = (cats[r.cat] || 0) + 1; });
+  Object.keys(cats).sort(function (a, b) { return cats[b] - cats[a]; }).forEach(function (c) {
+    var o = document.createElement("option"); o.value = c; o.textContent = c + " (" + cats[c] + ")"; $("cat").appendChild(o);
+  });
+  var tc = {}; R.forEach(function (r) { tc[r.typ] = (tc[r.typ] || 0) + 1; });
+  var TYPES = [["", "Alle"]].concat(Object.keys(tc).sort(function (a, b) { return tc[b] - tc[a]; }).map(function (t) { return [t, t.replace("vollständig in der Caption", "Komplett in der Caption") + " (" + tc[t] + ")"]; }));
+  var state = { typ: "" };
+  TYPES.forEach(function (t) {
+    var b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.textContent = t[1];
+    b.setAttribute("aria-pressed", String(t[0] === state.typ));
+    b.addEventListener("click", function () { state.typ = t[0]; Array.prototype.forEach.call($("types").children, function (x) { x.setAttribute("aria-pressed", String(x === b)); }); render(); });
+    $("types").appendChild(b);
+  });
+  ["q", "cat", "diet", "sort"].forEach(function (id) { $(id).addEventListener("input", render); });
+
+  function card(r) {
+    var tags = (r.lb || []).filter(function (l) { return l[0] !== "Nährwert-Fokus"; }).map(function (l) { return '<span class="tag" title="' + esc(l[0]) + '">' + esc(l[1]) + '</span>'; });
+    if (r.sv) tags.push('<span class="tag">' + r.sv + ' ' + esc(r.svu || "Portionen") + (/geschätzt|Backform|Einzel/.test(r.svb) ? ' (geschätzt)' : '') + '</span>');
+    var focus = (r.fo || []).map(function (f) { return '<span class="tag focus">' + esc(f[0]) + ' <span class="muted">· ' + esc(f[1]) + '</span></span>'; }).join("");
+    if (r.hw) focus += '<p class="small muted">' + esc(r.hw) + '</p>';
+    var nw = "";
+    if (r.nw) {
+      nw = '<p class="nw">' + r.nw.kcal + ' kcal · ' + String(r.nw.p).replace(".", ",") + ' g Eiweiß · ' + String(r.nw.bs).replace(".", ",") + ' g Ballaststoffe' +
+        (r.nw.ps ? '' : ' <span class="muted">(ganzes Rezept)</span>') + '</p>' +
+        '<span class="state ' + (r.nw.ok ? "ok" : "part") + '">' + (r.nw.ok ? "Nährwerte berechnet" : "teilweise: " + r.nw.m + " von " + r.nw.t + " Zutaten") + '</span>';
+    }
+    var missing = r.mi && r.mi.length ? '<span class="tag warn">fehlt: ' + esc(r.mi.join(", ")) + '</span>' : "";
+    return '<article class="card"><h3>' + esc(r.t) + (r.tg ? ' <span class="tag warn" style="font-weight:400">Titel vorgeschlagen</span>' : '') + '</h3>' + (r.to ? '<p class="small muted">Original: ' + esc(r.to) + '</p>' : '') +
+      '<p class="meta"><span>@' + esc(r.a || "unbekannt") + '</span><span>' + r.nz + ' Zutaten · ' + r.ns + ' Schritte</span>' + (r.c && r.c.length ? '<span>Sammlung: ' + esc(r.c.join(", ")) + '</span>' : '') + '</p>' +
+      '<div class="chips">' + tags.join("") + missing + '</div>' + (focus ? '<div class="chips">' + focus + '</div>' : '') + nw +
+      '<a href="' + esc(r.u) + '" target="_blank" rel="noopener">Auf Instagram öffnen</a></article>';
+  }
+
+  function render() {
+    var q = $("q").value.trim().toLowerCase(), cat = $("cat").value, diet = $("diet").value, sort = $("sort").value;
+    var list = R.filter(function (r) {
+      if (state.typ && r.typ !== state.typ) return false;
+      if (cat && r.cat !== cat) return false;
+      if (diet && (r.diet || []).indexOf(diet) === -1) return false;
+      if (q) { var hay = (r.t + " " + r.to + " " + r.a + " " + (r.z || []).join(" ") + " " + (r.lb || []).map(function (l) { return l[1]; }).join(" ")).toLowerCase(); if (hay.indexOf(q) === -1) return false; }
+      return true;
+    });
+    var big = 1e9;
+    list.sort(function (a, b) {
+      if (sort === "time") return (a.time || big) - (b.time || big);
+      if (sort === "kcal") return ((a.nw && a.nw.ok) ? a.nw.kcal : big) - ((b.nw && b.nw.ok) ? b.nw.kcal : big);
+      if (sort === "p") return ((b.nw && b.nw.ok) ? b.nw.p : -1) - ((a.nw && a.nw.ok) ? a.nw.p : -1);
+      return a.t.localeCompare(b.t, "de");
+    });
+    $("count").textContent = list.length + " von " + R.length + " Rezepten";
+    $("list").innerHTML = list.length ? list.map(card).join("") : '<p class="empty">Keine Rezepte für diese Auswahl.</p>';
+  }
+  render();
+})();
+</script>

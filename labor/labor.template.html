@@ -1,0 +1,369 @@
+<title>Rezept-Labor</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: zwei Spalten wie Arbeitsplatte und Rezeptkarte – links Rohtext, rechts Ergebnis; auf dem Handy untereinander.
+   Keine Web-Fonts (Datenschutz, Energie): Systemschrift, abgerundete Variante für Überschriften. */
+:root {
+  --bg: #F1F5F2; --surface: #FFFFFF; --ink: #17221C; --muted: #55645B; --line: #D2DCD5;
+  --accent: #1D6946; --accent-ink: #FFFFFF; --accent-soft: #DCEEE3;
+  --tomato: #B3412A; --tomato-soft: #F8E3DD; --amber: #855700; --amber-soft: #F6ECD6;
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-head: ui-rounded, "SF Pro Rounded", -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --r: 12px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0F1512; --surface: #17201B; --ink: #E3EBE5; --muted: #9AA99F; --line: #2B3931;
+  --accent: #6BC99A; --accent-ink: #0B1610; --accent-soft: #1B3328;
+  --tomato: #F0896D; --tomato-soft: #3A211B; --amber: #E6B55B; --amber-soft: #352A15; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0F1512; --surface: #17201B; --ink: #E3EBE5; --muted: #9AA99F; --line: #2B3931;
+  --accent: #6BC99A; --accent-ink: #0B1610; --accent-soft: #1B3328;
+  --tomato: #F0896D; --tomato-soft: #3A211B; --amber: #E6B55B; --amber-soft: #352A15; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 1rem; line-height: 1.5; }
+.wrap { max-width: 1160px; margin: 0 auto; padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--font-head); text-wrap: balance; margin: 0; line-height: 1.2; }
+h1 { font-size: 1.6rem; font-weight: 750; letter-spacing: -0.01em; }
+h2 { font-size: 1.05rem; font-weight: 700; }
+h3 { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.small { font-size: 0.875rem; }
+
+header.top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; margin-bottom: 18px; }
+.badge-local { font-size: 0.8rem; color: var(--accent); background: var(--accent-soft); padding: 4px 10px; border-radius: 999px; font-weight: 600; }
+
+.grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px; align-items: start; }
+@media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.sticky { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); }
+@media (max-width: 860px) { .sticky { position: static; } }
+
+label { font-weight: 600; font-size: 0.9rem; display: block; margin-bottom: 6px; }
+textarea, input[type="text"], input[type="url"] {
+  width: 100%; font: inherit; font-size: 1rem; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+textarea { min-height: 220px; resize: vertical; font-size: 0.95rem; }
+textarea.short { min-height: 110px; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.samples { display: flex; flex-wrap: wrap; gap: 8px; }
+button { font: inherit; cursor: pointer; border-radius: 10px; min-height: 44px; padding: 8px 14px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
+button.chip { min-height: 36px; padding: 4px 12px; border-radius: 999px; font-size: 0.875rem; }
+button.copy { min-height: 36px; padding: 4px 10px; font-size: 0.8rem; flex-shrink: 0; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+details { border-top: 1px solid var(--line); padding-top: 12px; }
+details > summary { cursor: pointer; font-weight: 600; min-height: 32px; }
+details .fields { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+
+/* Ergebnis */
+.empty { padding: 28px 8px; text-align: center; color: var(--muted); }
+.meter { display: grid; gap: 8px; }
+.meter-bar { height: 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.meter-fill { height: 100%; background: var(--accent); border-radius: 999px; }
+.meter-fill.low { background: var(--tomato); }
+.hint { background: var(--amber-soft); color: var(--ink); border-radius: 10px; padding: 10px 12px; font-size: 0.92rem; }
+.hint strong { color: var(--amber); }
+
+.trace { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.trace li { display: grid; grid-template-columns: 1.6rem minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: 0.92rem; }
+.trace .n { font-family: var(--font-mono); color: var(--muted); font-size: 0.8rem; }
+.pill { font-size: 0.75rem; font-weight: 700; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+.pill.used { background: var(--accent-soft); color: var(--accent); }
+.pill.skip { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
+.pill.none { background: var(--tomato-soft); color: var(--tomato); }
+
+.recipe-head { display: grid; gap: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { font-size: 0.82rem; padding: 3px 10px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); }
+.tag.focus { background: var(--accent-soft); border-color: transparent; color: var(--ink); }
+.tag .basis { color: var(--muted); font-size: 0.75rem; }
+.tag.est::after { content: " · geschätzt"; color: var(--amber); }
+
+.servings { display: inline-flex; align-items: center; gap: 6px; }
+.servings button { min-width: 44px; padding: 4px; font-size: 1.2rem; line-height: 1; }
+.servings output { font-family: var(--font-mono); font-variant-numeric: tabular-nums; min-width: 2.5ch; text-align: center; font-weight: 700; }
+
+.ings { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.ings li { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr) auto; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); align-items: baseline; }
+.ings .q { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; font-size: 0.92rem; }
+.ings .note { color: var(--muted); font-size: 0.85rem; }
+.ings .aisle { font-size: 0.75rem; color: var(--muted); text-align: right; }
+.ings .staple { font-size: 0.72rem; color: var(--accent); font-weight: 700; margin-left: 6px; }
+@media (max-width: 480px) { .ings li { grid-template-columns: 5rem minmax(0, 1fr); } .ings .aisle { grid-column: 2; text-align: left; } }
+
+ol.steps { margin: 0; padding-left: 1.4rem; display: grid; gap: 8px; }
+ol.steps li { padding-left: 4px; max-width: 65ch; }
+ol.steps li::marker { font-family: var(--font-mono); color: var(--muted); }
+
+.cookidoo { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.cookidoo li { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 6px 10px; background: var(--bg); border-radius: 8px; }
+.cookidoo .lbl { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); display: block; }
+.cookidoo .txt { min-width: 0; overflow-wrap: anywhere; }
+.tm { font-family: var(--font-mono); background: #0E1A13; color: #9FF2C6; padding: 1px 6px; border-radius: 5px; font-size: 0.85em; white-space: nowrap; }
+
+table.prov { border-collapse: collapse; font-size: 0.88rem; }
+table.nw { border-collapse: collapse; width: 100%; max-width: 360px; font-size: 0.92rem; }
+table.nw td { padding: 5px 0; border-bottom: 1px solid var(--line); }
+table.nw td.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+table.prov td { padding: 3px 14px 3px 0; }
+pre.json { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px; overflow-x: auto; font-family: var(--font-mono); font-size: 0.8rem; max-height: 360px; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom, 0px) + 20px); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-weight: 600; z-index: 20; }
+.sec { display: grid; gap: 10px; padding-top: 14px; border-top: 1px solid var(--line); }
+@media (prefers-reduced-motion: no-preference) { .meter-fill { transition: width .3s ease; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Rezept-Labor</h1>
+      <p class="muted small">Teste den Analyse-Kern mit echten Captions. Version <span id="ver"></span>.</p>
+    </div>
+    <span class="badge-local">Läuft komplett auf deinem Gerät · ohne KI</span>
+  </header>
+
+  <div class="grid">
+    <section class="panel sticky" aria-labelledby="in-h">
+      <h2 id="in-h">Quelle</h2>
+      <div>
+        <h3 style="margin-bottom:8px">Beispiele laden</h3>
+        <div class="samples" id="samples"></div>
+      </div>
+      <div>
+        <label for="caption">Caption aus Instagram</label>
+        <textarea id="caption" placeholder="Caption hier einfügen …"></textarea>
+      </div>
+      <details id="more">
+        <summary>Weitere Quellen (Link, Texterkennung, Ton, Blog)</summary>
+        <div class="fields">
+          <div><label for="url">Instagram-Link</label><input id="url" type="url" inputmode="url" placeholder="https://www.instagram.com/p/…"></div>
+          <div><label for="account">Account</label><input id="account" type="text" placeholder="@creator"></div>
+          <div><label for="ocr">Texterkennung (Text aus Screenshot oder Video)</label><textarea id="ocr" class="short"></textarea></div>
+          <div><label for="transcript">Gesprochener Text (Transkript)</label><textarea id="transcript" class="short"></textarea></div>
+          <div><label for="blog">Blog-Seitenquelltext (HTML)</label><textarea id="blog" class="short" placeholder="&lt;html&gt; … &lt;script type=&quot;application/ld+json&quot;&gt; …"></textarea></div>
+        </div>
+      </details>
+      <div class="row">
+        <button class="primary" id="run">Analysieren</button>
+        <button id="clear">Leeren</button>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="out-h">
+      <h2 id="out-h">Ergebnis</h2>
+      <div id="out" aria-live="polite">
+        <p class="empty">Lade ein Beispiel oder füge eine Caption ein. Das Ergebnis erscheint hier, während du tippst.</p>
+      </div>
+    </section>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+/*KERN*/
+</script>
+<script>window.NAEHRWERTE = /*NAEHRWERTE*/;</script>
+<script>
+(function () {
+  "use strict";
+  var K = window.RezeptKern;
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
+  $("ver").textContent = K.VERSION;
+
+  var SAMPLES = {
+    "Linsen-Curry": { caption: "Cremiges Linsen-Curry in 30 Minuten 🍛🔥\nPerfekt für die Woche – proteinreich & vegan!\n\nZutaten (für 4 Portionen):\n• 250 g rote Linsen\n• 1 Zwiebel\n• 2 Knoblauchzehen\n• 1 Stück Ingwer (2 cm)\n• 1 EL Currypaste\n• 400 ml Kokosmilch\n• 1 Dose gehackte Tomaten\n• 100 g Babyspinat\n• Salz & Pfeffer\n\nZubereitung:\n1. Zwiebel, Knoblauch und Ingwer fein hacken und in etwas Öl 3 Minuten andünsten.\n2. Currypaste kurz mitrösten, dann Linsen, Kokosmilch und Tomaten dazugeben.\n3. Alles 20 Minuten köcheln lassen, bis die Linsen weich sind.\n4. Spinat unterheben und mit Salz und Pfeffer abschmecken.\n\n#vegan #curry #mealprep", account: "@beispiel_kocht" },
+    "Unordentliche Bowl": { caption: "WERBUNG 🔥 Meine Lieblings-Protein-Bowl!!! 😍😍\n👉 120g Hähnchenbrust\n👉 80g Reis (roh)\n👉 1/2 Avocado\n👉 Gurke, Tomaten nach Belieben\n👉 2 EL Joghurt-Dressing\nSo geht’s ⬇️\n➡️ Reis kochen\n➡️ Hähnchen würzen und 6 min pro Seite braten\n➡️ Alles in eine Bowl, Dressing drüber, fertig!\nMakros: 610 kcal | 48 g Protein\n#highprotein #mealprep #fitfood" },
+    "Link in Bio": { caption: "Die besten Zimtschnecken meines Lebens 😍 Rezept findet ihr wie immer über den Link in Bio! #backen #zimtschnecken" },
+    "Zutaten nur im Video": { caption: "Protein-Pancakes 🥞 Zutaten im Video! #proteinpancakes", ocr: "PROTEIN PANCAKES\n1 Banane\n2 Eier\n40 g Haferflocken\n30 g Proteinpulver\n1 TL Backpulver\nAlles pürieren und in der Pfanne von beiden Seiten 2 Minuten ausbacken.\nMit Beeren servieren." },
+    "Reel mit Ton": { caption: "Schnelles Basilikum-Pesto 🌿", transcript: "Heute machen wir ein schnelles Pesto. Ihr braucht 50 Gramm Basilikum, 30 Gramm Pinienkerne, eine Knoblauchzehe und 100 Milliliter Olivenöl. Zuerst röstet ihr die Pinienkerne kurz in der Pfanne an. Dann gebt ihr alles in den Mixer und püriert es fein. Zum Schluss mit Salz abschmecken." },
+    "Blog-Rezept": { caption: "Shakshuka 🍳 Das ganze Rezept: www.beispielblog.de/shakshuka", blog: '<script type="application/ld+json">{"@context":"https://schema.org","@type":"Recipe","name":"Shakshuka mit Feta","recipeYield":"2","totalTime":"PT30M","recipeIngredient":["4 Eier","1 Dose stückige Tomaten (400 g)","1 rote Paprika","1 Zwiebel","100 g Feta","1 TL Kreuzkümmel"],"recipeInstructions":[{"@type":"HowToStep","text":"Zwiebel und Paprika würfeln und anbraten."},{"@type":"HowToStep","text":"Tomaten und Gewürze zugeben, 10 Minuten köcheln."},{"@type":"HowToStep","text":"Mulden formen, Eier hineinschlagen und 8 Minuten stocken lassen. Mit Feta bestreuen."}],"nutrition":{"calories":"380 kcal","proteinContent":"24 g"}}<\/script>' },
+    "Thermomix": { caption: "Tomatensoße aus dem Thermomix\nZutaten:\n1 Zwiebel\n1 Knoblauchzehe\n20 g Olivenöl\n800 g Tomaten aus der Dose\nZubereitung:\n1. Zwiebel und Knoblauch in den Mixtopf geben, 5 Sek./Stufe 5 zerkleinern.\n2. Öl zugeben und 3 Min./120°C/Stufe 1 dünsten.\n3. Tomaten zugeben, 15 Min./100°C/Stufe 1 kochen." }
+  };
+
+  var FIELDS = ["caption", "url", "account", "ocr", "transcript", "blog"];
+  var state = { result: null, servings: null };
+
+  var samplesEl = $("samples");
+  Object.keys(SAMPLES).forEach(function (name) {
+    var b = document.createElement("button");
+    b.className = "chip"; b.type = "button"; b.textContent = name;
+    b.addEventListener("click", function () {
+      var s = SAMPLES[name];
+      FIELDS.forEach(function (f) { $(f).value = s[f] || ""; });
+      $("more").open = !!(s.ocr || s.transcript || s.blog);
+      run();
+    });
+    samplesEl.appendChild(b);
+  });
+
+  var timer = null;
+  FIELDS.forEach(function (f) { $(f).addEventListener("input", function () { clearTimeout(timer); timer = setTimeout(run, 350); }); });
+  $("run").addEventListener("click", run);
+  $("clear").addEventListener("click", function () {
+    FIELDS.forEach(function (f) { $(f).value = ""; });
+    state.result = null; render();
+    $("caption").focus();
+  });
+
+  function run() {
+    var input = {
+      caption: $("caption").value.trim(), url: $("url").value.trim(), account: $("account").value.trim(),
+      ocrText: $("ocr").value.trim(), transcript: $("transcript").value.trim(), blogHtml: $("blog").value.trim()
+    };
+    if (!input.caption && !input.ocrText && !input.transcript && !input.blogHtml) { state.result = null; render(); return; }
+    var t0 = performance.now();
+    state.result = K.analyse(input);
+    if (window.NAEHRWERTE) K.berechneNaehrwerte(state.result.recipe, window.NAEHRWERTE);
+    state.result.uiMs = performance.now() - t0;
+    state.servings = state.result.recipe.servings || 2;
+    render();
+  }
+
+  var STATUS_CLASS = { "verwendet": "used", "übersprungen": "skip", "nicht verfügbar": "skip", "nichts gefunden": "none" };
+  var NEXT_LABEL = { blog: "Blog-Link öffnen", bio: "Bio-Link teilen", screenshot: "Screenshot", video: "Bildschirmaufnahme", model: "Lokales Modell" };
+  var PROV = { blog: "Blog", caption: "Caption", ocr: "Texterkennung", speech: "Ton", model: "Modell", "geschätzt": "geschätzt aus Schritten" };
+
+  function tmify(s) {
+    return esc(s).replace(/(\d+\s*(?:Sek|Min)\.?\s*\/\s*(?:\d+\s*°C\s*\/\s*)?(?:Varoma\s*\/\s*)?(?:Linkslauf\s*\/\s*)?Stufe\s*[\d.,]+|\d+\s*(?:Sek|Min)\.?\s*\/\s*\d+\s*°C\s*\/\s*Stufe\s*[\d.,]+)/gi, '<span class="tm">$1</span>');
+  }
+
+  function render() {
+    var out = $("out");
+    var res = state.result;
+    if (!res) { out.innerHTML = '<p class="empty">Lade ein Beispiel oder füge eine Caption ein. Das Ergebnis erscheint hier, während du tippst.</p>'; return; }
+    var r = res.recipe, c = res.completeness;
+    var h = [];
+
+    // Vollständigkeit
+    h.push('<div class="meter"><div class="row" style="justify-content:space-between"><h3>Vollständigkeit</h3><span class="small muted">' +
+      (c.enough ? "Genug zum Kochen" : "Es fehlt: " + esc(c.missing.join(", "))) + ' · ' + c.score + ' / 100</span></div>' +
+      '<div class="meter-bar" role="img" aria-label="Vollständigkeit ' + c.score + ' von 100"><div class="meter-fill' + (c.enough ? "" : " low") + '" style="width:' + c.score + '%"></div></div></div>');
+    if (res.next) h.push('<p class="hint"><strong>Nächster Schritt: ' + esc(NEXT_LABEL[res.next.action] || res.next.action) + '.</strong> ' + esc(res.next.hint) + (res.next.url ? ' <span class="muted small">(' + esc(res.next.url) + ')</span>' : '') + '</p>');
+
+    // Analyse-Weg
+    h.push('<div class="sec"><h3>Analyse-Weg</h3><ol class="trace">');
+    res.trace.forEach(function (t, n) {
+      var extra = t.status === "verwendet" && t.gained != null ? " +" + Math.max(0, t.gained) + " Punkte" : "";
+      h.push('<li><span class="n">' + (n + 1) + '</span><span>' + esc(t.label) + (t.reason ? ' <span class="muted small">– ' + esc(t.reason) + '</span>' : '') + '</span><span class="pill ' + (STATUS_CLASS[t.status] || "skip") + '">' + esc(t.status + extra) + '</span></li>');
+    });
+    h.push('</ol><p class="small muted">Gesamtdauer der Analyse: ' + res.uiMs.toFixed(1) + ' ms</p></div>');
+
+    // Rezeptkopf
+    var tags = [];
+    tags.push('<span class="tag">' + esc(r.category) + '</span>');
+    r.diet.forEach(function (d) { tags.push('<span class="tag">' + esc(d) + '</span>'); });
+    if (r.difficulty) tags.push('<span class="tag">' + esc(r.difficulty) + '</span>');
+    if (r.timeTotal) tags.push('<span class="tag' + (r.timeEstimated ? " est" : "") + '">' + r.timeTotal + ' Min.</span>');
+    r.equipment.forEach(function (e) { tags.push('<span class="tag">' + esc(e) + '</span>'); });
+    var focus = r.focus.map(function (f) { return '<span class="tag focus">' + esc(f.label) + ' <span class="basis">' + esc(f.basis) + '</span></span>'; }).join("");
+    h.push('<div class="sec recipe-head"><h2 style="font-size:1.35rem">' + esc(r.title || "Ohne Titel") + '</h2>' +
+      (r.source.account ? '<p class="small muted">von @' + esc(r.source.account) + '</p>' : '') +
+      '<div class="chips">' + tags.join("") + '</div>' +
+      (focus ? '<div class="chips">' + focus + '</div>' : '') +
+      (r.allergens.length ? '<p class="small"><strong>Allergene</strong> <span class="muted">(erkannt, ohne Gewähr):</span> ' + esc(r.allergens.join(", ")) + '</p>' : '') + '</div>');
+
+    // Zutaten mit Portionsrechner
+    if (r.ingredients.length) {
+      var scaled = K.scaleRecipe(r, state.servings);
+      h.push('<div class="sec"><div class="row" style="justify-content:space-between"><h3>Zutaten (' + r.ingredients.length + ')</h3>' +
+        '<span class="servings"><button type="button" data-sv="-1" aria-label="Eine Portion weniger">−</button><output aria-live="polite">' + state.servings + '</output><button type="button" data-sv="1" aria-label="Eine Portion mehr">+</button><span class="small muted">Portionen' + (r.servings ? "" : " (angenommen)") + '</span></span></div><ul class="ings">');
+      scaled.forEach(function (s) {
+        var i = s.ingredient;
+        var q = i.qty != null ? K.fmtQty(i.qty * s.factor) + (i.qtyMax != null ? "–" + K.fmtQty(i.qtyMax * s.factor) : "") + " " + i.unit : (i.unit || "");
+        h.push('<li><span class="q">' + esc(q) + '</span><span>' + esc(i.name) + (i.staple ? '<span class="staple">Grundvorrat</span>' : '') +
+          (i.note ? '<br><span class="note">' + esc(i.note) + '</span>' : '') + '</span><span class="aisle">' + esc(i.aisle) + '</span></li>');
+      });
+      h.push('</ul></div>');
+    }
+
+
+    // Nährwerte (BLS 4.0)
+    var nw = r.nutrition;
+    if (nw && nw.coverage.matched) {
+      var v = nw.values;
+      var rows = [["Energie", v.kcal, "kcal"], ["Eiweiß", v.protein, "g"], ["Fett", v.fat, "g"], ["Kohlenhydrate", v.carbs, "g"],
+        ["davon Zucker", v.sugar, "g"], ["Ballaststoffe", v.fiber, "g"], ["Salz", v.salt, "g"], ["Eisen", v.iron, "mg"],
+        ["Calcium", v.calcium, "mg"], ["Vitamin C", v.vitC, "mg"]];
+      h.push('<div class="sec"><div class="row" style="justify-content:space-between"><h3>Nährwerte ' + (nw.perServing ? "pro Portion" : "für das ganze Rezept") + '</h3>' +
+        '<span class="pill ' + (nw.reliable ? "used" : "none") + '">' + (nw.reliable ? "berechnet" : "unvollständig") + '</span></div>' +
+        '<table class="nw"><tbody>' + rows.map(function (x) {
+          return '<tr><td>' + x[0] + '</td><td class="num">' + String(x[1]).replace(".", ",") + ' ' + x[2] + '</td></tr>';
+        }).join("") + '</tbody></table>' +
+        '<p class="small muted">' + nw.coverage.matched + ' von ' + (nw.coverage.matched + nw.coverage.unmatched.length) + ' Zutaten zugeordnet' +
+        (nw.coverage.unmatched.length ? ' · ohne Daten: ' + esc(nw.coverage.unmatched.join(", ")) : '') +
+        '. Stückgewichte sind Richtwerte.</p>' +
+        '<details><summary class="small">Welche BLS-Einträge wurden verwendet?</summary><ul class="small">' +
+        nw.details.map(function (d) { return '<li>' + esc(d.name) + ' – ' + d.gramm + ' g → ' + esc(d.bls) + '</li>'; }).join("") + '</ul></details>' +
+        '<p class="small muted">Datenquelle: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Lizenz CC BY 4.0.</p></div>');
+    }
+    // Schritte
+    if (r.steps.length) {
+      h.push('<div class="sec"><h3>Zubereitung (' + r.steps.length + ')</h3><ol class="steps">');
+      r.steps.forEach(function (s) { h.push('<li>' + tmify(s) + '</li>'); });
+      h.push('</ol></div>');
+    }
+
+    // Cookidoo
+    var ck = K.toCookidoo(r);
+    h.push('<div class="sec"><div class="row" style="justify-content:space-between"><h3>Für Cookidoo „Meine Kreationen“</h3><button type="button" class="copy" data-copy-all="1">Alles kopieren</button></div>' +
+      '<p class="small muted">Feld für Feld kopieren und in Cookidoo einfügen.' + (ck.hasThermomixSettings ? ' Thermomix-Einstellungen sind schon im Text.' : '') + '</p><ul class="cookidoo">');
+    ck.fields.forEach(function (f, n) {
+      h.push('<li><span class="txt"><span class="lbl">' + esc(f.label) + '</span>' + tmify(f.text) + '</span><button type="button" class="copy" data-copy="' + n + '" aria-label="' + esc(f.label) + ' kopieren">Kopieren</button></li>');
+    });
+    h.push('</ul></div>');
+
+    // Herkunft & Export
+    var prov = Object.keys(r.provenance).map(function (k) {
+      var names = { title: "Titel", servings: "Portionen", ingredients: "Zutaten", steps: "Schritte", timeTotal: "Dauer", nutritionDeclared: "Nährwerte" };
+      return names[k] ? '<tr><td>' + names[k] + '</td><td class="muted">' + esc(PROV[r.provenance[k]] || r.provenance[k]) + '</td></tr>' : "";
+    }).join("");
+    h.push('<details class="sec"><summary>Herkunft der Daten und offenes Exportformat</summary><table class="prov">' + prov + '</table>' +
+      '<pre class="json">' + esc(JSON.stringify(K.toSchemaOrg(r), null, 2)) + '</pre></details>');
+
+    out.innerHTML = h.join("");
+    state.cookidoo = ck;
+  }
+
+  $("out").addEventListener("click", function (e) {
+    var b = e.target.closest("button");
+    if (!b) return;
+    if (b.dataset.sv) {
+      state.servings = Math.max(1, Math.min(24, state.servings + Number(b.dataset.sv)));
+      render();
+      var again = document.querySelector('[data-sv="' + b.dataset.sv + '"]'); if (again) again.focus();
+      return;
+    }
+    if (b.dataset.copy != null) copy(state.cookidoo.fields[+b.dataset.copy].text, b);
+    if (b.dataset.copyAll) copy(state.cookidoo.fullText, b);
+  });
+
+  function copy(text, btn) {
+    var done = function () { toast("Kopiert"); var old = btn.textContent; btn.textContent = "✓"; setTimeout(function () { btn.textContent = old; }, 1200); };
+    try {
+      navigator.clipboard.writeText(text).then(done, function () { fallback(text) ? done() : toast("Kopieren nicht möglich. Text bitte markieren."); });
+    } catch (e) { fallback(text) ? done() : toast("Kopieren nicht möglich. Text bitte markieren."); }
+  }
+  function fallback(text) {
+    var ta = document.createElement("textarea");
+    ta.value = text; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    var ok = false; try { ok = document.execCommand("copy"); } catch (e) {}
+    ta.remove(); return ok;
+  }
+  var toastTimer;
+  function toast(msg) { var t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.hidden = true; }, 1600); }
+
+  // Startzustand: Beispiel laden, damit sofort sichtbar ist, was der Kern kann
+  var first = SAMPLES["Unordentliche Bowl"];
+  FIELDS.forEach(function (f) { $(f).value = first[f] || ""; });
+  run();
+})();
+</script>

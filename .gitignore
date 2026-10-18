@@ -1,0 +1,10 @@
+# Private Daten – nie ins öffentliche Projekt
+daten/ig-export/
+daten/ig-analyse.json
+daten/ig-posts.json
+*.zip
+# Rohdaten des BLS (groß; Auszug liegt in daten/bls-auszug.json)
+daten/bls-roh/
+labor/rezept-labor.html
+node_modules/
+.DS_Store
