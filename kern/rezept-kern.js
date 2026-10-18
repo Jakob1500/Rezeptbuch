@@ -56,6 +56,7 @@
     "becher": "Becher",
     "scheiben": "Scheibe", "scheibe": "Scheibe", "slices": "Scheibe", "slice": "Scheibe",
     "handvoll": "Handvoll", "handful": "Handvoll", "handfuls": "Handvoll", "hände voll": "Handvoll", "hand voll": "Handvoll", "händevoll": "Handvoll",
+    "blöcke": "Block", "block": "Block", "blocks": "Block",
     "chunks": "Stk", "chunk": "Stk", "knobs": "Stk", "knob": "Stk",
     "messlöffel": "Messlöffel", "scoops": "Messlöffel", "scoop": "Messlöffel",
     "tins": "Dose", "tin": "Dose", "jars": "Glas", "packets": "Pck", "packet": "Pck",
@@ -235,7 +236,7 @@
     "boiling": "kochend", "hot": "heiß", "lukewarm": "lauwarm", "juiced": "ausgepresst", "zested": "abgerieben", "halved": "halbiert", "quartered": "geviertelt",
     "deseeded": "entkernt", "pitted": "entsteint", "soaked": "eingeweicht", "pressed": "gepresst", "spicy": "scharf", "mild": "mild", "plus extra": "und etwas mehr",
     "plus more": "und etwas mehr", "or more": "oder mehr", "if needed": "bei Bedarf", "as needed": "nach Bedarf", "about": "ca.", "approx": "ca.", "each": "je",
-    "whole": "ganz", "leftover": "vom Vortag", "day-old": "vom Vortag", "firm": "fest", "light": "hell", "dark": "dunkel", "extra virgin": "nativ extra"
+    "whole": "ganz", "super firm": "extra fest", "extra firm": "extra fest", "leftover": "vom Vortag", "day-old": "vom Vortag", "firm": "fest", "light": "hell", "dark": "dunkel", "extra virgin": "nativ extra"
   };
   var EN_WORD_KEYS = Object.keys(EN_WORDS).sort(function (a, b) { return b.length - a.length; });
 
@@ -1827,6 +1828,10 @@
     s = s.replace(/\s*\(\s*(?:english|englisch|eng|deutsch|german|de\s*\/\s*en|en\s*\/\s*de)[^)]*\)\s*/gi, " ").replace(/[“”„"«»]/g, "");
     s = s.replace(/^(?:the\s+)?(?:best|ultimate|perfect|viral|easiest|easy|beste[rsn]?|ultimative[rsn]?|perfekte[rsn]?|virale[rsn]?)\s+(?=\S)/i, "");
     s = s.replace(/\s+(?:recipe|rezept)$/i, "");
+    // Vorsatz wie "Of Vsk 2024:" oder "Folge 3 –" weg, wenn danach ein Titel folgt
+    s = s.replace(/^[^:]{1,25}\b(?:19|20)\d{2}\s*:\s*(?=\S{3,})/, "");
+    // Teilweise GROSS geschriebene Wörter angleichen ("CRISPY GNOCCHI auf die 1")
+    if (/[a-zäöü]/.test(s)) s = s.replace(/\b([A-ZÄÖÜ])([A-ZÄÖÜ]{2,})\b/g, function (m, a, b) { return /^(BBQ|DIY|XXL|TK|USA|UK)$/.test(m) ? m : a + b.toLowerCase(); });
     return clean(s) || clean(t);
   }
 
@@ -2252,6 +2257,7 @@
       case "Becher": return q * 200;
       case "Pck": return q * (entry.stk || 15);
       case "Würfel": return q * (entry.stk || 10);
+      case "Block": return q * (entry.stk && entry.stk > 100 ? entry.stk : 200);
       case "Zehe": return q * 4;
       case "Bund": return q * 25;
       case "Handvoll": return q * 30;
