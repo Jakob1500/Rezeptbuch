@@ -243,6 +243,7 @@ a { color: var(--accent); }
 .info .body { padding: 0 16px 16px 50px; display: grid; gap: 8px; font-size: 0.92rem; }
 .info .body p, .info .body ul { margin: 0; }
 .info .body ul { padding-left: 18px; display: grid; gap: 4px; }
+.info .detail { display: grid; gap: 8px; padding-top: 6px; border-top: 1px dashed var(--line); color: var(--ink); }
 .glance { display: grid; gap: 10px; padding: 16px; }
 .glance div { display: flex; gap: 10px; align-items: flex-start; font-size: 0.93rem; }
 .glance svg { width: 20px; height: 20px; color: var(--accent); flex: none; margin-top: 1px; }
@@ -940,8 +941,13 @@ a { color: var(--accent); }
   }
   // Infoseite: Datenschutz, Funktionsweise, Quellen, Regeln – kurz und verständlich
   function infoSheet() {
-    function sec(icon, title, html, open) { return '<details' + (open ? ' open' : '') + '><summary>' + ic(icon) + esc(title) + '</summary><div class="body">' + html + '</div></details>'; }
+    var more = !!UI.infoDetail;
+    function sec(icon, title, html, open, detail) {
+      return '<details' + (open || more ? ' open' : '') + '><summary>' + ic(icon) + esc(title) + '</summary><div class="body">' + html +
+        (more && detail ? '<div class="detail">' + detail + '</div>' : '') + '</div></details>';
+    }
     sheet('<h2>So funktioniert die App</h2>' +
+      '<div class="seg" role="group" aria-label="Umfang"><button data-a="info-detail" data-v="0" aria-pressed="' + !more + '">Kurz</button><button data-a="info-detail" data-v="1" aria-pressed="' + more + '">Ausführlich</button></div>' +
       '<div class="group glance">' +
       '<div>' + ic("check") + '<span>Deine Rezepte, dein Vorrat und deine Einkaufsliste bleiben auf deinem iPhone.</span></div>' +
       '<div>' + ic("check") + '<span>Kein Konto, keine Werbung, kein Tracking, kein eigener Server.</span></div>' +
@@ -952,35 +958,51 @@ a { color: var(--accent); }
         '<p>Alles, was du in der App speicherst, liegt nur im Speicher dieses Geräts, im Bereich der App. Niemand sonst kann es sehen, auch nicht die Person, die die App bereitstellt.</p>' +
         '<ul><li>Ein Rezept braucht etwa 4 KB, 1.000 Rezepte so viel wie ein Foto.</li><li>Bilder und Videos speichert die App nicht.</li>' +
         '<li>Die Sicherung ist eine einzige Datei, die du selbst ablegst, zum Beispiel in deinem iCloud Drive. Tipp: Schalte in den iCloud-Einstellungen den „Erweiterten Datenschutz“ ein, dann ist sie Ende-zu-Ende-verschlüsselt.</li>' +
-        '<li>Löschst du die App vom Home-Bildschirm, sind die Daten weg. Deshalb erinnert die App ans Sichern.</li></ul>', true) +
+        '<li>Löschst du die App vom Home-Bildschirm, sind die Daten weg. Deshalb erinnert die App ans Sichern.</li></ul>', true,
+        '<p><b>Technisch:</b> Die Daten liegen in der Browser-Datenbank (IndexedDB) der App. Die App bittet iOS um dauerhaften Speicher, damit nichts automatisch gelöscht wird. Die App vom Home-Bildschirm und Safari haben getrennte Speicher, nutze daher immer das App-Symbol.</p>' +
+        '<p><b>Sicherung:</b> Eine JSON-Datei mit Rezepten, Vorrat, Einkaufsliste, eigenen Zuordnungen und Folgen-Status. Beim Laden auf einem anderen Gerät kommen neue Rezepte dazu; bei doppelten gewinnt die neuere Fassung. Die App erinnert an die Sicherung, wenn sich seit mehr als 24 Stunden etwas geändert hat.</p>') +
       sec("share", "Wie Rezepte aus Instagram ankommen",
         '<p>Du entscheidest bei jedem Rezept selbst. Nichts passiert im Hintergrund.</p>' +
         '<ul><li><b>Kurzbefehl „Ins Rezeptbuch“:</b> Beim Teilen holt dein iPhone einmal die öffentliche Vorschau des Posts, ohne Anmeldung und ohne Zugriff auf dein Instagram-Konto. Private Konten gehen nicht.</li>' +
         '<li><b>Instagram-Export:</b> Die Datei aus „Deine Informationen herunterladen“ liest die App nur auf diesem Gerät. Es kommen nur neue Rezepte dazu, nichts wird überschrieben.</li>' +
-        '<li><b>Bilder oder Ton:</b> Wenn ein Rezept nur auf Bildern oder im Video steht, liest dein iPhone den Text bzw. Ton aus und löscht die Datei danach wieder.</li></ul>') +
+        '<li><b>Bilder oder Ton:</b> Wenn ein Rezept nur auf Bildern oder im Video steht, liest dein iPhone den Text bzw. Ton aus und löscht die Datei danach wieder.</li></ul>', false,
+        '<p><b>Reihenfolge, wenn Angaben fehlen:</b> 1. Blog des Creators (strukturierte Rezeptdaten der Seite) · 2. Text auf den Bildern des Posts (Live Text) · 3. Ton aus Instagrams offiziellem Download (Transkription). Danach kommt ein Screenshot als Handarbeit. Die App nimmt immer den sparsamsten Weg zuerst.</p>' +
+        '<p><b>Was der Kurzbefehl abruft:</b> die öffentliche Einbettungsseite des Posts, die Instagram für andere Webseiten bereitstellt. Er schickt den Text über die Adresse an die App. Dabei sind keine Anmeldedaten und keine Cookies im Spiel, und kein fremder Server liegt dazwischen.</p>' +
+        '<p><b>Blog-Suche:</b> Die App fragt höchstens sechs Mal beim Blog nach (neueste Beiträge, Titel, Hauptzutaten, Hashtag). Einen Treffer übernimmt sie nur, wenn die Zutaten zur Caption passen.</p>') +
       sec("info", "Regeln von Instagram",
         '<p>Instagram verbietet, Inhalte automatisiert und in großer Menge zu sammeln. Die App tut das nicht:</p>' +
         '<ul><li>Ein Abruf pro Tipp, nur für den Post, den du gerade teilst.</li><li>Keine Anmeldung, kein Konto, keine Beiträge, kein automatisches Folgen. Folgen tippst du selbst in Instagram.</li>' +
         '<li>Die App ist für den privaten Gebrauch. Rezepte gehören den Creators: Bitte nicht öffentlich weiterverbreiten. Beim Teilen hängt die App immer den Link zum Original an.</li>' +
-        '<li>Der komplett offizielle Weg ist der Instagram-Export. Er funktioniert immer, auch wenn Instagram etwas ändert.</li></ul>') +
+        '<li>Der komplett offizielle Weg ist der Instagram-Export. Er funktioniert immer, auch wenn Instagram etwas ändert.</li></ul>', false,
+        '<p><b>Einordnung:</b> Die Nutzungsbedingungen von Instagram untersagen sinngemäß, Informationen ohne Erlaubnis automatisiert zu erheben. Gemeint ist vor allem massenhaftes Abgreifen. Ein einzelner, von dir ausgelöster Abruf einer öffentlichen Seite für den privaten Gebrauch ist etwas anderes. Eine Garantie, dass Instagram das immer so sieht, gibt es nicht. Ändert Instagram die Seite, bleiben der Export und Screenshots als Wege.</p>' +
+        '<p><b>Urheberrecht:</b> Private Kopien für den eigenen Gebrauch sind erlaubt (§ 53 UrhG). Öffentlich weitergeben solltest du fremde Rezepttexte nicht. Die App speichert deshalb immer die Quelle mit.</p>') +
       sec("sparkle", "Wie die Erkennung funktioniert",
         '<p>Die App erkennt Zutaten, Schritte, Zeit, Portionen und Labels mit festen Regeln und Wörterbüchern, ohne KI-Modell. Das ist schnell, sparsam und läuft offline.</p>' +
         '<ul><li>Fehler sind möglich. Was die App schätzt, steht als „geschätzt“ oder „vorgeschlagen“ dabei.</li><li>Titel und Mengen kannst du jederzeit ändern.</li>' +
         '<li>Englische Zutaten übersetzt ein Wörterbuch. Die Zubereitung übersetzt Apples Übersetzer auf deinem iPhone, auch ohne Internet. Das Original bleibt gespeichert („Original zeigen“).</li>' +
-        '<li>Allergene erkennt die App noch nicht zuverlässig genug und zeigt sie deshalb nicht an. Bei Allergien bitte immer die Zutaten selbst prüfen.</li></ul>') +
+        '<li>Allergene erkennt die App noch nicht zuverlässig genug und zeigt sie deshalb nicht an. Bei Allergien bitte immer die Zutaten selbst prüfen.</li></ul>', false,
+        '<p><b>Was die Regeln erkennen:</b> Überschriften (Zutaten, Zubereitung …), Mengen mit Einheiten, Zeiten, Portionen, Backformen, zweisprachige Captions und Text ohne Zeilenumbrüche. Mengen in Tassen rechnet die App in Gramm oder ml um.</p>' +
+        '<p><b>Portionen ohne Angabe:</b> Backblech 20 Stück, Springform 12, Kastenform 12 Scheiben, Muffinblech 12, Brownie-Form 9, Auflaufform 4 Portionen; Smoothie und Porridge 1 Portion; sonst geschätzt aus der Gesamtmenge.</p>' +
+        '<p><b>Labels:</b> neun Gruppen (Gang, Ernährung, Zeit, Hauptzutat, Praktisch, Nährwert-Fokus, Aufwand, Küche, Saison). „vegan“ heißt: keine tierische Zutat erkannt. „glutenfrei laut Zutaten“ heißt: keine glutenhaltige Zutat erkannt, keine Garantie.</p>' +
+        '<p><b>Übersetzung:</b> Apples Übersetzer arbeitet auf dem iPhone mit heruntergeladenen Sprachen. Die App setzt die „Sie“-Form in Rezeptsprache um („Die Nudeln kochen“).</p>') +
       (showNutri() ? sec("scale", "Woher die Nährwerte kommen",
         '<p>Die Werte berechnet die App aus dem Bundeslebensmittelschlüssel (BLS 4.0) des Max Rubner-Instituts, der amtlichen deutschen Nährwertdatenbank.</p>' +
         '<ul><li>Stück- und Löffelgewichte sind Richtwerte. Die Ergebnisse sind Näherungen, keine Laborwerte.</li><li>Labels wie „proteinreich“ oder „eisenreich“ folgen den Schwellen der EU-Verordnung über nährwertbezogene Angaben (VO (EG) 1924/2006), umgerechnet pro Portion.</li>' +
         '<li>Die Werte sind keine Ernährungs- oder Gesundheitsberatung.</li><li>Du kannst alle Zahlen in den Einstellungen ausblenden.</li></ul>' +
-        '<p class="small muted">' + esc(BLS_HINWEIS) + '</p>') :
+        '<p class="small muted">' + esc(BLS_HINWEIS) + '</p>', false,
+        '<p><b>Schwellen pro Portion:</b> proteinreich ab 20 % der Energie aus Eiweiß · ballaststoffreich ab 3 g je 100 kcal · eisenreich ab 4,2 mg · calciumreich ab 240 mg · magnesiumreich ab 112,5 mg · Vitamin-C-reich ab 24 mg (je 30 % des Referenzwerts) · Omega-3-reich ab 0,6 g je 100 kcal.</p>' +
+        '<p><b>Wann Werte als verlässlich gelten:</b> wenn mindestens 80 % der Zutaten (ohne Gewürze) zugeordnet sind. Sonst steht „teilweise berechnet“ dabei, und die App vergibt keine Labels. Die App unterscheidet roh, gekocht und abgetropft (z. B. Reis, Kichererbsen aus der Dose). Unbekannte Zutaten kannst du einmal zuordnen.</p>') :
         sec("scale", "Nährwerte", '<p>Du hast die Nährwerte ausgeblendet. Die App zeigt keine Kalorien, Nährwerte oder Labels wie „proteinreich“. Du kannst das in den Einstellungen jederzeit ändern.</p>')) +
       sec("cloud", "Wo die App herkommt",
         '<p>Die App ist eine Webseite, die du auf den Home-Bildschirm legst. Die Dateien liefert GitHub Pages aus (gehört zu Microsoft, USA).</p>' +
         '<ul><li>Beim Öffnen sieht GitHub wie jeder Webserver deine IP-Adresse, aber nichts von deinen Rezepten.</li><li>Danach läuft die App auch offline. Updates kommen automatisch beim nächsten Öffnen.</li>' +
-        '<li>Der Programmcode ist offen einsehbar. Persönliche Daten stehen nicht darin.</li><li>Die App lädt keine Schriften, Skripte oder Werbung von fremden Anbietern.</li></ul>') +
+        '<li>Der Programmcode ist offen einsehbar. Persönliche Daten stehen nicht darin.</li><li>Die App lädt keine Schriften, Skripte oder Werbung von fremden Anbietern.</li></ul>', false,
+        '<p><b>Energie und Kosten:</b> keine Server, keine KI im Netz, alles läuft auf dem Gerät. Die App ist eine einzige Datei von etwa 0,4 MB. Die Lebensmittel-Suchliste (ca. 0,3 MB) lädt sie nur, wenn du eine Zutat zuordnest.</p>' +
+        '<p><b>Offline:</b> Ein Service Worker speichert die App-Dateien auf dem Gerät. Fremde Adressen fasst er nicht an.</p>') +
       sec("person", "Deine Rechte und Kontrolle",
         '<ul><li>Alle Einstellungen, auch Name, Haushalt und Ernährung, bleiben auf diesem Gerät.</li><li>Du kannst jedes Rezept löschen. Alles auf einmal löschst du, indem du die App vom Home-Bildschirm entfernst und die Website-Daten in den Safari-Einstellungen löschst.</li>' +
-        '<li>Weil die App nur privat in einem kleinen Kreis genutzt wird und nichts zentral speichert, gelten die strengen Pflichten für Anbieter nach der DSGVO hier weitgehend nicht (Ausnahme für persönliche und familiäre Tätigkeiten).</li></ul>') +
+        '<li>Weil die App nur privat in einem kleinen Kreis genutzt wird und nichts zentral speichert, gelten die strengen Pflichten für Anbieter nach der DSGVO hier weitgehend nicht (Ausnahme für persönliche und familiäre Tätigkeiten).</li></ul>', false,
+        '<p><b>Rechtsgrundlage:</b> Art. 2 Abs. 2 lit. c DSGVO (ausschließlich persönliche oder familiäre Tätigkeiten). Die Person, die die App bereitstellt, erhält keine Daten der Nutzerinnen und Nutzer. Für Zugriffe auf die Webseite ist GitHub verantwortlich (Datenschutzerklärung von GitHub). Diese Einordnung ist keine Rechtsberatung.</p>') +
       '</div><p class="foot">Rezeptbuch ' + APP_VERSION + ' · Kern ' + esc(K.VERSION) + '</p><button class="btn soft" data-a="close-sheet">Fertig</button>');
   }
   function setupSheet() {
@@ -1180,6 +1202,7 @@ a { color: var(--accent); }
       case "close-sheet": closeSheet(); break;
       case "guide-ok": S.meta.guides[el.dataset.k] = true; save("meta"); render(); break;
       case "info": infoSheet(); break;
+      case "info-detail": UI.infoDetail = el.dataset.v === "1"; infoSheet(); break;
       case "guides-reset": S.meta.guides = {}; save("meta"); closeSheet(); render(); toast("Anleitungen werden wieder gezeigt"); break;
       case "filter": var g = el.dataset.g, v = el.dataset.v; UI.filter[g] = UI.filter[g] === v ? null : v; render(); if (el.dataset.keep) filterSheet(); break;
       case "filter-reset": UI.filter = {}; render(); if (el.dataset.keep) filterSheet(); break;
