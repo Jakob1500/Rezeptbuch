@@ -1574,7 +1574,7 @@
     if (!b) return a;
     var r = a;
     ["title", "servings", "timeTotal", "timePrep", "timeCook", "cuisine", "keywords", "blogCategory", "nutritionDeclared",
-      "elsewhere", "bakingForm", "yieldInfo", "servingsUnit", "ingredientsFromSteps", "hashtagTitle"].forEach(function (f) {
+      "elsewhere", "bakingForm", "yieldInfo", "servingsUnit", "ingredientsFromSteps", "hashtagTitle", "titleFromTranslation"].forEach(function (f) {
       if ((r[f] == null || r[f] === "") && b[f] != null && b[f] !== "") { r[f] = b[f]; r.provenance[f] = src; }
     });
     if (ingredientQuality(b.ingredients) > ingredientQuality(r.ingredients) * 1.15) {
@@ -1647,6 +1647,14 @@
     step("comment", !!input.commentText, function () { return parseText(input.commentText, "comment"); });
     // 4. Spracherkennung
     step("speech", !!input.transcript, function () { return parseTranscript(input.transcript); });
+    // Deutsche Übersetzung der Caption (z. B. Apples Übersetzer im Kurzbefehl): Schritte und Titel daraus,
+    // Mengen und Zutaten weiter aus dem Original (dort sind sie verlässlicher)
+    if (input.captionDe && clean(input.captionDe)) {
+      var de = parseText(input.captionDe, "translation");
+      if (de.steps.length && de.steps.length >= Math.max(1, r.steps.length - 1)) uebersetzeSchritte(r, de.steps);
+      if (de.title) r.titleFromTranslation = de.title;
+      trace.push({ step: "translation", label: "Übersetzung", status: de.steps.length ? "verwendet" : "nichts gefunden" });
+    }
 
     finalize(r);
     var c = completeness(r);
@@ -1835,17 +1843,35 @@
     return clean(s) || clean(t);
   }
 
+  // Übersetzte Schritte einsetzen; das Original bleibt erhalten ("Original zeigen")
+  function uebersetzeSchritte(r, stepsDe) {
+    var st = (stepsDe || []).map(function (x) { return cleanStep(String(x)); }).filter(function (x) { return x.length > 2; });
+    if (!st.length) return r;
+    if (!r.stepsOriginal) r.stepsOriginal = r.steps.slice();
+    r.steps = st; r.stepsTranslated = true; r.lang = "de";
+    return r;
+  }
   // Sprache der Zubereitung grob bestimmen ("de" | "en" | "?")
   function detectLang(r) {
-    var t = " " + lower(r.steps.join(" ") + " " + (r.titleOriginal || r.title)) + " ";
-    var en = (t.match(/ (the|and|with|until|add|into|then|minutes|your|cook|stir|for|of|it) /g) || []).length;
-    var de = (t.match(/ (und|mit|die|der|das|bis|dann|minuten|in den|den|ein|eine|für|von|zu) /g) || []).length;
-    if (en + de < 3) {
+    if (r.stepsTranslated) return "de";
+    function langOf(t) {
+      t = " " + lower(t) + " ";
+      var en = (t.match(/ (the|and|with|until|add|into|then|minutes|your|cook|stir|for|of|it|in a|on) /g) || []).length;
+      var de = (t.match(/ (und|mit|die|der|das|bis|dann|minuten|in den|den|ein|eine|für|von|zu|im|auf) /g) || []).length;
+      return en + de < 2 ? "?" : en > de ? "en" : "de";
+    }
+    // Mehrheit der Schritte entscheidet (zweisprachige Captions)
+    var votes = { en: 0, de: 0 };
+    r.steps.forEach(function (st) { var l = langOf(st); if (l !== "?") votes[l]++; });
+    if (votes.en + votes.de === 0) {
+      var t = langOf(r.titleOriginal || r.title);
+      if (t !== "?") return t;
       var enIng = r.ingredients.filter(function (i) { return i.lang === "en"; }).length;
       return enIng > r.ingredients.length / 2 ? "en" : (r.ingredients.length ? "de" : "?");
     }
-    return en > de ? "en" : "de";
+    return votes.en > votes.de ? "en" : "de";
   }
+
 
   // ---------------------------------------------------------------------------
   // Labels: mehrere je Rezept, gruppiert, wichtigste Gruppe zuerst (B5)
@@ -1976,6 +2002,7 @@
       var orig = r.titleOriginal || r.title;
       var pol = polishTitle(orig);
       var de = translateTitle(pol);
+      if (!de && r.titleFromTranslation && /[a-z]/i.test(pol) && !/[äöüß]/i.test(pol)) de = polishTitle(r.titleFromTranslation);
       r.titleOriginal = orig;
       r.title = de || pol;
       r.titleTranslated = !!de;
@@ -2842,7 +2869,7 @@
     extractInlineIngredients: extractInlineIngredients, isStepLike: isStepLike, postType: postType, normalizeFancy: normalizeFancy, zuordnungsVorschlaege: zuordnungsVorschlaege,
     recipeId: recipeId, importNeue: importNeue, folgenVorschlag: folgenVorschlag, folgenAntwort: folgenAntwort, FOLGEN_ERNEUT_AB: FOLGEN_ERNEUT_AB,
     blogSuchplan: blogSuchplan, blogKandidaten: blogKandidaten, besteKandidaten: besteKandidaten, pruefeBlogTreffer: pruefeBlogTreffer,
-    parseRecipeHtml: parseRecipeHtml, inferServings: inferServings
+    parseRecipeHtml: parseRecipeHtml, inferServings: inferServings, uebersetzeSchritte: uebersetzeSchritte, detectLang: detectLang
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = api;

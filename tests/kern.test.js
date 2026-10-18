@@ -364,5 +364,12 @@ const blog = K.parseRecipeHtml(wprm, "https://drveganblog.com/spicy-peanut-noodl
 check("Rezeptkarte (WPRM) gelesen", blog && blog.ingredients.length === 3 && blog.steps.length === 2 && blog.servings === 2, blog);
 check("Treffer per Zutaten geprüft", K.pruefeBlogTreffer(pr, blog).passt, K.pruefeBlogTreffer(pr, blog));
 
+// Übersetzung aus dem Kurzbefehl (Apple-Übersetzer)
+const enCap = "Lemon Pasta\nIngredients:\n200 g spaghetti\n1 lemon\n2 tbsp olive oil\nInstructions:\n1. Cook the pasta.\n2. Mix with lemon and oil.";
+const deCap = "Zitronenpasta\nZutaten:\n200 g Spaghetti\n1 Zitrone\n2 EL Olivenöl\nAnleitung:\n1. Die Nudeln kochen.\n2. Mit Zitrone und Öl mischen.";
+const trA = K.analyse({ caption: enCap, captionDe: deCap }).recipe;
+check("Schritte deutsch aus Übersetzung", trA.steps[0] === "Die Nudeln kochen." && trA.stepsOriginal[0] === "Cook the pasta." && trA.lang === "de", trA.steps);
+check("Zutaten weiter aus dem Original", trA.ingredients.some(i => i.key === "spaghetti" && i.qty === 200));
+
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);
