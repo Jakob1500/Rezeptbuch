@@ -250,6 +250,9 @@ a { color: var(--accent); }
 .info .body p, .info .body ul { margin: 0; }
 .info .body ul { padding-left: 18px; display: grid; gap: 4px; }
 .info .detail { display: grid; gap: 8px; padding-top: 6px; border-top: 1px dashed var(--line); color: var(--ink); }
+.refs { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 10px; }
+.refs li { padding-left: 1.5em; text-indent: -1.5em; font-size: 0.86rem; overflow-wrap: anywhere; }
+.refs a { word-break: break-all; }
 .glance { display: grid; gap: 10px; padding: 16px; }
 .glance div { display: flex; gap: 10px; align-items: flex-start; font-size: 0.93rem; }
 .glance svg { width: 20px; height: 20px; color: var(--accent); flex: none; margin-top: 1px; }
@@ -288,7 +291,7 @@ a { color: var(--accent); }
 (function (root) {
   "use strict";
 
-  var VERSION = "0.1.0";
+  var VERSION = "0.2.0";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -3165,7 +3168,7 @@ a { color: var(--accent); }
 (function () {
   "use strict";
   var K = window.RezeptKern, NW = NAEHRWERTE;
-  var APP_VERSION = "0.4.0";
+  var APP_VERSION = "0.4.1";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -3871,14 +3874,14 @@ a { color: var(--accent); }
         '<li><b>Instagram-Export:</b> Die Datei aus „Deine Informationen herunterladen“ liest die App nur auf diesem Gerät. Es kommen nur neue Rezepte dazu, nichts wird überschrieben.</li>' +
         '<li><b>Bilder oder Ton:</b> Wenn ein Rezept nur auf Bildern oder im Video steht, liest dein iPhone den Text bzw. Ton aus und löscht die Datei danach wieder.</li></ul>', false,
         '<p><b>Reihenfolge, wenn Angaben fehlen:</b> 1. Blog des Creators (strukturierte Rezeptdaten der Seite) · 2. Text auf den Bildern des Posts (Live Text) · 3. Ton aus Instagrams offiziellem Download (Transkription). Danach kommt ein Screenshot als Handarbeit. Die App nimmt immer den sparsamsten Weg zuerst.</p>' +
-        '<p><b>Was der Kurzbefehl abruft:</b> die öffentliche Einbettungsseite des Posts, die Instagram für andere Webseiten bereitstellt. Er schickt den Text über die Adresse an die App. Dabei sind keine Anmeldedaten und keine Cookies im Spiel, und kein fremder Server liegt dazwischen.</p>' +
+        '<p><b>Was der Kurzbefehl abruft:</b> die öffentliche Einbettungsseite des Posts, die Instagram für andere Webseiten bereitstellt (Meta Platforms, o. J.). Er schickt den Text über die Adresse an die App. Dabei sind keine Anmeldedaten und keine Cookies im Spiel, und kein fremder Server liegt dazwischen.</p>' +
         '<p><b>Blog-Suche:</b> Die App fragt höchstens sechs Mal beim Blog nach (neueste Beiträge, Titel, Hauptzutaten, Hashtag). Einen Treffer übernimmt sie nur, wenn die Zutaten zur Caption passen.</p>') +
       sec("info", "Regeln von Instagram",
         '<p>Instagram verbietet, Inhalte automatisiert und in großer Menge zu sammeln. Die App tut das nicht:</p>' +
         '<ul><li>Ein Abruf pro Tipp, nur für den Post, den du gerade teilst.</li><li>Keine Anmeldung, kein Konto, keine Beiträge, kein automatisches Folgen. Folgen tippst du selbst in Instagram.</li>' +
         '<li>Die App ist für den privaten Gebrauch. Rezepte gehören den Creators: Bitte nicht öffentlich weiterverbreiten. Beim Teilen hängt die App immer den Link zum Original an.</li>' +
         '<li>Der komplett offizielle Weg ist der Instagram-Export. Er funktioniert immer, auch wenn Instagram etwas ändert.</li></ul>', false,
-        '<p><b>Einordnung:</b> Die Nutzungsbedingungen von Instagram untersagen sinngemäß, Informationen ohne Erlaubnis automatisiert zu erheben. Gemeint ist vor allem massenhaftes Abgreifen. Ein einzelner, von dir ausgelöster Abruf einer öffentlichen Seite für den privaten Gebrauch ist etwas anderes. Eine Garantie, dass Instagram das immer so sieht, gibt es nicht. Ändert Instagram die Seite, bleiben der Export und Screenshots als Wege.</p>' +
+        '<p><b>Einordnung:</b> Die Nutzungsbedingungen von Instagram (Instagram, o. J.) untersagen sinngemäß, Informationen ohne Erlaubnis automatisiert zu erheben. Gemeint ist vor allem massenhaftes Abgreifen. Ein einzelner, von dir ausgelöster Abruf einer öffentlichen Seite für den privaten Gebrauch ist etwas anderes. Eine Garantie, dass Instagram das immer so sieht, gibt es nicht. Ändert Instagram die Seite, bleiben der Export und Screenshots als Wege.</p>' +
         '<p><b>Urheberrecht:</b> Private Kopien für den eigenen Gebrauch sind erlaubt (§ 53 UrhG). Öffentlich weitergeben solltest du fremde Rezepttexte nicht. Die App speichert deshalb immer die Quelle mit.</p>') +
       sec("sparkle", "Wie die Erkennung funktioniert",
         '<p>Die App erkennt Zutaten, Schritte, Zeit, Portionen und Labels mit festen Regeln und Wörterbüchern, ohne KI-Modell. Das ist schnell, sparsam und läuft offline.</p>' +
@@ -3890,15 +3893,15 @@ a { color: var(--accent); }
         '<p><b>Labels:</b> neun Gruppen (Gang, Ernährung, Zeit, Hauptzutat, Praktisch, Nährwert-Fokus, Aufwand, Küche, Saison). „vegan“ heißt: keine tierische Zutat erkannt. „glutenfrei laut Zutaten“ heißt: keine glutenhaltige Zutat erkannt, keine Garantie.</p>' +
         '<p><b>Übersetzung:</b> Apples Übersetzer arbeitet auf dem iPhone mit heruntergeladenen Sprachen. Die App setzt die „Sie“-Form in Rezeptsprache um („Die Nudeln kochen“).</p>') +
       (showNutri() ? sec("scale", "Woher die Nährwerte kommen",
-        '<p>Die Werte berechnet die App aus dem Bundeslebensmittelschlüssel (BLS 4.0) des Max Rubner-Instituts, der amtlichen deutschen Nährwertdatenbank.</p>' +
-        '<ul><li>Stück- und Löffelgewichte sind Richtwerte. Die Ergebnisse sind Näherungen, keine Laborwerte.</li><li>Labels wie „proteinreich“ oder „eisenreich“ folgen den Schwellen der EU-Verordnung über nährwertbezogene Angaben (VO (EG) 1924/2006), umgerechnet pro Portion.</li>' +
+        '<p>Die Werte berechnet die App aus dem Bundeslebensmittelschlüssel, der amtlichen deutschen Nährwertdatenbank (Max Rubner-Institut, 2025).</p>' +
+        '<ul><li>Stück- und Löffelgewichte sind Richtwerte. Die Ergebnisse sind Näherungen, keine Laborwerte.</li><li>Labels wie „proteinreich“ oder „eisenreich“ folgen den Schwellen der EU-Verordnung über nährwertbezogene Angaben, umgerechnet pro Portion (Europäisches Parlament &amp; Rat der Europäischen Union, 2006).</li>' +
         '<li>Die Werte sind keine Ernährungs- oder Gesundheitsberatung.</li><li>Du kannst alle Zahlen in den Einstellungen ausblenden.</li></ul>' +
         '<p class="small muted">' + esc(BLS_HINWEIS) + '</p>', false,
-        '<p><b>Schwellen pro Portion:</b> proteinreich ab 20 % der Energie aus Eiweiß · ballaststoffreich ab 3 g je 100 kcal · eisenreich ab 4,2 mg · calciumreich ab 240 mg · magnesiumreich ab 112,5 mg · Vitamin-C-reich ab 24 mg (je 30 % des Referenzwerts) · Omega-3-reich ab 0,6 g je 100 kcal.</p>' +
+        '<p><b>Schwellen pro Portion:</b> proteinreich ab 20 % der Energie aus Eiweiß · ballaststoffreich ab 3 g je 100 kcal · eisenreich ab 4,2 mg · calciumreich ab 240 mg · magnesiumreich ab 112,5 mg · Vitamin-C-reich ab 24 mg (je 30 % der Nährstoffbezugswerte nach Europäisches Parlament &amp; Rat der Europäischen Union, 2011) · Omega-3-reich ab 0,6 g je 100 kcal.</p>' +
         '<p><b>Wann Werte als verlässlich gelten:</b> wenn mindestens 80 % der Zutaten (ohne Gewürze) zugeordnet sind. Sonst steht „teilweise berechnet“ dabei, und die App vergibt keine Labels. Die App unterscheidet roh, gekocht und abgetropft (z. B. Reis, Kichererbsen aus der Dose). Unbekannte Zutaten kannst du einmal zuordnen.</p>') :
         sec("scale", "Nährwerte", '<p>Du hast die Nährwerte ausgeblendet. Die App zeigt keine Kalorien, Nährwerte oder Labels wie „proteinreich“. Du kannst das in den Einstellungen jederzeit ändern.</p>')) +
       sec("cloud", "Wo die App herkommt",
-        '<p>Die App ist eine Webseite, die du auf den Home-Bildschirm legst. Die Dateien liefert GitHub Pages aus (gehört zu Microsoft, USA).</p>' +
+        '<p>Die App ist eine Webseite, die du auf den Home-Bildschirm legst (heise online, o. J.). Die Dateien liefert GitHub Pages aus, ein Dienst von GitHub (gehört zu Microsoft, USA; GitHub, o. J.-b).</p>' +
         '<ul><li>Beim Öffnen sieht GitHub wie jeder Webserver deine IP-Adresse, aber nichts von deinen Rezepten.</li><li>Danach läuft die App auch offline. Updates kommen automatisch beim nächsten Öffnen.</li>' +
         '<li>Der Programmcode ist offen einsehbar. Persönliche Daten stehen nicht darin.</li><li>Die App lädt keine Schriften, Skripte oder Werbung von fremden Anbietern.</li></ul>', false,
         '<p><b>Energie und Kosten:</b> keine Server, keine KI im Netz, alles läuft auf dem Gerät. Die App ist eine einzige Datei von etwa 0,4 MB. Die Lebensmittel-Suchliste (ca. 0,3 MB) lädt sie nur, wenn du eine Zutat zuordnest.</p>' +
@@ -3906,9 +3909,27 @@ a { color: var(--accent); }
       sec("person", "Deine Rechte und Kontrolle",
         '<ul><li>Alle Einstellungen, auch Name, Haushalt und Ernährung, bleiben auf diesem Gerät.</li><li>Du kannst jedes Rezept löschen. Alles auf einmal löschst du, indem du die App vom Home-Bildschirm entfernst und die Website-Daten in den Safari-Einstellungen löschst.</li>' +
         '<li>Weil die App nur privat in einem kleinen Kreis genutzt wird und nichts zentral speichert, gelten die strengen Pflichten für Anbieter nach der DSGVO hier weitgehend nicht (Ausnahme für persönliche und familiäre Tätigkeiten).</li></ul>', false,
-        '<p><b>Rechtsgrundlage:</b> Art. 2 Abs. 2 lit. c DSGVO (ausschließlich persönliche oder familiäre Tätigkeiten). Die Person, die die App bereitstellt, erhält keine Daten der Nutzerinnen und Nutzer. Für Zugriffe auf die Webseite ist GitHub verantwortlich (Datenschutzerklärung von GitHub). Diese Einordnung ist keine Rechtsberatung.</p>') +
+        '<p><b>Rechtsgrundlage:</b> Art. 2 Abs. 2 lit. c DSGVO, ausschließlich persönliche oder familiäre Tätigkeiten (Europäisches Parlament &amp; Rat der Europäischen Union, 2016). Die Person, die die App bereitstellt, erhält keine Daten der Nutzerinnen und Nutzer. Für Zugriffe auf die Webseite ist GitHub verantwortlich (GitHub, o. J.-a). Diese Einordnung ist keine Rechtsberatung.</p>') +
+      sec("book", "Quellen",
+        '<p>Zitierweise nach APA, 7. Auflage. Bei Seiten, die sich ändern können, steht das Abrufdatum dabei.</p><ol class="refs">' + QUELLEN.map(function (q) {
+          return '<li>' + q[0] + (q[1] ? ' <a href="' + esc(q[1]) + '" target="_blank" rel="noopener">' + esc(q[1]) + '</a>' : '') + '</li>';
+        }).join("") + '</ol>' +
+        '<p class="small muted">Die Nährwertdaten stehen unter der Lizenz CC BY 4.0. Die Übersetzung der Zubereitung übernimmt die Funktion „Text übersetzen“ von Apple auf dem iPhone.</p>') +
       '</div><p class="foot">Rezeptbuch ' + APP_VERSION + ' · Kern ' + esc(K.VERSION) + '</p><button class="btn soft" data-a="close-sheet">Fertig</button>');
   }
+  // Quellen (APA 7), alphabetisch nach Urheber
+  var QUELLEN = [
+    ["Europäisches Parlament & Rat der Europäischen Union. (2006). Verordnung (EG) Nr. 1924/2006 vom 20. Dezember 2006 über nährwert- und gesundheitsbezogene Angaben über Lebensmittel. <i>Amtsblatt der Europäischen Union, L 404</i>, 9–25.", "https://eur-lex.europa.eu/eli/reg/2006/1924/oj"],
+    ["Europäisches Parlament & Rat der Europäischen Union. (2011). Verordnung (EU) Nr. 1169/2011 vom 25. Oktober 2011 betreffend die Information der Verbraucher über Lebensmittel. <i>Amtsblatt der Europäischen Union, L 304</i>, 18–63.", "https://eur-lex.europa.eu/eli/reg/2011/1169/oj"],
+    ["Europäisches Parlament & Rat der Europäischen Union. (2016). Verordnung (EU) 2016/679 vom 27. April 2016 zum Schutz natürlicher Personen bei der Verarbeitung personenbezogener Daten (Datenschutz-Grundverordnung). <i>Amtsblatt der Europäischen Union, L 119</i>, 1–88.", "https://eur-lex.europa.eu/eli/reg/2016/679/oj"],
+    ["Gesetz über Urheberrecht und verwandte Schutzrechte (Urheberrechtsgesetz – UrhG) vom 9. September 1965, § 53 Vervielfältigungen zum privaten und sonstigen eigenen Gebrauch.", "https://www.gesetze-im-internet.de/urhg/__53.html"],
+    ["GitHub. (o. J.-a). <i>Allgemeine Datenschutzerklärung von GitHub</i>. Abgerufen am 18. Oktober 2026, von", "https://docs.github.com/de/site-policy/privacy-policies/github-general-privacy-statement"],
+    ["GitHub. (o. J.-b). <i>Nutzungsbeschränkungen für GitHub Pages</i>. Abgerufen am 18. Oktober 2026, von", "https://docs.github.com/de/pages/getting-started-with-github-pages/github-pages-limits"],
+    ["heise online. (o. J.). <i>iOS 26 and iPadOS 26: Changed web app behaviour on the home screen</i>. Abgerufen am 18. Oktober 2026, von", "https://heise.de/-10749652"],
+    ["Instagram. (o. J.). <i>Nutzungsbedingungen</i>. Abgerufen am 18. Oktober 2026, von", "https://help.instagram.com/581066165581870"],
+    ["Max Rubner-Institut. (2025). <i>Bundeslebensmittelschlüssel (BLS)</i> (Version 4.0) [Datensatz].", "https://doi.org/10.25826/Data20251217-134202-0"],
+    ["Meta Platforms. (o. J.). <i>oEmbed – Instagram Platform</i>. Abgerufen am 18. Oktober 2026, von", "https://developers.facebook.com/documentation/instagram-platform/oembed"]
+  ];
   function setupSheet() {
     var link = window.KURZBEFEHL_LINK || "";
     sheet('<h2>„Ins Rezeptbuch“ einrichten</h2>' +
