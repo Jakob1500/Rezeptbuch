@@ -231,6 +231,21 @@ a { color: var(--accent); }
 @media (min-width: 560px) { .catgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .tab span { white-space: nowrap; }
 @media (max-width: 360px) { .tab { font-size: 0.62rem; } }
+/* Infoseite */
+.info { display: grid; gap: 0; }
+.info details { border-top: 1px solid var(--line); }
+.info details:first-child { border-top: 0; }
+.info summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 12px; padding: 14px 16px; min-height: 56px; font-weight: 600; }
+.info summary::-webkit-details-marker { display: none; }
+.info summary svg { width: 22px; height: 22px; flex: none; color: var(--accent); }
+.info summary::after { content: ""; margin-left: auto; width: 8px; height: 8px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg); transition: transform .15s; flex: none; }
+.info details[open] summary::after { transform: rotate(-135deg); }
+.info .body { padding: 0 16px 16px 50px; display: grid; gap: 8px; font-size: 0.92rem; }
+.info .body p, .info .body ul { margin: 0; }
+.info .body ul { padding-left: 18px; display: grid; gap: 4px; }
+.glance { display: grid; gap: 10px; padding: 16px; }
+.glance div { display: flex; gap: 10px; align-items: flex-start; font-size: 0.93rem; }
+.glance svg { width: 20px; height: 20px; color: var(--accent); flex: none; margin-top: 1px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 @media (min-width: 700px) { .topbar h1 { font-size: 2.25rem; } }
 </style>
@@ -616,7 +631,7 @@ a { color: var(--accent); }
   // ------------------------------------------------------------------ Zubereitung auf Deutsch (Apple-Übersetzer über den Kurzbefehl)
   // Ablauf: App kopiert die englischen Schritte mit Markierungen (#Rezept.Schritt#) -> Kurzbefehl
   // „Rezeptbuch übersetzen“ übersetzt auf dem iPhone und kopiert das Ergebnis -> App setzt es ein.
-  var TR_MAX = 4500;
+  var TR_MAX = 12000; // ca. 20 Rezepte pro Durchgang; bei Problemen kleiner stellen
   function englishEntries() { return entries().filter(function (e) { var r = e.recipe; return r.steps.length && !r.stepsTranslated && K.detectLang(r) === "en"; }); }
   function startTranslate(firstId) {
     var list = englishEntries();
@@ -902,7 +917,7 @@ a { color: var(--accent); }
       '<section class="sec"><div class="sec-head"><h2>Instagram</h2></div><div class="group"><button class="row" data-a="setup">' + ic("share") + '<span class="main"><span class="title">Kurzbefehl einrichten</span><span class="sub">„Ins Rezeptbuch“ im Teilen-Menü</span></span>' + ic("chev", "chev") + '</button></div></section>' +
       '<section class="sec"><div class="sec-head"><h2>Sprache</h2></div><div class="group"><button class="row" data-a="translate">' + ic("lang") + '<span class="main"><span class="title">Zubereitung auf Deutsch übersetzen</span><span class="sub">' + englishEntries().length + ' Rezepte noch auf Englisch · Apples Übersetzer über den Kurzbefehl „Rezeptbuch übersetzen“</span></span>' + ic("chev", "chev") + '</button></div></section>' +
       '<section class="sec"><div class="sec-head"><h2>Hilfe</h2></div><div class="group"><button class="row" data-a="guides-reset"><span class="main"><span class="title">Anleitungen wieder zeigen</span></span></button></div></section>' +
-      '<section class="sec"><div class="sec-head"><h2>Datenschutz</h2></div><p class="small" style="padding-inline:4px">Alle Rezepte, dein Vorrat und deine Einkaufsliste bleiben auf diesem Gerät. Die App hat keinen Server, keine Werbung und kein Tracking. Sie lädt keine Schriften oder Skripte von fremden Anbietern.</p></section>' +
+      '<section class="sec"><div class="sec-head"><h2>Datenschutz und Infos</h2></div><div class="group"><button class="row" data-a="info">' + ic("info") + '<span class="main"><span class="title">So funktioniert die App</span><span class="sub">Datenschutz, Quellen, Regeln von Instagram, Grenzen der Erkennung</span></span>' + ic("chev", "chev") + '</button></div></section>' +
       '<p class="foot"><span>' + esc(BLS_HINWEIS) + '</span><span>Rezeptbuch ' + APP_VERSION + ' · Kern ' + esc(K.VERSION) + '</span></p>' +
       '<button class="btn soft" data-a="close-sheet">Fertig</button>');
   }
@@ -922,6 +937,51 @@ a { color: var(--accent); }
     sheet('<h2>Willkommen im Rezeptbuch</h2><p class="small muted">Drei Angaben, damit Portionen und Vorschläge zu dir passen. Du kannst alles später in den Einstellungen ändern.</p>' +
       profileFields().replace(/<div class="field"><label>Darstellung[\s\S]*?<\/div><\/div>/, "") +
       '<button class="btn accent" data-a="onboard-save">Fertig</button><button class="btn ghost" data-a="onboard-save" data-skip="1">Überspringen</button>');
+  }
+  // Infoseite: Datenschutz, Funktionsweise, Quellen, Regeln – kurz und verständlich
+  function infoSheet() {
+    function sec(icon, title, html, open) { return '<details' + (open ? ' open' : '') + '><summary>' + ic(icon) + esc(title) + '</summary><div class="body">' + html + '</div></details>'; }
+    sheet('<h2>So funktioniert die App</h2>' +
+      '<div class="group glance">' +
+      '<div>' + ic("check") + '<span>Deine Rezepte, dein Vorrat und deine Einkaufsliste bleiben auf deinem iPhone.</span></div>' +
+      '<div>' + ic("check") + '<span>Kein Konto, keine Werbung, kein Tracking, kein eigener Server.</span></div>' +
+      '<div>' + ic("check") + '<span>Erkennung und Übersetzung laufen auf deinem Gerät, ohne KI-Dienst im Internet.</span></div>' +
+      '<div>' + ic("check") + '<span>Gedacht für die private Nutzung in einem kleinen Kreis.</span></div></div>' +
+      '<div class="group info">' +
+      sec("jar", "Wo deine Daten liegen",
+        '<p>Alles, was du in der App speicherst, liegt nur im Speicher dieses Geräts, im Bereich der App. Niemand sonst kann es sehen, auch nicht die Person, die die App bereitstellt.</p>' +
+        '<ul><li>Ein Rezept braucht etwa 4 KB, 1.000 Rezepte so viel wie ein Foto.</li><li>Bilder und Videos speichert die App nicht.</li>' +
+        '<li>Die Sicherung ist eine einzige Datei, die du selbst ablegst, zum Beispiel in deinem iCloud Drive. Tipp: Schalte in den iCloud-Einstellungen den „Erweiterten Datenschutz“ ein, dann ist sie Ende-zu-Ende-verschlüsselt.</li>' +
+        '<li>Löschst du die App vom Home-Bildschirm, sind die Daten weg. Deshalb erinnert die App ans Sichern.</li></ul>', true) +
+      sec("share", "Wie Rezepte aus Instagram ankommen",
+        '<p>Du entscheidest bei jedem Rezept selbst. Nichts passiert im Hintergrund.</p>' +
+        '<ul><li><b>Kurzbefehl „Ins Rezeptbuch“:</b> Beim Teilen holt dein iPhone einmal die öffentliche Vorschau des Posts, ohne Anmeldung und ohne Zugriff auf dein Instagram-Konto. Private Konten gehen nicht.</li>' +
+        '<li><b>Instagram-Export:</b> Die Datei aus „Deine Informationen herunterladen“ liest die App nur auf diesem Gerät. Es kommen nur neue Rezepte dazu, nichts wird überschrieben.</li>' +
+        '<li><b>Bilder oder Ton:</b> Wenn ein Rezept nur auf Bildern oder im Video steht, liest dein iPhone den Text bzw. Ton aus und löscht die Datei danach wieder.</li></ul>') +
+      sec("info", "Regeln von Instagram",
+        '<p>Instagram verbietet, Inhalte automatisiert und in großer Menge zu sammeln. Die App tut das nicht:</p>' +
+        '<ul><li>Ein Abruf pro Tipp, nur für den Post, den du gerade teilst.</li><li>Keine Anmeldung, kein Konto, keine Beiträge, kein automatisches Folgen. Folgen tippst du selbst in Instagram.</li>' +
+        '<li>Die App ist für den privaten Gebrauch. Rezepte gehören den Creators: Bitte nicht öffentlich weiterverbreiten. Beim Teilen hängt die App immer den Link zum Original an.</li>' +
+        '<li>Der komplett offizielle Weg ist der Instagram-Export. Er funktioniert immer, auch wenn Instagram etwas ändert.</li></ul>') +
+      sec("sparkle", "Wie die Erkennung funktioniert",
+        '<p>Die App erkennt Zutaten, Schritte, Zeit, Portionen und Labels mit festen Regeln und Wörterbüchern, ohne KI-Modell. Das ist schnell, sparsam und läuft offline.</p>' +
+        '<ul><li>Fehler sind möglich. Was die App schätzt, steht als „geschätzt“ oder „vorgeschlagen“ dabei.</li><li>Titel und Mengen kannst du jederzeit ändern.</li>' +
+        '<li>Englische Zutaten übersetzt ein Wörterbuch. Die Zubereitung übersetzt Apples Übersetzer auf deinem iPhone, auch ohne Internet. Das Original bleibt gespeichert („Original zeigen“).</li>' +
+        '<li>Allergene erkennt die App noch nicht zuverlässig genug und zeigt sie deshalb nicht an. Bei Allergien bitte immer die Zutaten selbst prüfen.</li></ul>') +
+      (showNutri() ? sec("scale", "Woher die Nährwerte kommen",
+        '<p>Die Werte berechnet die App aus dem Bundeslebensmittelschlüssel (BLS 4.0) des Max Rubner-Instituts, der amtlichen deutschen Nährwertdatenbank.</p>' +
+        '<ul><li>Stück- und Löffelgewichte sind Richtwerte. Die Ergebnisse sind Näherungen, keine Laborwerte.</li><li>Labels wie „proteinreich“ oder „eisenreich“ folgen den Schwellen der EU-Verordnung über nährwertbezogene Angaben (VO (EG) 1924/2006), umgerechnet pro Portion.</li>' +
+        '<li>Die Werte sind keine Ernährungs- oder Gesundheitsberatung.</li><li>Du kannst alle Zahlen in den Einstellungen ausblenden.</li></ul>' +
+        '<p class="small muted">' + esc(BLS_HINWEIS) + '</p>') :
+        sec("scale", "Nährwerte", '<p>Du hast die Nährwerte ausgeblendet. Die App zeigt keine Kalorien, Nährwerte oder Labels wie „proteinreich“. Du kannst das in den Einstellungen jederzeit ändern.</p>')) +
+      sec("cloud", "Wo die App herkommt",
+        '<p>Die App ist eine Webseite, die du auf den Home-Bildschirm legst. Die Dateien liefert GitHub Pages aus (gehört zu Microsoft, USA).</p>' +
+        '<ul><li>Beim Öffnen sieht GitHub wie jeder Webserver deine IP-Adresse, aber nichts von deinen Rezepten.</li><li>Danach läuft die App auch offline. Updates kommen automatisch beim nächsten Öffnen.</li>' +
+        '<li>Der Programmcode ist offen einsehbar. Persönliche Daten stehen nicht darin.</li><li>Die App lädt keine Schriften, Skripte oder Werbung von fremden Anbietern.</li></ul>') +
+      sec("person", "Deine Rechte und Kontrolle",
+        '<ul><li>Alle Einstellungen, auch Name, Haushalt und Ernährung, bleiben auf diesem Gerät.</li><li>Du kannst jedes Rezept löschen. Alles auf einmal löschst du, indem du die App vom Home-Bildschirm entfernst und die Website-Daten in den Safari-Einstellungen löschst.</li>' +
+        '<li>Weil die App nur privat in einem kleinen Kreis genutzt wird und nichts zentral speichert, gelten die strengen Pflichten für Anbieter nach der DSGVO hier weitgehend nicht (Ausnahme für persönliche und familiäre Tätigkeiten).</li></ul>') +
+      '</div><p class="foot">Rezeptbuch ' + APP_VERSION + ' · Kern ' + esc(K.VERSION) + '</p><button class="btn soft" data-a="close-sheet">Fertig</button>');
   }
   function setupSheet() {
     var link = window.KURZBEFEHL_LINK || "";
@@ -1119,6 +1179,7 @@ a { color: var(--accent); }
       case "setup": setupSheet(); render(); break;
       case "close-sheet": closeSheet(); break;
       case "guide-ok": S.meta.guides[el.dataset.k] = true; save("meta"); render(); break;
+      case "info": infoSheet(); break;
       case "guides-reset": S.meta.guides = {}; save("meta"); closeSheet(); render(); toast("Anleitungen werden wieder gezeigt"); break;
       case "filter": var g = el.dataset.g, v = el.dataset.v; UI.filter[g] = UI.filter[g] === v ? null : v; render(); if (el.dataset.keep) filterSheet(); break;
       case "filter-reset": UI.filter = {}; render(); if (el.dataset.keep) filterSheet(); break;
