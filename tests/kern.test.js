@@ -446,5 +446,13 @@ check("T1: Titel ist das Gericht", /kürbispfanne/i.test(t1r.title), t1r.title);
 check("T1: Creator-Nährwerte E/K/F gelesen", t1r.nutritionDeclared && t1r.nutritionDeclared.protein === 45 && t1r.nutritionDeclared.fat === 13, t1r.nutritionDeclared);
 check("T1: Werbesatz kein Schritt", t1r.steps.length === 0, t1r.steps);
 
+// Einbettungstext vom Kurzbefehl (Zeilen), verschiedene Varianten
+const capX = "Linsen-Curry 🍛\nZutaten:\n200 g rote Linsen\n1 Dose Kokosmilch\nZubereitung:\n1. Alles 20 Minuten köcheln.";
+const embDE = "\n\nkoch.lisa\nVerifiziert\nOriginal-Audio\nProfil ansehen\n\nkoch.lisa\n12 Beiträge · 3K Follower\n\n\nMehr auf Instagram ansehen\n\nGefällt mir\nKommentieren\nTeilen\nSpeichern\nGefällt 1.234 Mal\nkoch.lisa\n\n" + capX + "\nAlle 12 Kommentare ansehen\nKommentieren …\nInstagram\n";
+const embNoLike = "\n\nkoch.lisa\nProfil ansehen\n\nMehr auf Instagram ansehen\n\nGefällt mir\nKommentieren\nTeilen\nSpeichern\nkoch.lisa\n\n" + capX + "\nKommentar hinzufügen …\nInstagram\n";
+const embEN = "\n\nkoch.lisa\nView profile\n\nView more on Instagram\n\nLike\nComment\nShare\nSave\nLiked by anna and others\nkoch.lisa\n\n" + capX + "\nAdd a comment…\nInstagram\n";
+[["DE", embDE], ["ohne Likes", embNoLike], ["EN", embEN]].forEach(([n, e]) => { const r = K.parseInstagramEmbed(e); check("Einbettung " + n + ": Beschreibung und Konto", r && r.caption === capX && r.account === "koch.lisa", r); });
+check("Einbettung ohne Beschreibung -> null", K.parseInstagramEmbed("\n\nDieser Beitrag ist nicht verfügbar\nMehr auf Instagram ansehen\nInstagram\n") === null);
+
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

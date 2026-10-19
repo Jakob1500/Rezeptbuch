@@ -301,7 +301,7 @@ a { color: var(--accent); }
 (function (root) {
   "use strict";
 
-  var VERSION = "0.3.3";
+  var VERSION = "0.3.4";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -1656,6 +1656,12 @@ a { color: var(--accent); }
       if (prev && !/^## /.test(prev) && !/^## /.test(st) && (/\b(to|or|and|with|at|about|even|auf|bei|mit|und|oder|von|zu|ca\.?|etwa)$/i.test(prev) || (/^[a-zäöü\d(]/.test(st) && !/[.!?:)]$/.test(prev)))) {
         merged[merged.length - 1] = prev + " " + st;
       } else merged.push(st);
+    });
+    // Kurze Zwischentitel ohne Satzzeichen ("Suppe mixen", "Anrichten") vor einem längeren Schritt -> Überschrift
+    merged = merged.map(function (st, i) {
+      var nx = merged[i + 1];
+      if (!/^## /.test(st) && nx && !/^## /.test(nx) && st.split(/\s+/).length <= 3 && !/[.!?,:;)]$/.test(st) && !/\d/.test(st) && nx.length > st.length * 2 && nx.length > 30) return "## " + st;
+      return st;
     });
     // Überschriften ohne folgenden Schritt entfernen
     var final = merged.filter(function (st, i) { return !/^## /.test(st) || (merged[i + 1] && !/^## /.test(merged[i + 1])); });
@@ -3393,13 +3399,32 @@ a { color: var(--accent); }
       var body = m[1].replace(/<a[^>]*class="CaptionUsername"[^>]*>[^<]*<\/a>/i, "");
       return { account: clean(decodeEntities(acc)), caption: stripTags(body.replace(/<br\s*\/?>/gi, "\n")).replace(/[ \t]+\n/g, "\n").trim() };
     }
-    // 2) Text: "… Gefällt 23.187 Mal <user> <Caption> Alle 238 Kommentare ansehen …"
+    // 2a) Text mit Zeilen (Kurzbefehl „Inhalt von URL abrufen“): Kopf bis zur Aktionszeile, dann Likes, Nutzername, Beschreibung, Fuß
+    var lines = s.replace(/\r/g, "").split("\n").map(function (l) { return l.replace(/\s+$/, ""); });
+    if (lines.length > 6) {
+      var iSave = -1;
+      for (var li = 0; li < Math.min(lines.length, 40); li++) { if (/^\s*(Speichern|Save|Sichern)\s*$/i.test(lines[li])) { iSave = li; break; } }
+      if (iSave >= 0) {
+        var k = iSave + 1;
+        while (k < lines.length && !lines[k].trim()) k++;
+        if (k < lines.length && /^\s*(Gefällt\s+[\d.,]+\s*(Mal)?|[\d.,]+\s*(k|Tsd\.?|Mio\.?)?\s*(likes?|Mal|„Gefällt mir“-Angaben)|Liked by\b.*|Gefällt\s+.*\b(und|weiteren|anderen)\b.*|[\d.,]+\s*(k|Mio\.?)?\s*views?|[\d.,]+\s*Aufrufe)\s*$/i.test(lines[k])) k++;
+        while (k < lines.length && !lines[k].trim()) k++;
+        var acc2 = "";
+        if (k < lines.length && /^\s*[A-Za-z0-9._]{2,30}\s*$/.test(lines[k])) { acc2 = lines[k].trim(); k++; }
+        var e = lines.length;
+        var FOOT = /^\s*(Instagram|Kommentieren\s*…?|Kommentar hinzufügen\s*…?|Add a comment\s*…?|Comment\s*…|Alle\s+[\d.,]+\s+Kommentare ansehen|View all\s+[\d.,]+\s+comments|Mehr auf Instagram ansehen|View more on Instagram|)\s*$/i;
+        while (e > k && FOOT.test(lines[e - 1])) e--;
+        var cap2 = lines.slice(k, e).join("\n").trim();
+        if (cap2) return { account: acc2, caption: cap2 };
+      }
+    }
+    // 2b) Text in einer Zeile: "… Gefällt 23.187 Mal <user> <Caption> Alle 238 Kommentare ansehen …"
     var t = s.replace(/\r/g, "");
     var start = t.match(/(?:Gefällt|Liked by|likes?)\s*[\d.,]+\s*(?:Mal|times)?\s+([A-Za-z0-9._]+)\s+/i) ||
                 t.match(/(?:Speichern|Save)\s+([A-Za-z0-9._]+)\s+/i);
     if (!start) return null;
     var rest = t.slice(start.index + start[0].length);
-    var end = rest.search(/\s*(?:Alle\s+[\d.,]+\s+Kommentare ansehen|View all\s+[\d.,]+\s+comments|Kommentieren\s*…|Add a comment)/i);
+    var end = rest.search(/\s*(?:Alle\s+[\d.,]+\s+Kommentare ansehen|View all\s+[\d.,]+\s+comments|Kommentieren\s*…|Kommentar hinzufügen|Add a comment)/i);
     var cap = (end >= 0 ? rest.slice(0, end) : rest).replace(/\s*…?\s*Instagram\s*$/, "").trim();
     return cap ? { account: start[1], caption: cap } : null;
   }
@@ -3689,7 +3714,7 @@ a { color: var(--accent); }
 (function () {
   "use strict";
   var K = window.RezeptKern, NW = NAEHRWERTE;
-  var APP_VERSION = "0.8.2";
+  var APP_VERSION = "0.8.3";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -4415,7 +4440,7 @@ a { color: var(--accent); }
     }
     return '<header class="topbar"><h1>Hinzufügen</h1></header>' + guide("neu") +
       '<div class="group"><button class="row" data-a="setup">' + ic("share") + '<span class="main"><span class="title">Aus Instagram teilen</span><span class="sub">Der schnellste Weg: Kurzbefehl „Ins Rezeptbuch“ einrichten</span></span>' + ic("chev", "chev") + '</button></div>' +
-      (S.meta.shortcutOk ? '<button class="btn accent" data-a="share-paste">' + ic("copy") + 'Geteiltes Rezept einfügen</button>' : '') +
+      '<button class="btn accent" data-a="share-paste">' + ic("copy") + 'Geteiltes Rezept einfügen</button>' +
       '<section class="sec"><div class="field"><label for="paste">Caption, Rezepttext oder Instagram-Link</label><textarea class="input" id="paste" placeholder="Zum Beispiel: Linsen-Curry · Zutaten: 250 g rote Linsen …">' + esc(UI.pasteText || "") + '</textarea></div>' +
       '<button class="btn" data-a="analyse">' + ic("sparkle") + 'Erkennen</button></section>' + preview +
       '<section class="sec"><div class="sec-head"><h2>Instagram-Export</h2></div><div class="group"><label class="row" for="expfile" style="cursor:pointer">' + ic("file") +
@@ -4562,12 +4587,12 @@ a { color: var(--accent); }
       '<div class="build"><ol>' +
       '<li>Kurzbefehle-App → „+“ → oben auf den Namen → Umbenennen: <b>' + SC_NAME + '</b>.' + snip(SC_NAME) + '</li>' +
       '<li>Unten auf <b>ⓘ</b> → <b>Im Share-Sheet anzeigen</b> an. Im Block oben: Eingabe nur <b>URLs</b> und <b>Text</b>; „Falls keine Eingabe“: <b>Zwischenablage abrufen</b>.</li>' +
-      '<li><b>Text abgleichen</b> in <b>Kurzbefehleingabe</b>, Muster:' + snip("https?://(www\\.)?instagram\\.com/(p|reel|reels|tv)/[A-Za-z0-9_-]+") + '</li>' +
+      '<li><b>Text abgleichen</b> in <b>Kurzbefehleingabe</b>, Muster:' + snip("(p|reel|reels|tv)/[A-Za-z0-9_-]+") + '</li>' +
       '<li><b>Objekt aus Liste abrufen</b> (Erstes Objekt).</li>' +
-      '<li><b>Text</b>: Variable <b>Objekt aus Liste</b>, direkt dahinter' + snip("/embed/captioned/") + '</li>' +
+      '<li><b>Text</b>: davor <code>https://www.instagram.com/</code>, dann Variable <b>Objekt aus Liste</b>, direkt dahinter' + snip("/embed/captioned/") + '</li>' +
       '<li><b>Inhalt von URL abrufen</b>.</li>' +
       '<li><b>Text übersetzen</b>: Inhalt von URL, von <b>Ermitteln</b> nach <b>Deutsch</b>.</li>' +
-      '<li><b>Text</b> mit genau diesen Zeilen; an die Stellen in [ ] die Variablen setzen:' + snip("REZEPTBUCH\n[Objekt aus Liste]\n###TEXT###\n[Inhalt von URL]\n###DEUTSCH###\n[Übersetzter Text]") + '</li>' +
+      '<li><b>Text</b> mit genau diesen Zeilen; an die Stellen in [ ] die Variablen setzen:' + snip("REZEPTBUCH\nhttps://www.instagram.com/[Objekt aus Liste]\n###TEXT###\n[Inhalt von URL]\n###DEUTSCH###\n[Übersetzter Text]") + '</li>' +
       '<li><b>In Zwischenablage kopieren</b>. Fertig – kein „URL öffnen“.</li>' +
       '</ol></div>' +
       '<p class="small muted">Beim ersten Mal fragt iOS, ob der Kurzbefehl instagram.com abrufen und die Seite öffnen darf: „Immer erlauben“. Ist das Rezept deutsch, gibt der Übersetzer den Text unverändert zurück.</p>') +
@@ -4731,6 +4756,7 @@ a { color: var(--accent); }
     var iT = body.search(/^\s*###\s*TEXT\s*###\s*$/m), iD = body.search(/^\s*###\s*DEUTSCH\s*###\s*$/m);
     var head = iT >= 0 ? body.slice(0, iT) : body;
     p.u = (head.match(/https?:\/\/\S+/) || [""])[0];
+    if (!p.u) { var sc = head.match(/\b(p|reel|reels|tv)\/[A-Za-z0-9_-]+/); if (sc) p.u = "https://www.instagram.com/" + sc[0]; }
     if (iT >= 0) p.t = body.slice(body.indexOf("\n", iT) + 1, iD > iT ? iD : body.length).trim();
     if (iD >= 0) p.d = body.slice(body.indexOf("\n", iD) + 1).trim();
     return p;
@@ -4766,7 +4792,7 @@ a { color: var(--accent); }
     sheet('<h2>Nicht erkannt</h2><p class="small">' + esc(msg) + '</p>' +
       '<div class="note"><b>Was angekommen ist</b><span>Länge: ' + String(txt || "").length + ' Zeichen · Link ' + (li.u || 0) + ' · Text ' + (li.t || 0) + ' · Übersetzung ' + (li.d || 0) + '</span>' +
       '<span class="small" style="overflow-wrap:anywhere">Anfang: ' + esc(String(txt || "").slice(0, 160) || "(leer)") + '</span></div>' +
-      '<p class="small muted">Bitte davon einen Screenshot an Claude schicken.</p><button class="btn soft" data-a="close-sheet">Schließen</button>');
+      '<p class="small muted">App ' + APP_VERSION + ' · Kern ' + esc(K.VERSION) + ' – bitte davon einen Screenshot an Claude schicken.</p><button class="btn soft" data-a="close-sheet">Schließen</button>');
   }
   function pasteSheet() {
     sheet('<h2>Geteiltes Rezept einfügen</h2><p class="small">Tippe ins Feld, halte kurz gedrückt und wähle „Einsetzen“. Dann „Übernehmen“.</p>' +
@@ -4810,11 +4836,17 @@ a { color: var(--accent); }
         return true;
       }
     }
-    var emb = /Gefällt|Liked by|class="Caption"|Profil ansehen|View profile/.test(text) ? K.parseInstagramEmbed(text) : null;
+    var looksIg = /Gefällt|Liked by|class="Caption"|Profil ansehen|View profile|Mehr auf Instagram ansehen|View more on Instagram/.test(text);
+    var emb = looksIg ? K.parseInstagramEmbed(text) : null;
+    if (looksIg && !emb) {
+      // Instagram hat keine Beschreibung geliefert (privates Konto, Einbetten abgeschaltet, Anmeldeseite)
+      setTimeout(function () { diagSheet("Instagram hat für diesen Beitrag keine Beschreibung herausgegeben (z. B. privates Konto oder Einbetten abgeschaltet). Tipp: Beschreibung in Instagram kopieren und unter „Hinzufügen“ einfügen.", text); }, 300);
+      return true;
+    }
     var caption = emb ? emb.caption : text;
     var account = emb ? emb.account : (p.a || "");
     var de = p.d || "";
-    if (de && /Gefällt|class="Caption"|Profil ansehen/.test(de)) { var embDe = K.parseInstagramEmbed(de); if (embDe) de = embDe.caption; }
+    if (de && /Gefällt|class="Caption"|Profil ansehen|Speichern|Save/.test(de)) { var embDe = K.parseInstagramEmbed(de); de = embDe ? embDe.caption : ""; }
     if (de && caption && de.replace(/\s+/g, " ").trim() === caption.replace(/\s+/g, " ").trim()) de = ""; // war schon deutsch
     if (url && /instagram\.com/.test(url)) { S.meta.shortcutOk = true; save("meta"); }
     // Testlauf aus der Einrichtung
@@ -4992,7 +5024,7 @@ a { color: var(--accent); }
   document.addEventListener("visibilitychange", function () {
     if (document.hidden) { hiddenAt = Date.now(); return; }
     // Zurück in der App: kam der Nutzer vom Kurzbefehl (Teilen in Instagram oder „Link einfügen“)?
-    if (S.meta.shortcutOk || S.meta.awaitShortcut) {
+    if (S.meta.shortcutOk || S.meta.awaitShortcut || S.meta.setupAsked) {
       if (hiddenAt && Date.now() - hiddenAt > 2000) UI.shareBanner = true;
     }
     if (S.meta.awaitShortcut && Date.now() - S.meta.awaitShortcut < 600000 && !S.meta.trPending) { UI.detail = null; UI.tab = "rezepte"; }

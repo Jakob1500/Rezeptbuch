@@ -274,7 +274,7 @@ a { color: var(--accent); }
 (function () {
   "use strict";
   var K = window.RezeptKern, NW = NAEHRWERTE;
-  var APP_VERSION = "0.8.2";
+  var APP_VERSION = "0.8.3";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -1000,7 +1000,7 @@ a { color: var(--accent); }
     }
     return '<header class="topbar"><h1>Hinzufügen</h1></header>' + guide("neu") +
       '<div class="group"><button class="row" data-a="setup">' + ic("share") + '<span class="main"><span class="title">Aus Instagram teilen</span><span class="sub">Der schnellste Weg: Kurzbefehl „Ins Rezeptbuch“ einrichten</span></span>' + ic("chev", "chev") + '</button></div>' +
-      (S.meta.shortcutOk ? '<button class="btn accent" data-a="share-paste">' + ic("copy") + 'Geteiltes Rezept einfügen</button>' : '') +
+      '<button class="btn accent" data-a="share-paste">' + ic("copy") + 'Geteiltes Rezept einfügen</button>' +
       '<section class="sec"><div class="field"><label for="paste">Caption, Rezepttext oder Instagram-Link</label><textarea class="input" id="paste" placeholder="Zum Beispiel: Linsen-Curry · Zutaten: 250 g rote Linsen …">' + esc(UI.pasteText || "") + '</textarea></div>' +
       '<button class="btn" data-a="analyse">' + ic("sparkle") + 'Erkennen</button></section>' + preview +
       '<section class="sec"><div class="sec-head"><h2>Instagram-Export</h2></div><div class="group"><label class="row" for="expfile" style="cursor:pointer">' + ic("file") +
@@ -1147,12 +1147,12 @@ a { color: var(--accent); }
       '<div class="build"><ol>' +
       '<li>Kurzbefehle-App → „+“ → oben auf den Namen → Umbenennen: <b>' + SC_NAME + '</b>.' + snip(SC_NAME) + '</li>' +
       '<li>Unten auf <b>ⓘ</b> → <b>Im Share-Sheet anzeigen</b> an. Im Block oben: Eingabe nur <b>URLs</b> und <b>Text</b>; „Falls keine Eingabe“: <b>Zwischenablage abrufen</b>.</li>' +
-      '<li><b>Text abgleichen</b> in <b>Kurzbefehleingabe</b>, Muster:' + snip("https?://(www\\.)?instagram\\.com/(p|reel|reels|tv)/[A-Za-z0-9_-]+") + '</li>' +
+      '<li><b>Text abgleichen</b> in <b>Kurzbefehleingabe</b>, Muster:' + snip("(p|reel|reels|tv)/[A-Za-z0-9_-]+") + '</li>' +
       '<li><b>Objekt aus Liste abrufen</b> (Erstes Objekt).</li>' +
-      '<li><b>Text</b>: Variable <b>Objekt aus Liste</b>, direkt dahinter' + snip("/embed/captioned/") + '</li>' +
+      '<li><b>Text</b>: davor <code>https://www.instagram.com/</code>, dann Variable <b>Objekt aus Liste</b>, direkt dahinter' + snip("/embed/captioned/") + '</li>' +
       '<li><b>Inhalt von URL abrufen</b>.</li>' +
       '<li><b>Text übersetzen</b>: Inhalt von URL, von <b>Ermitteln</b> nach <b>Deutsch</b>.</li>' +
-      '<li><b>Text</b> mit genau diesen Zeilen; an die Stellen in [ ] die Variablen setzen:' + snip("REZEPTBUCH\n[Objekt aus Liste]\n###TEXT###\n[Inhalt von URL]\n###DEUTSCH###\n[Übersetzter Text]") + '</li>' +
+      '<li><b>Text</b> mit genau diesen Zeilen; an die Stellen in [ ] die Variablen setzen:' + snip("REZEPTBUCH\nhttps://www.instagram.com/[Objekt aus Liste]\n###TEXT###\n[Inhalt von URL]\n###DEUTSCH###\n[Übersetzter Text]") + '</li>' +
       '<li><b>In Zwischenablage kopieren</b>. Fertig – kein „URL öffnen“.</li>' +
       '</ol></div>' +
       '<p class="small muted">Beim ersten Mal fragt iOS, ob der Kurzbefehl instagram.com abrufen und die Seite öffnen darf: „Immer erlauben“. Ist das Rezept deutsch, gibt der Übersetzer den Text unverändert zurück.</p>') +
@@ -1316,6 +1316,7 @@ a { color: var(--accent); }
     var iT = body.search(/^\s*###\s*TEXT\s*###\s*$/m), iD = body.search(/^\s*###\s*DEUTSCH\s*###\s*$/m);
     var head = iT >= 0 ? body.slice(0, iT) : body;
     p.u = (head.match(/https?:\/\/\S+/) || [""])[0];
+    if (!p.u) { var sc = head.match(/\b(p|reel|reels|tv)\/[A-Za-z0-9_-]+/); if (sc) p.u = "https://www.instagram.com/" + sc[0]; }
     if (iT >= 0) p.t = body.slice(body.indexOf("\n", iT) + 1, iD > iT ? iD : body.length).trim();
     if (iD >= 0) p.d = body.slice(body.indexOf("\n", iD) + 1).trim();
     return p;
@@ -1351,7 +1352,7 @@ a { color: var(--accent); }
     sheet('<h2>Nicht erkannt</h2><p class="small">' + esc(msg) + '</p>' +
       '<div class="note"><b>Was angekommen ist</b><span>Länge: ' + String(txt || "").length + ' Zeichen · Link ' + (li.u || 0) + ' · Text ' + (li.t || 0) + ' · Übersetzung ' + (li.d || 0) + '</span>' +
       '<span class="small" style="overflow-wrap:anywhere">Anfang: ' + esc(String(txt || "").slice(0, 160) || "(leer)") + '</span></div>' +
-      '<p class="small muted">Bitte davon einen Screenshot an Claude schicken.</p><button class="btn soft" data-a="close-sheet">Schließen</button>');
+      '<p class="small muted">App ' + APP_VERSION + ' · Kern ' + esc(K.VERSION) + ' – bitte davon einen Screenshot an Claude schicken.</p><button class="btn soft" data-a="close-sheet">Schließen</button>');
   }
   function pasteSheet() {
     sheet('<h2>Geteiltes Rezept einfügen</h2><p class="small">Tippe ins Feld, halte kurz gedrückt und wähle „Einsetzen“. Dann „Übernehmen“.</p>' +
@@ -1395,11 +1396,17 @@ a { color: var(--accent); }
         return true;
       }
     }
-    var emb = /Gefällt|Liked by|class="Caption"|Profil ansehen|View profile/.test(text) ? K.parseInstagramEmbed(text) : null;
+    var looksIg = /Gefällt|Liked by|class="Caption"|Profil ansehen|View profile|Mehr auf Instagram ansehen|View more on Instagram/.test(text);
+    var emb = looksIg ? K.parseInstagramEmbed(text) : null;
+    if (looksIg && !emb) {
+      // Instagram hat keine Beschreibung geliefert (privates Konto, Einbetten abgeschaltet, Anmeldeseite)
+      setTimeout(function () { diagSheet("Instagram hat für diesen Beitrag keine Beschreibung herausgegeben (z. B. privates Konto oder Einbetten abgeschaltet). Tipp: Beschreibung in Instagram kopieren und unter „Hinzufügen“ einfügen.", text); }, 300);
+      return true;
+    }
     var caption = emb ? emb.caption : text;
     var account = emb ? emb.account : (p.a || "");
     var de = p.d || "";
-    if (de && /Gefällt|class="Caption"|Profil ansehen/.test(de)) { var embDe = K.parseInstagramEmbed(de); if (embDe) de = embDe.caption; }
+    if (de && /Gefällt|class="Caption"|Profil ansehen|Speichern|Save/.test(de)) { var embDe = K.parseInstagramEmbed(de); de = embDe ? embDe.caption : ""; }
     if (de && caption && de.replace(/\s+/g, " ").trim() === caption.replace(/\s+/g, " ").trim()) de = ""; // war schon deutsch
     if (url && /instagram\.com/.test(url)) { S.meta.shortcutOk = true; save("meta"); }
     // Testlauf aus der Einrichtung
@@ -1577,7 +1584,7 @@ a { color: var(--accent); }
   document.addEventListener("visibilitychange", function () {
     if (document.hidden) { hiddenAt = Date.now(); return; }
     // Zurück in der App: kam der Nutzer vom Kurzbefehl (Teilen in Instagram oder „Link einfügen“)?
-    if (S.meta.shortcutOk || S.meta.awaitShortcut) {
+    if (S.meta.shortcutOk || S.meta.awaitShortcut || S.meta.setupAsked) {
       if (hiddenAt && Date.now() - hiddenAt > 2000) UI.shareBanner = true;
     }
     if (S.meta.awaitShortcut && Date.now() - S.meta.awaitShortcut < 600000 && !S.meta.trPending) { UI.detail = null; UI.tab = "rezepte"; }

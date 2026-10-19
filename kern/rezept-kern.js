@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.3.3";
+  var VERSION = "0.3.4";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -1377,6 +1377,12 @@
       if (prev && !/^## /.test(prev) && !/^## /.test(st) && (/\b(to|or|and|with|at|about|even|auf|bei|mit|und|oder|von|zu|ca\.?|etwa)$/i.test(prev) || (/^[a-zäöü\d(]/.test(st) && !/[.!?:)]$/.test(prev)))) {
         merged[merged.length - 1] = prev + " " + st;
       } else merged.push(st);
+    });
+    // Kurze Zwischentitel ohne Satzzeichen ("Suppe mixen", "Anrichten") vor einem längeren Schritt -> Überschrift
+    merged = merged.map(function (st, i) {
+      var nx = merged[i + 1];
+      if (!/^## /.test(st) && nx && !/^## /.test(nx) && st.split(/\s+/).length <= 3 && !/[.!?,:;)]$/.test(st) && !/\d/.test(st) && nx.length > st.length * 2 && nx.length > 30) return "## " + st;
+      return st;
     });
     // Überschriften ohne folgenden Schritt entfernen
     var final = merged.filter(function (st, i) { return !/^## /.test(st) || (merged[i + 1] && !/^## /.test(merged[i + 1])); });
@@ -3114,13 +3120,32 @@
       var body = m[1].replace(/<a[^>]*class="CaptionUsername"[^>]*>[^<]*<\/a>/i, "");
       return { account: clean(decodeEntities(acc)), caption: stripTags(body.replace(/<br\s*\/?>/gi, "\n")).replace(/[ \t]+\n/g, "\n").trim() };
     }
-    // 2) Text: "… Gefällt 23.187 Mal <user> <Caption> Alle 238 Kommentare ansehen …"
+    // 2a) Text mit Zeilen (Kurzbefehl „Inhalt von URL abrufen“): Kopf bis zur Aktionszeile, dann Likes, Nutzername, Beschreibung, Fuß
+    var lines = s.replace(/\r/g, "").split("\n").map(function (l) { return l.replace(/\s+$/, ""); });
+    if (lines.length > 6) {
+      var iSave = -1;
+      for (var li = 0; li < Math.min(lines.length, 40); li++) { if (/^\s*(Speichern|Save|Sichern)\s*$/i.test(lines[li])) { iSave = li; break; } }
+      if (iSave >= 0) {
+        var k = iSave + 1;
+        while (k < lines.length && !lines[k].trim()) k++;
+        if (k < lines.length && /^\s*(Gefällt\s+[\d.,]+\s*(Mal)?|[\d.,]+\s*(k|Tsd\.?|Mio\.?)?\s*(likes?|Mal|„Gefällt mir“-Angaben)|Liked by\b.*|Gefällt\s+.*\b(und|weiteren|anderen)\b.*|[\d.,]+\s*(k|Mio\.?)?\s*views?|[\d.,]+\s*Aufrufe)\s*$/i.test(lines[k])) k++;
+        while (k < lines.length && !lines[k].trim()) k++;
+        var acc2 = "";
+        if (k < lines.length && /^\s*[A-Za-z0-9._]{2,30}\s*$/.test(lines[k])) { acc2 = lines[k].trim(); k++; }
+        var e = lines.length;
+        var FOOT = /^\s*(Instagram|Kommentieren\s*…?|Kommentar hinzufügen\s*…?|Add a comment\s*…?|Comment\s*…|Alle\s+[\d.,]+\s+Kommentare ansehen|View all\s+[\d.,]+\s+comments|Mehr auf Instagram ansehen|View more on Instagram|)\s*$/i;
+        while (e > k && FOOT.test(lines[e - 1])) e--;
+        var cap2 = lines.slice(k, e).join("\n").trim();
+        if (cap2) return { account: acc2, caption: cap2 };
+      }
+    }
+    // 2b) Text in einer Zeile: "… Gefällt 23.187 Mal <user> <Caption> Alle 238 Kommentare ansehen …"
     var t = s.replace(/\r/g, "");
     var start = t.match(/(?:Gefällt|Liked by|likes?)\s*[\d.,]+\s*(?:Mal|times)?\s+([A-Za-z0-9._]+)\s+/i) ||
                 t.match(/(?:Speichern|Save)\s+([A-Za-z0-9._]+)\s+/i);
     if (!start) return null;
     var rest = t.slice(start.index + start[0].length);
-    var end = rest.search(/\s*(?:Alle\s+[\d.,]+\s+Kommentare ansehen|View all\s+[\d.,]+\s+comments|Kommentieren\s*…|Add a comment)/i);
+    var end = rest.search(/\s*(?:Alle\s+[\d.,]+\s+Kommentare ansehen|View all\s+[\d.,]+\s+comments|Kommentieren\s*…|Kommentar hinzufügen|Add a comment)/i);
     var cap = (end >= 0 ? rest.slice(0, end) : rest).replace(/\s*…?\s*Instagram\s*$/, "").trim();
     return cap ? { account: start[1], caption: cap } : null;
   }
