@@ -3689,7 +3689,7 @@ a { color: var(--accent); }
 (function () {
   "use strict";
   var K = window.RezeptKern, NW = NAEHRWERTE;
-  var APP_VERSION = "0.7.1";
+  var APP_VERSION = "0.8.0";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -4010,7 +4010,7 @@ a { color: var(--accent); }
     var enN = englishEntries().length;
     var enHint = enN && !S.meta.trPending ? '<div class="banner">' + ic("lang") + '<div class="main"><b>' + enN + (enN === 1 ? " Rezept hat" : " Rezepte haben") + ' Schritte in einer Fremdsprache.</b> Jetzt auf Deutsch übersetzen.</div><button class="btn accent" data-a="translate">Übersetzen</button></div>' : '';
     // Immer nur ein Hinweis auf einmal, der wichtigste zuerst
-    var banner = [onboardBanner(), translateBanner(), enHint, backupBanner()].filter(Boolean)[0] || "";
+    var banner = [shareBanner(), onboardBanner(), translateBanner(), enHint, backupBanner()].filter(Boolean)[0] || "";
     return head + banner + (S.prefs.onboarded ? guide("rezepte") : "") + tools + personal +
       '<section class="sec"><div class="sec-head"><h2>' + (searching ? list.length + " gefunden" : "Alle Rezepte") + '</h2>' + (nf ? '<button class="link" data-a="filter-reset">Filter löschen</button>' : '') + '</div>' +
       (list.length > 1 ? sortSeg : '') +
@@ -4413,6 +4413,7 @@ a { color: var(--accent); }
     }
     return '<header class="topbar"><h1>Hinzufügen</h1></header>' + guide("neu") +
       '<div class="group"><button class="row" data-a="setup">' + ic("share") + '<span class="main"><span class="title">Aus Instagram teilen</span><span class="sub">Der schnellste Weg: Kurzbefehl „Ins Rezeptbuch“ einrichten</span></span>' + ic("chev", "chev") + '</button></div>' +
+      (S.meta.shortcutOk ? '<button class="btn accent" data-a="share-paste">' + ic("copy") + 'Geteiltes Rezept einfügen</button>' : '') +
       '<section class="sec"><div class="field"><label for="paste">Caption, Rezepttext oder Instagram-Link</label><textarea class="input" id="paste" placeholder="Zum Beispiel: Linsen-Curry · Zutaten: 250 g rote Linsen …">' + esc(UI.pasteText || "") + '</textarea></div>' +
       '<button class="btn" data-a="analyse">' + ic("sparkle") + 'Erkennen</button></section>' + preview +
       '<section class="sec"><div class="sec-head"><h2>Instagram-Export</h2></div><div class="group"><label class="row" for="expfile" style="cursor:pointer">' + ic("file") +
@@ -4545,6 +4546,7 @@ a { color: var(--accent); }
   var SC_NAME = "Ins Rezeptbuch";
   function snip(t) { return '<div class="snip"><code>' + esc(t) + '</code><button data-a="copy-item" data-t="' + esc(t) + '">Kopieren</button></div>'; }
   function runShortcut(text) {
+    S.meta.awaitShortcut = Date.now(); save("meta");
     var u = "shortcuts://run-shortcut?name=" + encodeURIComponent(SC_NAME) + (text ? "&input=text&text=" + encodeURIComponent(text) : "");
     try { location.href = u; } catch (x) { /* kein Kurzbefehl */ }
   }
@@ -4552,9 +4554,9 @@ a { color: var(--accent); }
     var link = window.KURZBEFEHL_LINK || "";
     var ok = !!S.meta.shortcutOk;
     sheet('<h2>Aus Instagram ins Rezeptbuch</h2>' +
-      (ok ? '<div class="note info"><b>Eingerichtet.</b><span>In Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“. Oder „Link kopieren“ und hier unter „Hinzufügen“ einfügen.</span></div>' : '') +
+      (ok ? '<div class="note info"><b>Eingerichtet.</b><span>In Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“. Dann Rezeptbuch öffnen und oben auf „Einfügen“ tippen (iOS fragt einmal „Einsetzen erlauben?“).</span></div>' : '') +
       (ok && !UI.showBuild ? '<button class="btn soft" data-a="show-build">Bauanleitung anzeigen</button>' : link ? '<p class="small">Tippe auf „Kurzbefehl hinzufügen“ und bestätige. Danach in Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“.</p><a class="btn accent" href="' + esc(link) + '" target="_blank" rel="noopener">Kurzbefehl hinzufügen</a>' :
-      '<p class="small">Einmal in der Kurzbefehle-App anlegen (ca. 5 Minuten). Danach reicht in Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“. Die App speichert das Rezept sofort.</p>' +
+      '<p class="small">Einmal in der Kurzbefehle-App anlegen (ca. 5 Minuten). Danach in Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“, dann Rezeptbuch öffnen und oben auf „Einfügen“ tippen.</p>' +
       '<div class="build"><ol>' +
       '<li>Kurzbefehle-App → „+“ → Name <b>' + SC_NAME + '</b>.' + snip(SC_NAME) + '</li>' +
       '<li>Oben auf das Info-Symbol (i): <b>Im Share-Sheet anzeigen</b> einschalten. Bei „Empfängt“ nur <b>URLs</b> und <b>Text</b> lassen. Darunter „Wenn keine Eingabe“: <b>Zwischenablage verwenden</b>.</li>' +
@@ -4565,7 +4567,8 @@ a { color: var(--accent); }
       '<li>Aktion <b>Text übersetzen</b>: Text = <b>Inhalt von URL</b>, von <b>Ermitteln</b>, nach <b>Deutsch</b>.</li>' +
       '<li>Dreimal Aktion <b>URL-Kodierung</b> (Suche „Kodier“): je einmal für <b>Link</b>, <b>Inhalt von URL</b> und <b>Übersetzter Text</b>.</li>' +
       '<li>Aktion <b>URL</b>: Adresse einfügen und die drei kodierten Variablen an die Stellen setzen:' + snip(APP_URL + "#u=LINK&t=INHALT&d=UEBERSETZT") + '</li>' +
-      '<li>Aktion <b>URLs öffnen</b>. Fertig.</li>' +
+      '<li>Aktion <b>In Zwischenablage kopieren</b> (nimmt die URL darüber). Keine Aktion „URL öffnen“ – sonst öffnet iOS Safari statt dieser App.</li>' +
+      '<li>Optional Aktion <b>Mitteilung anzeigen</b>: „Rezept kopiert – Rezeptbuch öffnen“. Fertig.</li>' +
       '</ol></div>' +
       '<p class="small muted">Beim ersten Mal fragt iOS, ob der Kurzbefehl instagram.com abrufen und die Seite öffnen darf: „Immer erlauben“. Ist das Rezept deutsch, gibt der Übersetzer den Text unverändert zurück.</p>') +
       '<p class="small muted">Der Kurzbefehl liest nur die öffentliche Vorschau des Posts, den du teilst. Ohne Anmeldung, ohne Zugriff auf dein Instagram-Konto. Alles bleibt auf deinem iPhone.</p>' +
@@ -4713,9 +4716,41 @@ a { color: var(--accent); }
     var h = location.hash.replace(/^#/, "");
     if (h === "uebersetzt") { try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* egal */ } if (S.meta.trPending) setTimeout(pasteTranslation, 300); return false; }
     if (!/(^|&)(t|u|o|s)=/.test(h)) return false;
-    var p = parseImportHash(h);
-    S.meta.lastImport = { at: Date.now(), u: (p.u || "").length, t: (p.t || "").length, d: (p.d || "").length, o: (p.o || "").length, s: (p.s || "").length }; save("meta");
     try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* egal */ }
+    return handleImport(parseImportHash(h));
+  }
+  // Geteiltes Rezept aus der Zwischenablage (Kurzbefehl kopiert „…/Rezeptbuch/#u=…&t=…&d=…“).
+  // So bleibt alles in der Home-Bildschirm-App, auch wenn iOS Links sonst in Safari öffnet.
+  function payloadHash(text) {
+    var t = String(text || "").trim();
+    var i = t.indexOf("#u=");
+    if (i >= 0) return t.slice(i + 1);
+    if (/^u=https?/.test(t)) return t;
+    return "";
+  }
+  function importFromClipboard() {
+    var go = function (txt) {
+      var h = payloadHash(txt);
+      S.meta.awaitShortcut = null; UI.shareBanner = false; save("meta");
+      if (!h) {
+        if (/instagram\.com\/(p|reel|reels|tv)\//.test(txt || "")) { toast("Nur ein Link – der Kurzbefehl holt jetzt den Text …"); runShortcut(String(txt).trim()); return; }
+        toast("In der Zwischenablage ist kein geteiltes Rezept"); render(); return;
+      }
+      if (handleImport(parseImportHash(h))) { render(); window.scrollTo(0, 0); }
+    };
+    try { navigator.clipboard.readText().then(go, function () { pasteSheet(); }); } catch (x) { pasteSheet(); }
+  }
+  function pasteSheet() {
+    sheet('<h2>Geteiltes Rezept einfügen</h2><p class="small">Tippe ins Feld, halte kurz gedrückt und wähle „Einsetzen“. Dann „Übernehmen“.</p>' +
+      '<div class="field"><textarea class="input" id="sharetext" placeholder="https://jakob1500.github.io/Rezeptbuch/#u=…"></textarea></div>' +
+      '<div class="btnrow"><button class="btn" data-a="share-apply">Übernehmen</button><button class="btn soft" data-a="close-sheet">Abbrechen</button></div>');
+  }
+  function shareBanner() {
+    if (!UI.shareBanner || S.meta.trPending) return "";
+    return '<div class="banner">' + ic("share") + '<div class="main"><b>Rezept aus Instagram geteilt?</b> Hier einfügen, dann ist es gespeichert.</div><button class="btn accent" data-a="share-paste">Einfügen</button></div>';
+  }
+  function handleImport(p) {
+    S.meta.lastImport = { at: Date.now(), u: (p.u || "").length, t: (p.t || "").length, d: (p.d || "").length, o: (p.o || "").length, s: (p.s || "").length }; save("meta");
     var text = p.t || "", url = p.u || "";
     // Video-/Bild-Text zu einem schon gespeicherten Rezept: dort ergänzen statt neu anlegen
     if (url && !text && (p.o || p.s)) {
@@ -4809,6 +4844,8 @@ a { color: var(--accent); }
       case "back": UI.detail = null; render(); break;
       case "settings": settingsSheet(); break;
       case "setup": setupSheet(); render(); break;
+      case "share-paste": importFromClipboard(); break;
+      case "share-apply": var stx = (($("#sharetext") || {}).value || ""); closeSheet(); var sh = payloadHash(stx); if (sh && handleImport(parseImportHash(sh))) render(); else toast("Kein geteiltes Rezept erkannt"); break;
       case "show-build": UI.showBuild = true; setupSheet(); break;
       case "sc-run-link": closeSheet(); UI.pasteText = ""; runShortcut(el.dataset.t); break;
       case "sc-test": closeSheet(); toast("Kurzbefehl wird mit einem Beispiel-Link gestartet …"); setTimeout(function () { runShortcut("https://www.instagram.com/p/C0Test/"); }, 400); break;
@@ -4859,6 +4896,7 @@ a { color: var(--accent); }
       case "analyse":
         var txt2 = ($("#paste").value || "").trim(); UI.pasteText = txt2;
         if (!txt2) { toast("Bitte erst Text einfügen"); break; }
+        if (payloadHash(txt2)) { UI.pasteText = ""; if (handleImport(parseImportHash(payloadHash(txt2)))) render(); break; }
         if (/^https?:\/\/(www\.)?instagram\.com\/\S+$/i.test(txt2)) {
           // Link aus Instagram („Link kopieren“): der Kurzbefehl holt die Beschreibung und kommt zurück
           if (S.meta.shortcutOk) { UI.pasteText = ""; runShortcut(txt2); break; }
@@ -4901,7 +4939,16 @@ a { color: var(--accent); }
     if (ev.key === "Escape" && $("#layer").innerHTML) closeSheet();
   });
   window.addEventListener("hashchange", function () { if (readHashImport()) render(); });
-  document.addEventListener("visibilitychange", function () { if (!document.hidden && S.meta.trPending) render(); });
+  var hiddenAt = 0;
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) { hiddenAt = Date.now(); return; }
+    // Zurück in der App: kam der Nutzer vom Kurzbefehl (Teilen in Instagram oder „Link einfügen“)?
+    if (S.meta.shortcutOk || S.meta.awaitShortcut) {
+      if (hiddenAt && Date.now() - hiddenAt > 2000) UI.shareBanner = true;
+    }
+    if (S.meta.awaitShortcut && Date.now() - S.meta.awaitShortcut < 600000 && !S.meta.trPending) { UI.detail = null; UI.tab = "rezepte"; }
+    render();
+  });
 
   // ------------------------------------------------------------------ Start
   dbOpen().then(function () {
