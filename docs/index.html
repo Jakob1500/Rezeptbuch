@@ -3689,7 +3689,7 @@ a { color: var(--accent); }
 (function () {
   "use strict";
   var K = window.RezeptKern, NW = NAEHRWERTE;
-  var APP_VERSION = "0.8.0";
+  var APP_VERSION = "0.8.1";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -4226,7 +4226,9 @@ a { color: var(--accent); }
     }
     var src = r.source.url ? '<a class="row" href="' + esc(r.source.url) + '" target="_blank" rel="noopener"><span class="main"><span class="title">Original auf Instagram</span><span class="sub">' + (r.source.account ? "@" + esc(r.source.account) : "") + '</span></span>' + ic("chev", "chev") + '</a>' : "";
     var blog = r.source.blogUrl ? '<a class="row" href="' + esc(r.source.blogUrl) + '" target="_blank" rel="noopener"><span class="main"><span class="title">Rezept auf dem Blog</span><span class="sub">' + esc(String(r.source.blogUrl).replace(/^https?:\/\//, "").slice(0, 60)) + '</span></span>' + ic("chev", "chev") + '</a>' : "";
+    var blogLink = (r.links || [])[0] || (r.elsewhere && r.elsewhere.url) || "";
     var missing = !c.enough ? '<div class="note"><b>Noch unvollständig: ' + esc(c.missing.join(", ")) + '.</b><span>' + esc(nextHint(r, e)) + '</span>' +
+      (blogLink && !r.source.blogUrl ? '<button class="btn accent" data-a="blog-fetch" data-t="' + esc(blogLink) + '">' + ic("share") + 'Rezept vom Blog holen</button>' : '') +
       (e.input ? '<button class="btn soft" data-a="add-text" data-id="' + esc(id) + '">' + ic("copy") + 'Fehlenden Text einfügen</button>' : '') + '</div>' : "";
     var unitWord = r.servingsUnit && r.servingsUnit !== "Portionen" && r.servingsUnit !== "Portion" ? r.servingsUnit : (serv === 1 ? "Portion" : "Portionen");
     var household = !UI.servings[id] && r.servings && serv !== r.servings && serv === S.prefs.persons;
@@ -4548,7 +4550,7 @@ a { color: var(--accent); }
   function runShortcut(text) {
     S.meta.awaitShortcut = Date.now(); save("meta");
     var u = "shortcuts://run-shortcut?name=" + encodeURIComponent(SC_NAME) + (text ? "&input=text&text=" + encodeURIComponent(text) : "");
-    try { location.href = u; } catch (x) { /* kein Kurzbefehl */ }
+    try { var a = document.createElement("a"); a.href = u; a.rel = "noopener"; document.body.appendChild(a); a.click(); a.remove(); } catch (x) { try { location.href = u; } catch (y) { /* kein Kurzbefehl */ } }
   }
   function setupSheet() {
     var link = window.KURZBEFEHL_LINK || "";
@@ -4725,20 +4727,34 @@ a { color: var(--accent); }
     var t = String(text || "").trim();
     var i = t.indexOf("#u=");
     if (i >= 0) return t.slice(i + 1);
+    // iOS kann das „#“ beim Kopieren als %23 schreiben
+    var j = t.search(/%23u(=|%3D)/i);
+    if (j >= 0) { var rest = t.slice(j + 3); return "u=" + rest.replace(/^(=|%3D)/i, "").replace(/%26(t|d|o|s|a)%3D/gi, "&$1="); }
     if (/^u=https?/.test(t)) return t;
     return "";
   }
   function importFromClipboard() {
     var go = function (txt) {
+      txt = String(txt || "");
       var h = payloadHash(txt);
       S.meta.awaitShortcut = null; UI.shareBanner = false; save("meta");
       if (!h) {
-        if (/instagram\.com\/(p|reel|reels|tv)\//.test(txt || "")) { toast("Nur ein Link – der Kurzbefehl holt jetzt den Text …"); runShortcut(String(txt).trim()); return; }
-        toast("In der Zwischenablage ist kein geteiltes Rezept"); render(); return;
+        if (/instagram\.com\/(p|reel|reels|tv)\//.test(txt) && txt.length < 300) { toast("Nur ein Link – der Kurzbefehl holt jetzt den Text …"); runShortcut(txt.trim()); return; }
+        diagSheet("In der Zwischenablage ist kein geteiltes Rezept.", txt); render(); return;
       }
-      if (handleImport(parseImportHash(h))) { render(); window.scrollTo(0, 0); }
+      var ok = handleImport(parseImportHash(h), true);
+      render(); window.scrollTo(0, 0);
+      if (!ok) diagSheet("Das Rezept konnte nicht gelesen werden.", txt);
     };
     try { navigator.clipboard.readText().then(go, function () { pasteSheet(); }); } catch (x) { pasteSheet(); }
+  }
+  // Zeigt, was angekommen ist – für die Fehlersuche (Screenshot an Claude)
+  function diagSheet(msg, txt) {
+    var li = S.meta.lastImport || {};
+    sheet('<h2>Nicht erkannt</h2><p class="small">' + esc(msg) + '</p>' +
+      '<div class="note"><b>Was angekommen ist</b><span>Länge: ' + String(txt || "").length + ' Zeichen · Link ' + (li.u || 0) + ' · Text ' + (li.t || 0) + ' · Übersetzung ' + (li.d || 0) + '</span>' +
+      '<span class="small" style="overflow-wrap:anywhere">Anfang: ' + esc(String(txt || "").slice(0, 160) || "(leer)") + '</span></div>' +
+      '<p class="small muted">Bitte davon einen Screenshot an Claude schicken.</p><button class="btn soft" data-a="close-sheet">Schließen</button>');
   }
   function pasteSheet() {
     sheet('<h2>Geteiltes Rezept einfügen</h2><p class="small">Tippe ins Feld, halte kurz gedrückt und wähle „Einsetzen“. Dann „Übernehmen“.</p>' +
@@ -4749,9 +4765,29 @@ a { color: var(--accent); }
     if (!UI.shareBanner || S.meta.trPending) return "";
     return '<div class="banner">' + ic("share") + '<div class="main"><b>Rezept aus Instagram geteilt?</b> Hier einfügen, dann ist es gespeichert.</div><button class="btn accent" data-a="share-paste">Einfügen</button></div>';
   }
-  function handleImport(p) {
+  function handleImport(p, forceSave) {
     S.meta.lastImport = { at: Date.now(), u: (p.u || "").length, t: (p.t || "").length, d: (p.d || "").length, o: (p.o || "").length, s: (p.s || "").length }; save("meta");
     var text = p.t || "", url = p.u || "";
+    // Blog-Seite (Kurzbefehl mit einem Nicht-Instagram-Link): zum passenden Rezept hinzufügen
+    if (url && !/instagram\.com/.test(url) && text) {
+      var norm = function (x) { return String(x || "").replace(/^https?:\/\/(www\.)?/, "").replace(/[?#].*$/, "").replace(/\/$/, "").toLowerCase(); };
+      var owner = entries().filter(function (e) { var r0 = e.recipe; return (r0.links || []).concat([r0.source.blogUrl, r0.elsewhere && r0.elsewhere.url]).some(function (l) { return l && norm(l) === norm(url); }); })[0];
+      var isHtml = /<(html|body|div|script)[\s>]/i.test(text);
+      if (owner && owner.input) {
+        if (isHtml) { owner.input.blogHtml = text; owner.input.blogUrl = url; } else { owner.input.commentText = text; }
+        reanalyse(owner); owner.recipe.source.blogUrl = url; save("recipes");
+        UI.tab = "rezepte"; UI.detail = owner.id;
+        setTimeout(function () { toast("Rezept vom Blog ergänzt"); }, 300);
+        return true;
+      }
+      var bInput = isHtml ? { caption: "", blogHtml: text, blogUrl: url, url: url } : { caption: text, url: url };
+      startDraft(bInput);
+      if (UI.draft && UI.draft.res.recipe.ingredients.length >= 2) {
+        var bOut = addRecipe(UI.draft.res, { input: bInput }); UI.draft = null; UI.tab = "rezepte"; UI.detail = bOut.id;
+        setTimeout(function () { toast("Rezept vom Blog gespeichert"); }, 300); return true;
+      }
+      UI.tab = "neu"; UI.detail = null; return false;
+    }
     // Video-/Bild-Text zu einem schon gespeicherten Rezept: dort ergänzen statt neu anlegen
     if (url && !text && (p.o || p.s)) {
       var known = entries().filter(function (e) { return e.input && e.input.url && e.input.url.split("?")[0] === url.split("?")[0]; })[0];
@@ -4776,15 +4812,15 @@ a { color: var(--accent); }
     var same = url ? entries().filter(function (e) { return e.input && e.input.url && e.input.url.split("?")[0].replace(/\/$/, "") === url.split("?")[0].replace(/\/$/, ""); })[0] : null;
     if (same) { UI.tab = "rezepte"; UI.detail = same.id; setTimeout(function () { toast("Schon im Rezeptbuch"); }, 300); return true; }
     startDraft(input);
-    // Rezept erkannt: sofort speichern, ohne weiteren Tipp
-    if (UI.draft && UI.draft.like && UI.draft.like.recipe) {
-      var out = addRecipe(UI.draft.res, { input: input, typ: UI.draft.like.typ });
+    // Rezept erkannt (oder bewusst geteilt und Text vorhanden): sofort speichern, ohne weiteren Tipp
+    if (UI.draft && ((UI.draft.like && UI.draft.like.recipe) || (forceSave && caption && caption.length > 40))) {
+      var out = addRecipe(UI.draft.res, { input: input, typ: UI.draft.like ? UI.draft.like.typ : null });
       UI.draft = null; UI.tab = "rezepte"; UI.detail = out.id;
       setTimeout(function () { toast(out.dupe ? "Schon im Rezeptbuch" : "Im Rezeptbuch gespeichert"); }, 300);
       return true;
     }
     UI.tab = "neu"; UI.detail = null;
-    return true;
+    return !!(caption && caption.length > 40);
   }
   function startDraft(input) {
     var res = K.analyse(input);
@@ -4845,6 +4881,7 @@ a { color: var(--accent); }
       case "settings": settingsSheet(); break;
       case "setup": setupSheet(); render(); break;
       case "share-paste": importFromClipboard(); break;
+      case "blog-fetch": toast("Der Kurzbefehl holt die Blog-Seite …"); runShortcut(el.dataset.t); break;
       case "share-apply": var stx = (($("#sharetext") || {}).value || ""); closeSheet(); var sh = payloadHash(stx); if (sh && handleImport(parseImportHash(sh))) render(); else toast("Kein geteiltes Rezept erkannt"); break;
       case "show-build": UI.showBuild = true; setupSheet(); break;
       case "sc-run-link": closeSheet(); UI.pasteText = ""; runShortcut(el.dataset.t); break;
@@ -4896,7 +4933,7 @@ a { color: var(--accent); }
       case "analyse":
         var txt2 = ($("#paste").value || "").trim(); UI.pasteText = txt2;
         if (!txt2) { toast("Bitte erst Text einfügen"); break; }
-        if (payloadHash(txt2)) { UI.pasteText = ""; if (handleImport(parseImportHash(payloadHash(txt2)))) render(); break; }
+        if (payloadHash(txt2)) { UI.pasteText = ""; var okP = handleImport(parseImportHash(payloadHash(txt2)), true); render(); if (!okP) diagSheet("Das Rezept konnte nicht gelesen werden.", txt2); break; }
         if (/^https?:\/\/(www\.)?instagram\.com\/\S+$/i.test(txt2)) {
           // Link aus Instagram („Link kopieren“): der Kurzbefehl holt die Beschreibung und kommt zurück
           if (S.meta.shortcutOk) { UI.pasteText = ""; runShortcut(txt2); break; }
