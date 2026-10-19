@@ -3689,7 +3689,7 @@ a { color: var(--accent); }
 (function () {
   "use strict";
   var K = window.RezeptKern, NW = NAEHRWERTE;
-  var APP_VERSION = "0.7.0";
+  var APP_VERSION = "0.7.1";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -4395,6 +4395,7 @@ a { color: var(--accent); }
       preview = '<section class="sec"><div class="sec-head"><h2>Erkannt</h2><span class="small muted num">' + c.score + ' % vollständig</span></div>' +
         '<div class="progress" aria-hidden="true"><i style="width:' + c.score + '%"></i></div>' +
         (like && !like.recipe ? '<div class="note">Das sieht nicht nach einem Rezept aus. Du kannst es trotzdem speichern.</div>' : '') +
+        (S.meta.lastImport && Date.now() - S.meta.lastImport.at < 600000 && !r.ingredients.length ? '<p class="small muted" style="padding-inline:4px">Empfangen vom Kurzbefehl: Link ' + S.meta.lastImport.u + ' · Text ' + S.meta.lastImport.t + ' · Übersetzung ' + S.meta.lastImport.d + ' Zeichen</p>' : '') +
         '<div class="field"><label for="dtitle">Titel</label><input class="input" id="dtitle" value="' + esc(r.title) + '"></div>' +
         (r.titleOriginal && r.titleOriginal !== r.title ? '<p class="small muted" style="padding-inline:4px">Original: ' + esc(r.titleOriginal) + '</p>' : '') +
         '<div class="group">' +
@@ -4691,11 +4692,29 @@ a { color: var(--accent); }
 
   // ------------------------------------------------------------------ Teilen aus Instagram (Kurzbefehl) über die Adresse
   // Format: …/#u=<Instagram-Link>&t=<Text der Einbettungsseite oder Caption>
+  // Apples „URL codieren“ lässt & = + ( ) unkodiert. Darum nicht stumpf an jedem „&“ trennen,
+  // sondern an den bekannten Feldern (u, t, d, o, s, a) – der Text dazwischen gehört zum Feld davor.
+  function safeDecode(v) {
+    try { return decodeURIComponent(v); } catch (e) {
+      return v.replace(/(%[0-9A-Fa-f]{2})+/g, function (m) { try { return decodeURIComponent(m); } catch (x) { return m; } });
+    }
+  }
+  function parseImportHash(h) {
+    var keys = [], re = /(?:^|&)(u|t|d|o|s|a)=/g, m, p = {};
+    while ((m = re.exec(h)) !== null) keys.push({ k: m[1], start: m.index + m[0].length, at: m.index });
+    // Ein Feld endet erst dort, wo das nächste erwartete Feld beginnt (Reihenfolge u, t, d, o, s, a)
+    var order = ["u", "t", "d", "o", "s", "a"], firsts = [];
+    order.forEach(function (k) { var c = keys.filter(function (x) { return x.k === k; }); if (c.length) firsts.push(k === "u" ? c[0] : c[c.length - 1]); });
+    firsts.sort(function (a, b) { return a.at - b.at; });
+    firsts.forEach(function (x, i) { var end = i + 1 < firsts.length ? firsts[i + 1].at : h.length; p[x.k] = safeDecode(h.slice(x.start, end)); });
+    return p;
+  }
   function readHashImport() {
     var h = location.hash.replace(/^#/, "");
     if (h === "uebersetzt") { try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* egal */ } if (S.meta.trPending) setTimeout(pasteTranslation, 300); return false; }
     if (!/(^|&)(t|u|o|s)=/.test(h)) return false;
-    var p = {}; h.split("&").forEach(function (kv) { var i = kv.indexOf("="); if (i > 0) { try { p[kv.slice(0, i)] = decodeURIComponent(kv.slice(i + 1).replace(/\+/g, " ")); } catch (e) { /* kaputt */ } } });
+    var p = parseImportHash(h);
+    S.meta.lastImport = { at: Date.now(), u: (p.u || "").length, t: (p.t || "").length, d: (p.d || "").length, o: (p.o || "").length, s: (p.s || "").length }; save("meta");
     try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* egal */ }
     var text = p.t || "", url = p.u || "";
     // Video-/Bild-Text zu einem schon gespeicherten Rezept: dort ergänzen statt neu anlegen
