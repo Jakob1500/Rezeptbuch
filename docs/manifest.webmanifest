@@ -1,6 +1,6 @@
 {
- "name": "Rezeptbuch",
- "short_name": "Rezeptbuch",
+ "name": "Kombüse – Rezepte aus Instagram",
+ "short_name": "Kombüse",
  "lang": "de",
  "start_url": "./",
  "scope": "./",

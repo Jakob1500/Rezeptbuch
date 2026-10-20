@@ -1,1 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#0B7A55"/><g fill="none" stroke="#FFFFFF" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"><path d="M150 136h170a42 42 0 0 1 42 42v220H192a42 42 0 0 1-42-42z"/><path d="M150 356a42 42 0 0 0 42 42"/><path d="M214 214h84M214 270h56"/></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#111312"/>
+  <g transform="translate(256 262) scale(1.16) translate(-256 -256)">
+  <path d="M164 366 L348 148" stroke="#C9B79C" stroke-width="15" stroke-linecap="round"/>
+  <path d="M320 180c14-50 52-78 96-84-8 46-48 80-96 84z" fill="#3DC48F"/>
+  <path d="M342 154c-46-14-86 0-108 30 40 16 82 8 108-30z" fill="#B7D3C5"/>
+  <g fill="#FF8A1F"><circle cx="234" cy="238" r="42"/><circle cx="292" cy="294" r="36"/><circle cx="214" cy="328" r="30"/></g>
+  <g fill="#fff" fill-opacity=".6"><circle cx="220" cy="224" r="10"/><circle cx="281" cy="283" r="8"/><circle cx="206" cy="319" r="6"/></g>
+  </g>
+</svg>
