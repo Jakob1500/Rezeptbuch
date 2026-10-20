@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.4.1";
+  var VERSION = "0.4.2";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -3652,19 +3652,21 @@
    * stand = { [account]: { rezepte, gefragtBei, antwort } } – wird verändert und zurückgegeben.
    * Gibt { fragen: bool, account, profilUrl, stand } zurück. Folgen tippt der Nutzer selbst in Instagram.
    */
-  var FOLGEN_ERNEUT_AB = 7;
-  function folgenVorschlag(stand, account) {
+  // Beim 5. gespeicherten Rezept eines Kanals freundlich vorschlagen, ihm zu folgen und den Kanal anzuschauen;
+  // beim 15. noch einmal erinnern (auch wenn man schon folgt: „schau mal wieder vorbei“). „nie“ wird respektiert.
+  var FOLGEN_AB = 5, FOLGEN_ERNEUT_AB = 15;
+  function folgenVorschlag(stand, account, anzahl) {
     stand = stand || {};
     var a = String(account || "").replace(/^@/, "");
     if (!a) return { fragen: false, stand: stand };
     var s = stand[a] || (stand[a] = { rezepte: 0, gefragtBei: [], antwort: null });
-    s.rezepte++;
+    s.rezepte = anzahl != null ? Math.max(anzahl, s.rezepte) : s.rezepte + 1;
     var fragen = false;
     if (s.antwort === "nie") fragen = false;
-    else if (!s.gefragtBei.length) fragen = true;
+    else if (!s.gefragtBei.length) fragen = s.rezepte >= FOLGEN_AB;
     else if (s.gefragtBei.length === 1 && s.rezepte >= FOLGEN_ERNEUT_AB) fragen = true;
     if (fragen) s.gefragtBei.push(s.rezepte);
-    return { fragen: fragen, account: a, profilUrl: "https://www.instagram.com/" + encodeURIComponent(a) + "/", stand: stand };
+    return { fragen: fragen, wieder: s.gefragtBei.length > 1, gefolgt: s.antwort === "gefolgt", anzahl: s.rezepte, account: a, profilUrl: "https://www.instagram.com/" + encodeURIComponent(a) + "/", stand: stand };
   }
   // Antwort merken: "gefolgt" | "später" | "nie"
   function folgenAntwort(stand, account, antwort) {
@@ -3830,7 +3832,7 @@
     translateTitle: translateTitle, polishTitle: polishTitle, translateIngredient: translateIngredient, translateNote: translateNote,
     buildLabels: buildLabels, LABEL_GRUPPEN: LABEL_GRUPPEN, GRUNDVORRAT: GRUNDVORRAT, standardVorrat: standardVorrat, vorratsSchluessel: vorratsSchluessel,
     extractInlineIngredients: extractInlineIngredients, isStepLike: isStepLike, postType: postType, normalizeFancy: normalizeFancy, zuordnungsVorschlaege: zuordnungsVorschlaege,
-    recipeId: recipeId, importNeue: importNeue, folgenVorschlag: folgenVorschlag, folgenAntwort: folgenAntwort, FOLGEN_ERNEUT_AB: FOLGEN_ERNEUT_AB,
+    recipeId: recipeId, importNeue: importNeue, folgenVorschlag: folgenVorschlag, folgenAntwort: folgenAntwort, FOLGEN_ERNEUT_AB: FOLGEN_ERNEUT_AB, FOLGEN_AB: FOLGEN_AB,
     blogSuchplan: blogSuchplan, blogKandidaten: blogKandidaten, besteKandidaten: besteKandidaten, pruefeBlogTreffer: pruefeBlogTreffer,
     parseRecipeHtml: parseRecipeHtml, inferServings: inferServings, uebersetzeSchritte: uebersetzeSchritte, uebersetzeZutaten: uebersetzeZutaten, mergeFrameText: mergeFrameText, isEnglishTitle: isEnglishTitle, stepIngredients: stepIngredients, parseTranscript: parseTranscript, detectLang: detectLang, rezeptStil: rezeptStil, cleanSteps: cleanSteps, langOfText: langOfText, dropEnglishHalf: dropEnglishHalf
   };

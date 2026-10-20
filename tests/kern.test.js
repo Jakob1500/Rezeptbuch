@@ -351,8 +351,11 @@ check("Vorrat-Einstellung gewinnt", shop2[0].have === false);
 const imp = K.importNeue(["ig:AAA"], [{ id: "AAA" }, { id: "BBB" }, { id: "BBB" }]);
 check("Re-Import: nur Neues", imp.neu.length === 1 && imp.neu[0].id === "BBB" && imp.vorhanden.length === 2);
 let st = {}, asks = [];
-for (let n = 1; n <= 9; n++) { const f = K.folgenVorschlag(st, "dr.vegan"); asks.push(f.fragen); if (n === 1) K.folgenAntwort(st, "dr.vegan", "gefolgt"); }
-check("Folgen: beim 1. und 7. Rezept fragen", asks.join() === "true,false,false,false,false,false,true,false,false", asks);
+for (let n = 1; n <= 16; n++) { const f = K.folgenVorschlag(st, "dr.vegan"); asks.push(f.fragen ? n : 0); if (n === 5) K.folgenAntwort(st, "dr.vegan", "gefolgt"); }
+check("Folgen: beim 5. und 15. Rezept eines Kanals vorschlagen", asks.filter(Boolean).join() === "5,15", asks);
+const st2 = {}; K.folgenVorschlag(st2, "x", 1); K.folgenAntwort(st2, "x", "nie");
+check("Folgen: „nie“ wird respektiert", !K.folgenVorschlag(st2, "x", 5).fragen && !K.folgenVorschlag(st2, "x", 15).fragen);
+check("Folgen: zählt vorhandene Rezepte (Anzahl aus der App)", K.folgenVorschlag({}, "y", 5).fragen);
 // Blog-Suche
 const pr = K.analyse({ caption: "Spicy Peanut Noodles 🍜\nIngredients:\nNoodles • Peanut butter • Garlic\nFULL RECIPE ON MY BLOG Drveganblog dot com" }).recipe;
 const plan = K.blogSuchplan(pr, { caption: "#peanutnoodles" });

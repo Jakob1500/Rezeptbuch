@@ -285,7 +285,7 @@ a { color: var(--accent); }
   var LERN_ERINNERUNG = 20;
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.13.1";
+  var APP_VERSION = "0.13.3";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -363,14 +363,19 @@ a { color: var(--accent); }
     pending[k] = 1;
     if (k !== "meta") { S.meta.lastChange = Date.now(); pending.meta = 1; }
     clearTimeout(timer);
-    timer = setTimeout(function () {
-      Object.keys(pending).forEach(function (key) {
-        MEM[key] = S[key];
-        if (DB) try { DB.transaction("kv", "readwrite").objectStore("kv").put(JSON.parse(JSON.stringify(S[key])), key); } catch (e) { /* bleibt im Arbeitsspeicher */ }
-      });
-      pending = {};
-    }, 250);
+    timer = setTimeout(sofortSpeichern, 250);
   }
+  function sofortSpeichern() {
+    clearTimeout(timer);
+    Object.keys(pending).forEach(function (key) {
+      MEM[key] = S[key];
+      if (DB) try { DB.transaction("kv", "readwrite").objectStore("kv").put(JSON.parse(JSON.stringify(S[key])), key); } catch (e) { /* bleibt im Arbeitsspeicher */ }
+    });
+    pending = {};
+  }
+  // App wird verlassen oder in den Hintergrund geschickt: sofort speichern (nichts geht verloren)
+  document.addEventListener("visibilitychange", function () { if (document.hidden) sofortSpeichern(); });
+  window.addEventListener("pagehide", sofortSpeichern);
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) { /* optional */ }
 
   // ------------------------------------------------------------------ Zustand
@@ -818,6 +823,22 @@ a { color: var(--accent); }
     if (!ts) return "";
     var d = Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(ts).setHours(0, 0, 0, 0)) / 86400000);
     return d <= 0 ? "heute" : d === 1 ? "gestern" : "vor " + d + " Tagen";
+  }
+  // ------------------------------------------------------------------ Testphase: Information und Einwilligung (DSGVO Art. 6 Abs. 1 a, Art. 13)
+  var EINWILLIGUNG_VERSION = 1;
+  function einwilligungText() {
+    return '<p class="small">Kombüse ist noch in der Testphase. Damit Fehler schnell behoben werden, sammelt die App, was beim Erkennen passiert, und schickt es an Jakob.</p>' +
+      '<ul class="small">' +
+      '<li><b>Was:</b> Links und öffentliche Beschreibungen der Instagram-Beiträge, die du speicherst; was die App daraus erkannt hat; Probleme beim Teilen; deine Korrekturen und Nährwert-Angaben. <b>Nicht:</b> dein Name, Kontakte, Fotos, Standort oder dein Instagram-Konto.</li>' +
+      '<li><b>Wie:</b> gesammelt über „An Jakob schicken“ (Einstellungen → Was die App gelernt hat). Die App erinnert dich daran.</li>' +
+      '<li><b>Wozu:</b> nur um die Erkennung zu verbessern. Jakob wertet die Daten mit dem KI-Assistenten Claude (Anthropic) aus.</li>' +
+      '<li><b>Wie lange:</b> höchstens 3 Monate nach Eingang, dann gelöscht. Auf deinem iPhone löscht die App die Texte nach dem Senden.</li>' +
+      '<li><b>Deine Rechte:</b> Auskunft, Löschung und Widerruf jederzeit bei Jakob Teichmann. Ohne diese Einwilligung ist eine Teilnahme am Test nicht möglich.</li></ul>';
+  }
+  function einwilligungSheet() {
+    sheet('<h2>Teilnahme am Test</h2>' + einwilligungText() +
+      '<button class="btn accent" data-a="einwilligung-ok">Einverstanden</button>' +
+      '<p class="small muted">Du kannst das jederzeit unter Info → „Teilnahme am Test“ nachlesen.</p>');
   }
   function onboardBanner() {
     if (S.prefs.onboarded) return "";
@@ -1286,6 +1307,7 @@ a { color: var(--accent); }
       '<div>' + ic("check") + '<span>Erkennung und Übersetzung laufen auf deinem Gerät, ohne KI-Dienst im Internet.</span></div>' +
       '<div>' + ic("check") + '<span>Gedacht für die private Nutzung in einem kleinen Kreis.</span></div></div>' +
       '<div class="group info">' +
+      sec("person", "Teilnahme am Test", einwilligungText() + (S.prefs.testEinwilligung ? '<p class="small muted">Eingewilligt am ' + esc(dateDe(Date.parse(S.prefs.testEinwilligung.am))) + '.</p>' : ''), false) +
       sec("jar", "Wo deine Daten liegen",
         '<p>Alles, was du in der App speicherst, liegt nur im Speicher dieses Geräts, im Bereich der App. Niemand sonst kann es sehen, auch nicht die Person, die die App bereitstellt.</p>' +
         '<ul><li>Ein Rezept braucht etwa 4 KB, 1.000 Rezepte so viel wie ein Foto.</li><li>Bilder und Videos speichert die App nicht.</li>' +
@@ -1412,9 +1434,22 @@ a { color: var(--accent); }
       '<button class="btn soft" data-a="close-sheet">Schließen</button>');
     S.meta.setupAsked = true; save("meta");
   }
-  function followSheet(account) {
-    sheet('<h2>Mehr Rezepte von @' + esc(account) + '?</h2><p class="small">Wenn du dem Kanal folgst, siehst du neue Rezepte direkt in Instagram und kannst sie mit einem Tipp übernehmen.</p>' +
-      '<a class="btn accent" href="https://www.instagram.com/' + encodeURIComponent(account) + '/" target="_blank" rel="noopener" data-a="follow-yes" data-acc="' + esc(account) + '">' + ic("person") + 'Kanal in Instagram öffnen</a>' +
+  // Vorschlag zum Folgen nach dem Speichern (5. und 15. Rezept eines Kanals); wartet, bis kein anderes Blatt offen ist
+  function folgenPruefen(account) {
+    var a = String(account || "").replace(/^@/, ""); if (!a) return;
+    var anzahl = entries().filter(function (e) { return !e.example && String((e.recipe.source && e.recipe.source.account) || (e.input && e.input.account) || "").replace(/^@/, "").toLowerCase() === a.toLowerCase(); }).length;
+    var fv = K.folgenVorschlag(S.follow, a, anzahl); save("follow");
+    if (!fv.fragen) return;
+    var versuche = 0;
+    (function zeigen() { if ($("#layer").innerHTML && versuche++ < 40) { setTimeout(zeigen, 1500); return; } followSheet(a, fv); })();
+  }
+  function followSheet(account, fv) {
+    fv = fv || {};
+    var kopf = fv.wieder ? (fv.gefolgt ? 'Schon ' + fv.anzahl + ' Rezepte von @' + esc(account) + ' 💛' : 'Schon ' + fv.anzahl + ' Rezepte von @' + esc(account) + '!') : 'Du magst die Küche von @' + esc(account) + ' 💛';
+    var text = fv.wieder && fv.gefolgt ? 'Schau doch mal wieder im Kanal vorbei – vielleicht wartet dort schon dein nächstes Lieblingsrezept. Likes und Kommentare zeigen, dass dir die Rezepte gefallen.'
+      : 'Du hast schon ' + (fv.anzahl || 5) + ' Rezepte aus diesem Kanal gespeichert. Hinter jedem steckt viel Arbeit. Folge dem Kanal und schau dir die Beiträge noch einmal an – so unterstützt du die Person, die für dich kocht, und siehst neue Rezepte als Erste:r.';
+    sheet('<h2>' + kopf + '</h2><p class="small">' + text + '</p>' +
+      '<a class="btn accent" href="https://www.instagram.com/' + encodeURIComponent(account) + '/" target="_blank" rel="noopener" data-a="follow-yes" data-acc="' + esc(account) + '">' + ic("person") + (fv.wieder && fv.gefolgt ? 'Kanal ansehen' : 'Folgen & Kanal ansehen') + '</a>' +
       '<div class="btnrow"><button class="btn soft" data-a="follow-ans" data-acc="' + esc(account) + '" data-v="gefolgt">Folge ich schon</button><button class="btn soft" data-a="follow-ans" data-acc="' + esc(account) + '" data-v="später">Später</button></div>' +
       '<button class="btn ghost" data-a="follow-ans" data-acc="' + esc(account) + '" data-v="nie">Für diesen Kanal nicht mehr fragen</button>');
   }
@@ -1721,6 +1756,7 @@ a { color: var(--accent); }
     if (UI.draft && ((UI.draft.like && UI.draft.like.recipe) || (forceSave && caption && caption.length > 40))) {
       var out = addRecipe(UI.draft.res, { input: input, typ: UI.draft.like ? UI.draft.like.typ : null });
       UI.draft = null; UI.tab = "rezepte"; UI.detail = out.id;
+      if (!out.dupe) { var accF = (S.recipes[out.id].recipe.source && S.recipes[out.id].recipe.source.account) || account; if (accF) setTimeout(function () { folgenPruefen(accF); }, 1800); }
       try {
         var rS = S.recipes[out.id].recipe;
         if (!out.dupe && !K.completeness(rS).enough) merkeFehler("unvollstaendig", null, { link: url, rezept: { zutaten: rS.ingredients.length, schritte: rS.steps.length, wo: (rS.elsewhere && rS.elsewhere.wo) || "" } });
@@ -1768,6 +1804,8 @@ a { color: var(--accent); }
       case "translate": startTranslate(el.dataset.id); break;
       case "orig-toggle": S.prefs.showOriginal = !showOrigAllowed(); if (!S.prefs.showOriginal) UI.showOrig = {}; save("prefs"); el.setAttribute("aria-checked", String(S.prefs.showOriginal)); render(); break;
       case "translate-info": uebersetzerInfoSheet(); break;
+      case "einwilligung-ok": S.prefs.testEinwilligung = { version: EINWILLIGUNG_VERSION, am: new Date().toISOString() }; save("prefs"); closeSheet(); render(); break;
+      case "einwilligung-zeigen": einwilligungSheet(); break;
       case "open": closeSheet(); UI.detail = id; if (S.recipes[id]) { S.recipes[id].viewedAt = Date.now(); save("recipes"); } render(); window.scrollTo(0, 0); break;
       case "filters": filterSheet(); break;
       case "sort": UI.sort = el.dataset.v; render(); break;
@@ -1817,7 +1855,7 @@ a { color: var(--accent); }
       case "show-build": UI.showBuild = true; setupSheet(); break;
       case "sc-run-link": closeSheet(); UI.pasteText = ""; runShortcut(el.dataset.t); break;
       case "sc-test": closeSheet(); toast("Kurzbefehl wird mit einem Beispiel-Link gestartet …"); setTimeout(function () { runShortcut("https://www.instagram.com/p/C0Test/"); }, 400); break;
-      case "close-sheet": closeSheet(); break;
+      case "close-sheet": closeSheet(); if (!S.prefs.testEinwilligung) setTimeout(einwilligungSheet, 50); break;
       case "guide-ok": S.meta.guides[el.dataset.k] = true; save("meta"); render(); break;
       case "info": infoSheet(); break;
       case "info-detail": UI.infoDetail = el.dataset.v === "1"; infoSheet(); break;
@@ -1933,7 +1971,7 @@ a { color: var(--accent); }
         if (nt2 && nt2 !== d.res.recipe.title) S.recipes[out.id].userTitle = nt2;
         save("recipes"); UI.draft = null; UI.pasteText = ""; UI.detail = out.id; render(); window.scrollTo(0, 0); toast("Gespeichert");
         var acc = d.res.recipe.source.account;
-        if (acc) { var fv = K.folgenVorschlag(S.follow, acc); save("follow"); if (fv.fragen) setTimeout(function () { followSheet(acc); }, 500); }
+        if (acc) setTimeout(function () { folgenPruefen(acc); }, 600);
         break;
       case "follow-yes": K.folgenAntwort(S.follow, el.dataset.acc, "gefolgt"); save("follow"); setTimeout(closeSheet, 300); break;
       case "follow-ans": K.folgenAntwort(S.follow, el.dataset.acc, el.dataset.v); save("follow"); closeSheet(); break;
@@ -1980,6 +2018,7 @@ a { color: var(--accent); }
     var upd = reanalyseAll();
     readHashImport();
     render();
+    if (!S.prefs.testEinwilligung) setTimeout(einwilligungSheet, 300);
     if (upd) toast(upd + (upd === 1 ? " Rezept" : " Rezepte") + " mit der verbesserten Erkennung neu ausgewertet");
     setTimeout(meldeUnbekannte, 3000);
   });
