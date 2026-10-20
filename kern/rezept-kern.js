@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.3.5";
+  var VERSION = "0.3.6";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -2092,7 +2092,18 @@
     var fl = {}; Object.keys(R.floskeln).forEach(function (a) { fl[a] = Object.keys(R.floskeln[a]); });
     return { app: "rezeptbuch-lernen", version: LERN_VERSION, kern: VERSION, app_version: (meta && meta.app) || "", datum: new Date().toISOString().slice(0, 10),
       rezepte: L.rezepte || 0, regeln: { floskeln: fl, ignorieren: Object.keys(L.ignorieren || {}), keinSchritt: Object.keys(L.keinSchritt || {}), istSchritt: Object.keys(L.istSchritt || {}),
-      zutatAlias: L.zutatAlias || {}, keineZutat: Object.keys(L.keineZutat || {}), keineFloskel: Object.keys(L.keineFloskel || {}) }, unbekannt: L.unbekannt || {} };
+      zutatAlias: L.zutatAlias || {}, keineZutat: Object.keys(L.keineZutat || {}), keineFloskel: Object.keys(L.keineFloskel || {}) }, unbekannt: L.unbekannt || {},
+      naehrwerte: naehrwertExport(meta && meta.zuord) };
+  }
+  // Nährwert-Zuordnungen und eigene Angaben (nur Zutatenname, Werte, Quelle – keine Rezepte)
+  function naehrwertExport(z) {
+    var out = {};
+    Object.keys(z || {}).forEach(function (k) {
+      var e = z[k]; if (!e || e.geprueft) return;
+      out[k] = e.art === "eigen" ? { art: "eigen", zutat: e.zutat || k, n: e.n, stk: e.stk, quelle: e.quelle || "", notiz: e.notiz || "", hinweise: e.hinweise || [] }
+        : { art: e.art || "bls", zutat: e.zutat || k, bls: e.bls, name: e.name, stk: e.stk };
+    });
+    return out;
   }
 
   function analyse(input, opts) {
@@ -2970,14 +2981,15 @@
   function berechneNaehrwerte(r, tabelle, portionen, opts) {
     var table = tabelle && tabelle.zutaten ? tabelle.zutaten : tabelle;
     var eigene = (opts && opts.zuordnungen) || {};
-    var total = {}, matched = [], unmatched = [], noQty = [], grams = 0;
+    var total = {}, matched = [], unmatched = [], noQty = [], offen = [], grams = 0;
     NUTRIENT_KEYS.forEach(function (k) { total[k] = 0; });
     (r.ingredients || []).forEach(function (i) {
       var hit = eigene[i.key] ? { key: i.key, entry: eigene[i.key], eigene: true } : findNutrientEntry(i.key, table, i.state);
-      if (!hit) { if (!i.staple && !isSpice(i) && !isMinor(i)) unmatched.push(i.name); return; }
+      if (!hit) { if (!i.staple && !isSpice(i) && !isMinor(i)) { unmatched.push(i.name); offen.push({ name: i.name, key: i.key, grund: "unbekannt", unit: i.unit || "" }); } return; }
       var g = gramsOf(i, hit.entry);
-      if (g == null) { if (!i.staple && i.qty == null) noQty.push(i.name); else if (!i.staple) unmatched.push(i.name); return; }
-      matched.push({ name: i.name, key: i.key, gramm: Math.round(g), bls: hit.entry.name, zustand: hit.state || "", eigene: !!hit.eigene });
+      if (g == null) { if (!i.staple && i.qty == null) noQty.push(i.name); else if (!i.staple) { unmatched.push(i.name); offen.push({ name: i.name, key: i.key, grund: "stueck", unit: i.unit || "", bls: hit.entry.name }); } return; }
+      matched.push({ name: i.name, key: i.key, gramm: Math.round(g), bls: hit.entry.name, zustand: hit.state || "", eigene: !!hit.eigene,
+        herkunft: hit.eigene ? (hit.entry.geprueft ? "geprüft" : hit.entry.art === "eigen" ? "eigene Angabe" : "von dir zugeordnet") : "" });
       grams += g;
       NUTRIENT_KEYS.forEach(function (k) {
         var v = hit.entry.n[k];
@@ -3008,7 +3020,7 @@
     });
     var nutrition = {
       perServing: !!serv, servings: serv, values: per, perUnit: r.servingsUnit === "Stück" || r.servingsUnit === "Scheiben" ? "Stück" : "Portion",
-      coverage: { matched: matched.length, unmatched: unmatched, withoutQuantity: noQty, share: round(share, 2) },
+      coverage: { matched: matched.length, unmatched: unmatched, offen: offen, withoutQuantity: noQty, share: round(share, 2) },
       reliable: reliable, totalGrams: Math.round(grams),
       details: matched,
       basis: "berechnet",
@@ -3070,6 +3082,62 @@
       for (var k = 3; k < F.length; k++) if (e[k] != null) nObj[F[k]] = e[k];
       return { bls: e[0], name: e[1], kcal: nObj.kcal, score: round(o.score, 1), entry: { bls: e[0], name: e[1], n: nObj } };
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Nährwerte, die Nutzer selbst eintragen: Plausibilitätsprüfung mit festen, belegten Regeln
+  //  - Energie aus Nährstoffen: Umrechnungsfaktoren der LMIV, Verordnung (EU) Nr. 1169/2011, Anhang XIV
+  //    (Kohlenhydrate 4, Eiweiß 4, Fett 9, Ballaststoffe 2 kcal/g)
+  //  - Toleranzen: Leitfaden der Europäischen Kommission (2012) zu Toleranzen für Nährwertangaben
+  //    (<10 g ±2 g / 10–40 g ±20 % / >40 g ±8 g; Fett <10 g ±1,5 g; Gesättigte <4 g ±0,8 g; Salz <1,25 g ±0,375 g)
+  //  - Vergleich mit ähnlichen Lebensmitteln im BLS 4.0 (Max Rubner-Institut)
+  // Fehler blockieren das Speichern, Hinweise muss die Nutzerin nur bestätigen.
+  // ---------------------------------------------------------------------------
+  var NW_FELDER = ["kcal", "fat", "satFat", "carbs", "sugar", "fiber", "protein", "salt"];
+  function tolMakro(v) { return v < 10 ? 2 : v <= 40 ? v * 0.2 : 8; }
+  function tolFett(v) { return v < 10 ? 1.5 : v <= 40 ? v * 0.2 : 8; }
+  function tolGes(v) { return v < 4 ? 0.8 : v * 0.2; }
+  function kcalAusNaehrstoffen(n) { return 4 * (n.carbs || 0) + 4 * (n.protein || 0) + 9 * (n.fat || 0) + 2 * (n.fiber || 0); }
+  function pruefeNaehrwerte(n, opts) {
+    opts = opts || {};
+    var F = [], H = [], v = {};
+    NW_FELDER.forEach(function (k) { var x = n[k]; v[k] = (x === "" || x == null || isNaN(+x)) ? null : +x; });
+    if (v.kcal == null) F.push("Bitte die Kalorien (kcal je 100 g) eintragen.");
+    NW_FELDER.forEach(function (k) { if (v[k] != null && v[k] < 0) F.push("Werte können nicht negativ sein."); });
+    ["fat", "satFat", "carbs", "sugar", "fiber", "protein", "salt"].forEach(function (k) { if (v[k] != null && v[k] > 100) F.push("Mehr als 100 g je 100 g ist nicht möglich."); });
+    if (v.kcal != null && v.kcal > 905) F.push("Mehr als 900 kcal je 100 g ist nicht möglich (reines Fett hat 900 kcal).");
+    var summe = (v.fat || 0) + (v.carbs || 0) + (v.protein || 0) + (v.fiber || 0) + (v.salt || 0);
+    if (summe > 105) F.push("Fett, Kohlenhydrate, Eiweiß, Ballaststoffe und Salz ergeben zusammen " + Math.round(summe) + " g – mehr als 100 g. Stehen die Werte vielleicht je Portion statt je 100 g?");
+    if (v.sugar != null && v.carbs != null && v.sugar > v.carbs + tolMakro(v.carbs)) F.push("„davon Zucker“ kann nicht größer sein als die Kohlenhydrate.");
+    if (v.satFat != null && v.fat != null && v.satFat > v.fat + tolGes(v.fat)) F.push("„davon gesättigte Fettsäuren“ kann nicht größer sein als das Fett.");
+    if (opts.stk != null && opts.stk !== "" && (isNaN(+opts.stk) || +opts.stk < 0.5 || +opts.stk > 3000)) F.push("Das Gewicht pro Stück bitte in Gramm (0,5 bis 3000 g).");
+    var calc = null, kj = null;
+    if (v.fat == null && v.carbs == null && v.protein == null) H.push("Ohne Fett, Kohlenhydrate und Eiweiß kann die App nur die Kalorien rechnen.");
+    else if (v.kcal != null) {
+      calc = Math.round(kcalAusNaehrstoffen(v));
+      // Spielraum aus den EU-Toleranzen der einzelnen Nährstoffe, mindestens 20 kcal
+      var spiel = Math.max(20, 4 * tolMakro(v.carbs || 0) + 4 * tolMakro(v.protein || 0) + 9 * tolFett(v.fat || 0)) * 0.6;
+      if (calc > 20 && Math.abs(v.kcal - calc * 4.184) <= Math.max(25, calc * 4.184 * 0.12)) { kj = Math.round(v.kcal / 4.184); H.push("Die Kalorien sehen nach Kilojoule aus: " + Math.round(v.kcal) + " kJ sind etwa " + kj + " kcal."); }
+      else if (Math.abs(v.kcal - calc) > spiel) H.push("Aus Fett, Kohlenhydraten und Eiweiß ergeben sich etwa " + calc + " kcal, eingetragen sind " + Math.round(v.kcal) + " kcal. Das passt bei Süßstoffen (z. B. Erythrit) oder Alkohol – sonst bitte prüfen.");
+    }
+    var vergleich = null;
+    if (opts.name && opts.suche && v.kcal != null) {
+      var sug = zuordnungsVorschlaege(opts.name, opts.suche, 3).filter(function (x) { return x.score >= 3 && x.kcal != null; });
+      if (sug.length) {
+        var ks = sug.map(function (x) { return x.kcal; }), lo = Math.min.apply(null, ks), hi = Math.max.apply(null, ks);
+        vergleich = { min: Math.round(lo), max: Math.round(hi), namen: sug.map(function (x) { return x.name + " (" + Math.round(x.kcal) + " kcal)"; }) };
+        if (v.kcal < lo * 0.5 - 30 || v.kcal > hi * 1.5 + 30) H.push("Ähnliche Lebensmittel im BLS haben " + vergleich.min + (vergleich.max !== vergleich.min ? "–" + vergleich.max : "") + " kcal je 100 g: " + vergleich.namen.join(", ") + ".");
+      }
+    }
+    return { ok: !F.length, fehler: uniq(F), hinweise: H, kcalBerechnet: calc, kcalAusKj: kj, vergleich: vergleich, werte: v };
+  }
+  // Eintrag für die Nährwert-Rechnung aus einer eigenen Angabe
+  function eigenerNaehrwert(name, werte, extra) {
+    var n = {}; NW_FELDER.forEach(function (k) { if (werte[k] != null && werte[k] !== "" && !isNaN(+werte[k])) n[k] = +werte[k]; });
+    var e = { bls: null, name: name + " (eigene Angabe)", n: n, art: "eigen" };
+    Object.keys(extra || {}).forEach(function (k) { if (extra[k] != null && extra[k] !== "") e[k] = extra[k]; });
+    if (e.stk != null) e.stk = +e.stk;
+    return e;
   }
 
   // ---------------------------------------------------------------------------
@@ -3524,7 +3592,7 @@
     parseText: parseText, parseTranscript: parseTranscript, parseSchemaOrg: parseSchemaOrg,
     parseIngredientLine: parseIngredientLine, parseDuration: parseDuration,
     classify: classify, completeness: completeness, focusFromNutrition: focusFromNutrition,
-    berechneNaehrwerte: berechneNaehrwerte, findNutrientEntry: findNutrientEntry, NUTRIENT_KEYS: NUTRIENT_KEYS,
+    berechneNaehrwerte: berechneNaehrwerte, pruefeNaehrwerte: pruefeNaehrwerte, eigenerNaehrwert: eigenerNaehrwert, kcalAusNaehrstoffen: kcalAusNaehrstoffen, NW_FELDER: NW_FELDER, findNutrientEntry: findNutrientEntry, NUTRIENT_KEYS: NUTRIENT_KEYS,
     normName: normName, fmtQty: fmtQty, fmtIngredient: fmtIngredient, scaleRecipe: scaleRecipe,
     shoppingList: shoppingList, shoppingText: shoppingText,
     toCookidoo: toCookidoo, toSchemaOrg: toSchemaOrg,

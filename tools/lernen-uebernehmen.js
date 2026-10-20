@@ -8,7 +8,8 @@
  *   node tools/lernen-uebernehmen.js eingang/*.json            → nur Bericht (nichts wird geändert)
  *   node tools/lernen-uebernehmen.js eingang/*.json --schreiben → Regeln übernehmen
  *   Optionen: --min 2   Regel erst übernehmen, wenn sie von mindestens 2 Nutzern kommt (Standard 1)
- *             --ohne "text"  einzelne Regel (genauer Text) nicht übernehmen, mehrfach möglich
+ *             --ohne "text"  einzelne Regel oder Zutat nicht übernehmen, mehrfach möglich
+ *             --ersetzen     zentral vorhandene Nährwerte durch neue Angaben ersetzen
  *
  * Die Dateien enthalten nur Regeln und Zutatennamen, keine Rezepte und keine Personendaten.
  */
@@ -29,7 +30,8 @@ if (!files.length) { console.error("Aufruf: node tools/lernen-uebernehmen.js <da
 const zentral = JSON.parse(fs.readFileSync(ZPFAD, "utf8"));
 const KEYS = ["ignorieren", "keinSchritt", "istSchritt", "keineZutat", "keineFloskel"];
 const zaehler = { floskeln: {}, zutatAlias: {} }; KEYS.forEach(k => zaehler[k] = {});
-const unbekannt = {}; let ok = 0;
+const unbekannt = {}, nwEin = {}; let ok = 0;
+const BLS = require("../daten/bls-suche.json");
 
 files.forEach(f => {
   let j; try { j = JSON.parse(fs.readFileSync(f, "utf8")); } catch (e) { console.log(`✗ ${f}: keine gültige Datei`); return; }
@@ -40,6 +42,7 @@ files.forEach(f => {
   Object.keys(R.zutatAlias || {}).forEach(x => { const id = x + " → " + R.zutatAlias[x]; zaehler.zutatAlias[id] = (zaehler.zutatAlias[id] || 0) + 1; });
   Object.keys(R.floskeln || {}).forEach(a => (R.floskeln[a] || []).forEach(x => { const id = a + "\u0000" + x; zaehler.floskeln[id] = (zaehler.floskeln[id] || 0) + 1; }));
   Object.keys(j.unbekannt || {}).forEach(u => { unbekannt[u] = (unbekannt[u] || 0) + j.unbekannt[u]; });
+  Object.keys(j.naehrwerte || {}).forEach(k => { (nwEin[k] = nwEin[k] || []).push(Object.assign({ datei: path.basename(f) }, j.naehrwerte[k])); });
 });
 
 const neu = [];
@@ -48,8 +51,53 @@ KEYS.forEach(k => Object.keys(zaehler[k]).forEach(x => { if ((zentral[k] || {})[
 Object.keys(zaehler.zutatAlias).forEach(id => { const [a, b] = id.split(" → "); if ((zentral.zutatAlias || {})[a]) return; nimm("zutatAlias", id, zaehler.zutatAlias[id], () => { (zentral.zutatAlias = zentral.zutatAlias || {})[a] = b; }); });
 Object.keys(zaehler.floskeln).forEach(id => { const [a, x] = id.split("\u0000"); if (((zentral.floskeln || {})[a] || []).includes(x)) return; nimm("Floskel @" + a, x, zaehler.floskeln[id], () => { zentral.floskeln = zentral.floskeln || {}; (zentral.floskeln[a] = zentral.floskeln[a] || []).push(x); }); });
 
+// Nährwerte: Zuordnungen zum BLS nach Stimmen, eigene Angaben als Median – jede Angabe wird erneut geprüft
+const median = a => { a = a.filter(x => x != null).sort((x, y) => x - y); return a.length ? (a.length % 2 ? a[(a.length - 1) / 2] : (a[a.length / 2 - 1] + a[a.length / 2]) / 2) : null; };
+const nwBericht = [];
+zentral.naehrwerte = zentral.naehrwerte || {};
+Object.keys(nwEin).forEach(k => {
+  const list = nwEin[k], name = list[0].zutat || k;
+  if (zentral.naehrwerte[k] && !args.includes("--ersetzen")) { nwBericht.push(`= ${name}: schon zentral vorhanden (mit --ersetzen überschreiben)`); return; }
+  if (ohne[K.lernNorm(k)] || ohne[K.lernNorm(name)]) return;
+  const stks = list.map(x => x.stk).filter(x => x != null), stk = stks.length ? median(stks) : undefined;
+  const bls = list.filter(x => x.bls), eig = list.filter(x => x.art === "eigen" && x.n);
+  let eintrag = null, zeile = "";
+  if (bls.length >= eig.length && bls.length) {
+    const st = {}; bls.forEach(x => { st[x.bls] = st[x.bls] || { n: 0, x }; st[x.bls].n++; });
+    const best = Object.values(st).sort((a, b) => b.n - a.n)[0];
+    const e = BLS.eintraege.find(r => r[0] === best.x.bls);
+    if (!e) { nwBericht.push(`✗ ${name}: BLS-Code ${best.x.bls} nicht gefunden`); return; }
+    const nObj = {}; for (let i = 3; i < BLS.felder.length; i++) if (e[i] != null) nObj[BLS.felder[i]] = e[i];
+    eintrag = { bls: e[0], name: e[1], n: nObj, art: "bls" };
+    zeile = `${name} → BLS ${e[0]} „${e[1]}“ (${best.n} von ${list.length} Stimmen)`;
+  } else if (eig.length) {
+    const n = {}; K.NW_FELDER.forEach(f => { const m = median(eig.map(x => x.n[f])); if (m != null) n[f] = Math.round(m * 10) / 10; });
+    const pr = K.pruefeNaehrwerte(n, { name, suche: BLS, stk });
+    const streu = eig.length > 1 ? Math.round((Math.max(...eig.map(x => x.n.kcal)) - Math.min(...eig.map(x => x.n.kcal)))) : 0;
+    if (!pr.ok) { nwBericht.push(`✗ ${name}: eigene Angabe nicht plausibel – ${pr.fehler.join(" ")}`); return; }
+    eintrag = { bls: null, name: name + " (Angabe von Nutzern)", n, art: "eigen", quelle: [...new Set(eig.map(x => x.quelle).filter(Boolean))].join(", ") };
+    zeile = `${name}: eigene Angabe von ${eig.length} Nutzer(n), ${n.kcal} kcal · ${n.protein ?? "–"} g Eiweiß · ${n.carbs ?? "–"} g KH · ${n.fat ?? "–"} g Fett je 100 g` +
+      (streu > 50 ? ` · ACHTUNG: Angaben streuen um ${streu} kcal` : "") + (pr.hinweise.length ? ` · Hinweise: ${pr.hinweise.join(" ")}` : "") +
+      (eig.some(x => x.notiz) ? ` · Produkt: ${[...new Set(eig.map(x => x.notiz).filter(Boolean))].join(", ")}` : "");
+  } else if (list.some(x => x.art === "stueck")) {
+    const hit = K.findNutrientEntry(k, require("../daten/naehrwerte.json").zutaten);
+    if (!hit) { nwBericht.push(`✗ ${name}: Stückgewicht ohne bekannte Zutat`); return; }
+    zeile = `${name}: Stückgewicht für „${hit.entry.name}“`;
+    eintrag = Object.assign({}, hit.entry, { art: "stueck" });
+  }
+  if (!eintrag) return;
+  if (list.length < min) { nwBericht.push(`· ${zeile} – erst ${list.length} Nutzer, braucht ${min}`); return; }
+  nwBericht.push("+ " + zeile + (stk != null ? ` · 1 Stück = ${stk} g` : ""));
+  if (schreiben) {
+    if (stk != null) eintrag.stk = stk;
+    eintrag.geprueft = true; eintrag.zutat = name;
+    zentral.naehrwerte[k] = eintrag;
+  }
+});
+
 console.log(`${ok} von ${files.length} Dateien gelesen · ${neu.length} neue Regeln${min > 1 ? ` (ab ${min} Nutzern)` : ""}`);
 neu.forEach(x => console.log("  + " + x));
+if (nwBericht.length) console.log(`\nNährwerte (${nwBericht.length}):\n  ` + nwBericht.join("\n  "));
 const unb = Object.entries(unbekannt).sort((a, b) => b[1] - a[1]);
 if (unb.length) console.log(`\nZutaten ohne Nährwert (für das Nährwert-Training, ${unb.length}):\n  ` + unb.slice(0, 60).map(([k, n]) => `${k} (${n}×)`).join(", "));
 if (schreiben) {

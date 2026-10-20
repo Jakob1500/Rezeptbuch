@@ -476,5 +476,22 @@ check("Lernen: gelöschte Floskel wird nicht mehr angewendet", fl0.length > 0 &&
 const zentralTest = { floskeln: { "koch.lisa": fl0 } };
 check("Lernen: zentrale Regeln gelten ohne lokalen Speicher", Object.keys(K.lernRegeln([zentralTest]).floskeln["koch.lisa"] || {}).length === fl0.length);
 
+// Nährwerte selbst eintragen: Plausibilitätsprüfung
+const BLS = require("../daten/bls-suche.json");
+const pOk = K.pruefeNaehrwerte({ kcal: 540, fat: 31, satFat: 19, carbs: 58, sugar: 56, fiber: 2, protein: 5, salt: 0.2 }, { name: "Schokolade", suche: BLS });
+check("Nährwerte: plausible Verpackungswerte ohne Fehler und Hinweise", pOk.ok && !pOk.hinweise.length, pOk);
+const pKj = K.pruefeNaehrwerte({ kcal: 2260, fat: 31, carbs: 58, protein: 5 }, {});
+check("Nährwerte: Kilojoule werden erkannt und umgerechnet", !pKj.ok && pKj.kcalAusKj === 540, pKj);
+check("Nährwerte: Summe über 100 g (Portion statt 100 g) ist ein Fehler", !K.pruefeNaehrwerte({ kcal: 500, fat: 30, carbs: 70, protein: 25 }).ok);
+check("Nährwerte: Zucker größer als Kohlenhydrate ist ein Fehler", !K.pruefeNaehrwerte({ kcal: 200, fat: 0, carbs: 40, sugar: 60, protein: 10 }).ok);
+check("Nährwerte: Erythrit (0 kcal) gibt nur einen Hinweis", (r => r.ok && r.hinweise.length === 1)(K.pruefeNaehrwerte({ kcal: 0, fat: 0, carbs: 100, protein: 0 })));
+check("Nährwerte: Abweichung vom BLS wird gemeldet", K.pruefeNaehrwerte({ kcal: 60, fat: 1, carbs: 10, protein: 2 }, { name: "Kokosöl", suche: BLS }).hinweise.some(h => /BLS/.test(h)));
+const eigNw = K.eigenerNaehrwert("Proteinpudding", { kcal: 80, fat: 1.5, carbs: 6, protein: 10 }, { stk: 200, quelle: "Verpackung" });
+const rP = K.analyse({ caption: "Zutaten:\n1 Proteinpudding\n100 g Haferflocken\n\nZubereitung:\n1. Haferflocken mit dem Pudding verrühren und genießen." }).recipe;
+K.berechneNaehrwerte(rP, require("../daten/naehrwerte.json"), null, { zuordnungen: { [rP.ingredients[0].key]: eigNw } });
+check("Nährwerte: eigene Angabe mit Stückgewicht fließt in die Rechnung", rP.nutrition.details.some(d => d.herkunft === "eigene Angabe" && d.gramm === 200), rP.nutrition.details);
+const exN = K.lernExport(K.neuerLernspeicher(), { zuord: { proteinpudding: Object.assign({ zutat: "Proteinpudding" }, eigNw), x: { geprueft: true, name: "zentral" } } });
+check("Nährwerte: Export enthält eigene Angaben mit Quelle, keine zentralen", exN.naehrwerte.proteinpudding.quelle === "Verpackung" && !exN.naehrwerte.x, exN.naehrwerte);
+
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);
