@@ -1,0 +1,8 @@
+models/base-memory/ende/lex.50.50.ende.s2t.bin.gz
+models/base-memory/ende/metadata.json
+models/base-memory/ende/model.ende.intgemm.alphas.bin.gz
+models/base-memory/ende/vocab.ende.spm.gz
+models/tiny/ende/lex.50.50.ende.s2t.bin.gz
+models/tiny/ende/metadata.json
+models/tiny/ende/model.ende.intgemm.alphas.bin.gz
+models/tiny/ende/vocab.ende.spm.gz
