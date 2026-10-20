@@ -285,7 +285,7 @@ a { color: var(--accent); }
   var LERN_ERINNERUNG = 20;
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.10.0";
+  var APP_VERSION = "0.11.0";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -410,7 +410,7 @@ a { color: var(--accent); }
   }
   // Wie viele Zutaten fehlen dir für ein Rezept? (Grundvorrat und eigener Vorrat zählen als vorhanden)
   function missingOf(r) {
-    var need = r.ingredients.filter(function (i) { return !i.optional; });
+    var need = r.ingredients.filter(function (i) { return !i.optional && !i.teilrezept; });
     var miss = need.filter(function (i) { return !haveKey(i.key); });
     return { missing: miss.length, total: need.length, names: miss.map(function (i) { return i.name; }) };
   }
@@ -559,7 +559,8 @@ a { color: var(--accent); }
         '<div class="field"><label for="nw-such">Suchen</label><input class="input" id="nw-such" value="' + esc(f.such || f.name) + '" autocomplete="off"></div>' +
         (BLS_SUCHE ? (sug.length ? '<div class="group">' + sug.map(function (x, k) {
           return '<button class="row" data-a="nw-pick" data-n="' + k + '"><span class="main"><span>' + esc(x.name) + '</span><span class="sub num">' + Math.round(x.kcal || 0) + ' kcal · ' + r1(x.entry.n.protein) + ' g Eiweiß · ' + r1(x.entry.n.carbs) + ' g Kohlenh. · ' + r1(x.entry.n.fat) + ' g Fett</span></span>' + ic("chev", "chev") + '</button>';
-        }).join("") + '</div>' : '<div class="note">Nichts gefunden. Versuche ein allgemeineres Wort (z. B. „Joghurt“ statt Markenname) oder trage die Werte selbst ein.</div>') : '<p class="small muted">Datenbank wird geladen …</p>');
+        }).join("") + '</div>' : '<div class="note">Nichts gefunden. Versuche ein allgemeineres Wort (z. B. „Joghurt“ statt Markenname) oder trage die Werte selbst ein.</div>') : '<p class="small muted">Datenbank wird geladen …</p>') +
+        offBereich(f);
     } else {
       var P = f.pruefung;
       body = '<p class="small">Werte <b>je 100 g</b>. Es muss nicht genau dein Produkt sein: typische Werte für das Lebensmittel reichen (z. B. von irgendeiner Packung „Proteinriegel“).</p>' +
@@ -577,6 +578,36 @@ a { color: var(--accent); }
     sheet('<h2>Nährwerte für „' + esc(f.name) + '“</h2>' + tabs + body +
       '<p class="small muted">Gilt ab jetzt für alle Rezepte mit dieser Zutat. Eigene Angaben prüft die App mit festen Regeln (Energie aus Nährstoffen nach EU-Lebensmittelinformations-Verordnung, EU-Toleranzen, Vergleich mit dem BLS); Jakob prüft sie zusätzlich, wenn du dein Gelerntes schickst.</p>' +
       '<button class="btn soft" data-a="close-sheet">Abbrechen</button>');
+  }
+  // Open Food Facts: nur auf Knopfdruck, nur in Deutschland verkaufte Produkte, BLS hat Vorrang
+  var OFF_URL = "https://de.openfoodfacts.org/cgi/search.pl";
+  function offBereich(f) {
+    var o = f.off;
+    var kopf = '<p class="small" style="margin-top:14px"><b>Nicht dabei?</b> Produkte aus deutschen Supermärkten in <a href="https://de.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a> suchen (offene, von Freiwilligen gepflegte Datenbank).</p>';
+    if (!o) return kopf + '<button class="btn soft" data-a="off-suche">In Open Food Facts suchen</button><p class="small muted">Dabei wird nur der Suchbegriff an Open Food Facts (Frankreich) geschickt.</p>';
+    if (o.laden) return kopf + '<p class="small muted">Suche läuft …</p>';
+    if (o.fehler) return kopf + '<div class="note">' + esc(o.fehler) + '</div><button class="btn soft" data-a="off-suche">Noch einmal versuchen</button>';
+    return kopf + (o.treffer.length ? '<div class="group">' + o.treffer.map(function (x, k) {
+      return '<button class="row" data-a="off-pick" data-n="' + k + '"><span class="main"><span>' + esc(x.name) + (x.marke ? ' <span class="muted">· ' + esc(x.marke) + '</span>' : '') + '</span><span class="sub num">' + Math.round(x.n.kcal) + ' kcal · ' + r1(x.n.protein) + ' g Eiweiß · ' + r1(x.n.carbs) + ' g Kohlenh. · ' + r1(x.n.fat) + ' g Fett je 100 g</span></span>' + ic("chev", "chev") + '</button>';
+    }).join("") + '</div>' : '<div class="note">Keine Produkte mit vollständigen Nährwerten gefunden. Trage typische Werte selbst ein.</div>') +
+      '<p class="small muted">Enthält Daten von Open Food Facts, verfügbar unter der <a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noopener">Open Database License</a>. Angaben der Hersteller bzw. Freiwilligen, ohne Gewähr; die App prüft sie wie eigene Angaben.</p>';
+  }
+  function offSuche() {
+    var f = UI.nw; nwLesen();
+    var q = (f.such || f.name || "").trim(); if (!q) return;
+    f.off = { laden: true }; nwSheet();
+    var url = OFF_URL + "?search_terms=" + encodeURIComponent(q) + "&search_simple=1&action=process&json=1&page_size=20&fields=code,product_name,product_name_de,brands,nutriments,countries_tags";
+    var ctl = window.AbortController ? new AbortController() : null; var tm = setTimeout(function () { if (ctl) ctl.abort(); }, 12000);
+    fetch(url, ctl ? { signal: ctl.signal } : {}).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(function (j) {
+      clearTimeout(tm);
+      var zahl = function (x) { return x == null || x === "" || isNaN(+x) ? null : +x; };
+      f.off = { treffer: (j.products || []).filter(function (pr) { return (pr.countries_tags || []).indexOf("en:germany") !== -1; }).map(function (pr) {
+        var nu = pr.nutriments || {};
+        var n = { kcal: zahl(nu["energy-kcal_100g"]), fat: zahl(nu.fat_100g), satFat: zahl(nu["saturated-fat_100g"]), carbs: zahl(nu.carbohydrates_100g), sugar: zahl(nu.sugars_100g), fiber: zahl(nu.fiber_100g), protein: zahl(nu.proteins_100g), salt: zahl(nu.salt_100g) };
+        return { code: String(pr.code || ""), name: (pr.product_name_de || pr.product_name || "").trim(), marke: String(pr.brands || "").split(",")[0].trim(), n: n };
+      }).filter(function (x) { return x.name && x.n.kcal != null && x.n.fat != null && x.n.carbs != null && x.n.protein != null && K.pruefeNaehrwerte(x.n, {}).ok; }).slice(0, 8) };
+      if (UI.nw === f) nwSheet();
+    }, function () { clearTimeout(tm); f.off = { fehler: "Open Food Facts ist gerade nicht erreichbar (offline oder zu viele Anfragen). Bitte später noch einmal versuchen." }; if (UI.nw === f) nwSheet(); });
   }
   function nwStart(d) {
     UI.nw = { key: d.key, name: d.name, unit: d.unit || "", grund: d.grund || "unbekannt", rid: d.id || "", tab: "db", werte: {}, quelle: "Typische Werte (Oberbegriff)", such: "" };
@@ -995,6 +1026,9 @@ a { color: var(--accent); }
     var blogLink = (r.links || [])[0] || (r.elsewhere && r.elsewhere.url) || "";
     var missing = !c.enough ? '<div class="note"><b>Noch unvollständig: ' + esc(c.missing.join(", ")) + '.</b><span>' + esc(nextHint(r, e)) + '</span>' +
       (blogLink && !r.source.blogUrl ? '<button class="btn accent" data-a="blog-fetch" data-t="' + esc(blogLink) + '">' + ic("share") + 'Rezept vom Blog holen</button>' : '') +
+      (r.elsewhere && r.elsewhere.wo === "nachricht" && r.source.url ? '<button class="btn accent" data-a="kommentar" data-t="' + esc(r.elsewhere.stichwort || "") + '" data-u="' + esc(r.source.url) + '">' + ic("share") + (r.elsewhere.stichwort ? '„' + esc(r.elsewhere.stichwort) + '“ kopieren und Beitrag öffnen' : 'Beitrag öffnen') + '</button><p class="small muted">' + (r.elsewhere.stichwort ? 'In Instagram als Kommentar einfügen und senden. ' : '') + 'Der Creator schickt dir das Rezept per Nachricht. Diese kopieren, hierher zurückkommen und „Fehlenden Text einfügen“ tippen.</p>' : '') +
+      (r.elsewhere && r.elsewhere.wo === "kommentar" && r.source.url ? '<a class="btn accent" href="' + esc(r.source.url) + '" target="_blank" rel="noopener">' + ic("share") + 'Kommentare in Instagram öffnen</a><p class="small muted">Den Kommentar mit dem Rezept (meist oben angepinnt) lange drücken, kopieren und hier mit „Fehlenden Text einfügen“ ergänzen.</p>' : '') +
+      (r.elsewhere && r.elsewhere.wo === "bio" ? '<p class="small muted">Das Rezept steht im Link im Profil. Profil in Instagram öffnen → Link antippen → in Safari „Teilen“ → „' + SC_NAME + '“ → hier „Einfügen“. Die App ordnet den Blog diesem Rezept zu.</p>' : '') +
       (e.input ? '<button class="btn soft" data-a="add-text" data-id="' + esc(id) + '">' + ic("copy") + 'Fehlenden Text einfügen</button>' : '') + '</div>' : "";
     var unitWord = r.servingsUnit && r.servingsUnit !== "Portionen" && r.servingsUnit !== "Portion" ? r.servingsUnit : (serv === 1 ? "Portion" : "Portionen");
     var household = !UI.servings[id] && r.servings && serv !== r.servings && serv === S.prefs.persons;
@@ -1251,7 +1285,8 @@ a { color: var(--accent); }
         '<p>Alles, was du in der App speicherst, liegt nur im Speicher dieses Geräts, im Bereich der App. Niemand sonst kann es sehen, auch nicht die Person, die die App bereitstellt.</p>' +
         '<ul><li>Ein Rezept braucht etwa 4 KB, 1.000 Rezepte so viel wie ein Foto.</li><li>Bilder und Videos speichert die App nicht.</li>' +
         '<li>Die Sicherung ist eine einzige Datei, die du selbst ablegst, zum Beispiel in deinem iCloud Drive. Tipp: Schalte in den iCloud-Einstellungen den „Erweiterten Datenschutz“ ein, dann ist sie Ende-zu-Ende-verschlüsselt.</li>' +
-        '<li>Löschst du die App vom Home-Bildschirm, sind die Daten weg. Deshalb erinnert die App ans Sichern.</li></ul>', true,
+        '<li>Löschst du die App vom Home-Bildschirm, sind die Daten weg. Deshalb erinnert die App ans Sichern.</li>' +
+        '<li>Nur wenn du bei einer Zutat auf „In Open Food Facts suchen“ tippst, geht der Suchbegriff (z. B. „Kashk“) an Open Food Facts in Frankreich. Sonst verlässt nichts dein iPhone, außer du teilst es selbst.</li></ul>', true,
         '<p><b>Technisch:</b> Die Daten liegen in der Browser-Datenbank (IndexedDB) der App. Die App bittet iOS um dauerhaften Speicher, damit nichts automatisch gelöscht wird. Die App vom Home-Bildschirm und Safari haben getrennte Speicher, nutze daher immer das App-Symbol.</p>' +
         '<p><b>Sicherung:</b> Eine JSON-Datei mit Rezepten, Vorrat, Einkaufsliste, eigenen Zuordnungen und Folgen-Status. Beim Laden auf einem anderen Gerät kommen neue Rezepte dazu; bei doppelten gewinnt die neuere Fassung. Die App erinnert an die Sicherung, wenn sich seit mehr als 24 Stunden etwas geändert hat.</p>') +
       sec("share", "Wie Rezepte aus Instagram ankommen",
@@ -1309,6 +1344,7 @@ a { color: var(--accent); }
         '<p>Zitierweise nach APA, 7. Auflage. Bei Seiten, die sich ändern können, steht das Abrufdatum dabei.</p><ol class="refs">' + QUELLEN.map(function (q) {
           return '<li>' + q[0] + (q[1] ? ' <a href="' + esc(q[1]) + '" target="_blank" rel="noopener">' + esc(q[1]) + '</a>' : '') + '</li>';
         }).join("") + '</ol>' +
+        '<p class="small muted">Nährwerte von Produkten, die du ausdrücklich aus Open Food Facts übernimmst: Enthält Daten von Open Food Facts, verfügbar unter der Open Database License (ODbL 1.0, https://opendatacommons.org/licenses/odbl/1-0/). Nur zur Information, nicht für medizinische Zwecke.</p>' +
         '<p class="small muted">Die Nährwertdaten stehen unter der Lizenz CC BY 4.0. Die Übersetzung der Zubereitung übernimmt die Funktion „Text übersetzen“ von Apple auf dem iPhone.</p>') +
       '</div><p class="foot">Rezeptbuch ' + APP_VERSION + ' · Kern ' + esc(K.VERSION) + '</p><button class="btn soft" data-a="close-sheet">Fertig</button>');
   }
@@ -1323,6 +1359,7 @@ a { color: var(--accent); }
     ["GitHub. (o. J.-b). <i>Nutzungsbeschränkungen für GitHub Pages</i>. Abgerufen am 18. Oktober 2026, von", "https://docs.github.com/de/pages/getting-started-with-github-pages/github-pages-limits"],
     ["heise online. (o. J.). <i>iOS 26 and iPadOS 26: Changed web app behaviour on the home screen</i>. Abgerufen am 18. Oktober 2026, von", "https://heise.de/-10749652"],
     ["Instagram. (o. J.). <i>Nutzungsbedingungen</i>. Abgerufen am 18. Oktober 2026, von", "https://help.instagram.com/581066165581870"],
+    ["Open Food Facts. (o. J.). <i>Open Food Facts – die freie Lebensmitteldatenbank</i> [Datenbank, Open Database License 1.0]. Abgerufen am 20. Oktober 2026, von", "https://de.openfoodfacts.org"],
     ["Max Rubner-Institut. (2025). <i>Bundeslebensmittelschlüssel (BLS)</i> (Version 4.0) [Datensatz].", "https://doi.org/10.25826/Data20251217-134202-0"],
     ["Meta Platforms. (o. J.). <i>oEmbed – Instagram Platform</i>. Abgerufen am 18. Oktober 2026, von", "https://developers.facebook.com/documentation/instagram-platform/oembed"]
   ];
@@ -1339,7 +1376,7 @@ a { color: var(--accent); }
     var ok = !!S.meta.shortcutOk;
     sheet('<h2>Aus Instagram ins Rezeptbuch</h2>' +
       (ok ? '<div class="note info"><b>Eingerichtet.</b><span>In Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“. Dann Rezeptbuch öffnen und oben auf „Einfügen“ tippen (iOS fragt einmal „Einsetzen erlauben?“).</span></div>' : '') +
-      (ok && !UI.showBuild ? '<button class="btn soft" data-a="show-build">Bauanleitung anzeigen</button>' : link ? '<p class="small">1. Tippe auf „Kurzbefehl hinzufügen“ und dort auf „Kurzbefehl hinzufügen“. 2. In Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“. 3. Beim ersten Mal fragt iOS, ob instagram.com abgerufen werden darf: „Immer erlauben“. 4. Rezeptbuch öffnen → „Einfügen“.</p><a class="btn accent" href="' + esc(link) + '" target="_blank" rel="noopener">Kurzbefehl hinzufügen</a>' :
+      (ok && !UI.showBuild ? '<button class="btn soft" data-a="show-build">Bauanleitung anzeigen</button>' : link && !UI.showBuild ? '<p class="small">1. Tippe auf „Kurzbefehl hinzufügen“ und dort auf „Kurzbefehl hinzufügen“. 2. In Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“. 3. Beim ersten Mal fragt iOS, ob instagram.com abgerufen werden darf: „Immer erlauben“. 4. Rezeptbuch öffnen → „Einfügen“.</p><a class="btn accent" href="' + esc(link) + '" target="_blank" rel="noopener">Kurzbefehl hinzufügen</a><button class="btn ghost" data-a="show-build">Selbst bauen (Bauanleitung)</button>' :
       '<p class="small">Einmal in der Kurzbefehle-App anlegen (ca. 5 Minuten). Danach in Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“, dann Rezeptbuch öffnen und oben auf „Einfügen“ tippen.</p>' +
       '<div class="build"><ol>' +
       '<li>Kurzbefehle-App → „+“ → oben auf den Namen → Umbenennen: <b>' + SC_NAME + '</b>.' + snip(SC_NAME) + '</li>' +
@@ -1352,7 +1389,13 @@ a { color: var(--accent); }
       '<li><b>Text</b> mit genau diesen Zeilen; an die Stellen in [ ] die Variablen setzen:' + snip("REZEPTBUCH\nhttps://www.instagram.com/[Objekt aus Liste]\n###TEXT###\n[Inhalt von URL]\n###DEUTSCH###\n[Übersetzter Text]") + '</li>' +
       '<li><b>In Zwischenablage kopieren</b>. Fertig – kein „URL öffnen“.</li>' +
       '</ol></div>' +
-      '<p class="small"><b>Für Rezepte auf Blogs (empfohlen):</b> direkt nach „Text abgleichen“ einfügen:</p><div class="build"><ol>' +
+      '<p class="small"><b>Blog-Link aus der Beschreibung gleich mitholen (empfohlen):</b> nach „Variable Inhalt festlegen“ einfügen:</p><div class="build"><ol>' +
+      '<li><b>Text abgleichen</b> in <b>Inhalt</b>, Muster:' + snip("(https?://|www\\.)(?!(www\\.)?(instagram\\.com|instagr\\.am|facebook\\.com|l\\.instagram\\.com))[^\\s\"<>]+") + '</li>' +
+      '<li><b>Wenn</b> → „Treffer“ → <b>hat einen Wert</b> (den „Sonst“-Teil löschen).</li>' +
+      '<li>Darin: <b>Erstes Objekt aus Liste abrufen</b> → <b>Variable festlegen</b> „BlogLink“ → <b>Inhalte von URL abrufen</b> (BlogLink) → <b>Variable festlegen</b> „Blog“ (Inhalt der URL).</li>' +
+      '<li>Im letzten Text-Block unten anhängen:' + snip("###BLOG###\n[BlogLink]\n[Blog]") + '(Variablen ohne Klammern)</li>' +
+      '</ol></div>' +
+      '<p class="small"><b>Blog direkt aus Safari teilen:</b> direkt nach dem ersten „Text abgleichen“ einfügen:</p><div class="build"><ol>' +
       '<li><b>Wenn</b> → „Treffer“ → <b>hat keinen Wert</b> (den „Sonst“-Teil löschen).</li>' +
       '<li>Darin <b>Inhalte von URL abrufen</b> mit <b>Kurzbefehleingabe</b>.</li>' +
       '<li><b>Text</b>:' + snip("REZEPTBUCH\n[Kurzbefehleingabe]\n###TEXT###\n[Inhalt der URL]") + '(die Wörter in [ ] durch die Variablen ersetzen, ohne Klammern)</li>' +
@@ -1522,7 +1565,14 @@ a { color: var(--accent); }
     var m = t.match(/^\s*REZEPTBUCH\s*\n([\s\S]*)$/i);
     if (!m) { var h = payloadHash(t); return h ? parseImportHash(h) : null; }
     var body = m[1], p = {};
-    var iT = body.search(/^\s*###\s*TEXT\s*###\s*$/m), iD = body.search(/^\s*###\s*DEUTSCH\s*###\s*$/m);
+    // Blog-Seite, die der Kurzbefehl zum Link aus der Beschreibung geholt hat: "###BLOG###\n<link>\n<inhalt>"
+    var iB = body.search(/^[ \t]*###[ \t]*BLOG[ \t]*###[ \t]*$/m);
+    if (iB >= 0) {
+      var blogTeil = body.slice(body.indexOf("\n", iB) + 1); body = body.slice(0, iB);
+      var bl = blogTeil.match(/^\s*\[?\s*((?:https?:\/\/|www\.)\S+?)\s*\]?\s*(?:\n|$)/);
+      if (bl) { p.bu = /^www\./.test(bl[1]) ? "https://" + bl[1] : bl[1]; p.b = blogTeil.slice(blogTeil.indexOf(bl[0]) + bl[0].length).replace(/^\[\s*|\s*\]$/g, "").trim(); }
+    }
+    var iT = body.search(/^[ \t]*###[ \t]*TEXT[ \t]*###[ \t]*$/m), iD = body.search(/^[ \t]*###[ \t]*DEUTSCH[ \t]*###[ \t]*$/m);
     var head = iT >= 0 ? body.slice(0, iT) : body;
     p.u = (head.match(/https?:\/\/\S+/) || [""])[0];
     if (!p.u) { var sc = head.match(/\b(p|reel|reels|tv)\/[A-Za-z0-9_-]+/); if (sc) p.u = "https://www.instagram.com/" + sc[0]; }
@@ -1659,6 +1709,8 @@ a { color: var(--accent); }
     // Testlauf aus der Einrichtung
     if (/\/p\/C0Test\/?$/.test(url)) { setTimeout(function () { toast("Der Kurzbefehl funktioniert. Jetzt in Instagram teilen."); }, 300); return false; }
     var input = { caption: caption, url: url, account: account, ocrText: p.o || "", transcript: p.s || "", captionDe: de };
+    // Blog-Seite aus demselben Kurzbefehl-Lauf gleich mit auswerten
+    if (p.b && p.b.length > 200) { if (/<(html|body|div|script)[\s>]/i.test(p.b)) input.blogHtml = p.b; else input.commentText = p.b; input.blogUrl = p.bu; }
     // schon gespeichert? Dann öffnen statt doppelt anlegen
     var same = url ? entries().filter(function (e) { return e.input && e.input.url && e.input.url.split("?")[0].replace(/\/$/, "") === url.split("?")[0].replace(/\/$/, ""); })[0] : null;
     if (same) { UI.tab = "rezepte"; UI.detail = same.id; setTimeout(function () { toast("Schon im Rezeptbuch"); }, 300); return true; }
@@ -1753,6 +1805,11 @@ a { color: var(--accent); }
       case "setup": setupSheet(); render(); break;
       case "share-paste": importFromClipboard(); break;
       case "blog-fetch": toast("Der Kurzbefehl holt die Blog-Seite …"); runShortcut(el.dataset.t); break;
+      case "kommentar":
+        var kw = el.dataset.t, ku = el.dataset.u;
+        var oeffne = function () { try { var a2 = document.createElement("a"); a2.href = ku; a2.target = "_blank"; a2.rel = "noopener"; document.body.appendChild(a2); a2.click(); a2.remove(); } catch (x) { location.href = ku; } };
+        if (kw) { try { navigator.clipboard.writeText(kw).then(function () { toast("„" + kw + "“ kopiert – in Instagram als Kommentar einfügen"); setTimeout(oeffne, 600); }, oeffne); } catch (x) { oeffne(); } } else oeffne();
+        break;
       case "blog-zu": var bz = S.recipes[id]; if (bz && UI.blogPending) { blogAnhaengen(bz, UI.blogPending); UI.blogPending = null; closeSheet(); UI.tab = "rezepte"; UI.detail = id; render(); toast(K.completeness(bz.recipe).enough ? "Rezept vom Blog ergänzt" : "Blog angehängt – Rezept noch unvollständig"); if (!K.completeness(bz.recipe).enough) merkeFehler("blog-unvollstaendig", null, { link: bz.recipe.source.url, notiz: "Blog: " + String(bz.recipe.source.blogUrl || "").slice(0, 120) }); } break;
       case "blog-neu":
         var bp2 = UI.blogPending; UI.blogPending = null; closeSheet();
@@ -1813,6 +1870,14 @@ a { color: var(--accent); }
         if (mf && $("#mitText") && $("#mitText").checked && me.input) mf.beschreibung = String(me.input.caption || "").slice(0, 6000) + (me.input.captionDe ? "\n\n--- Übersetzung ---\n" + String(me.input.captionDe).slice(0, 4000) : "");
         if (mf) fehlerSenden(mf); break;
       case "melden-toggle": el.setAttribute("aria-pressed", el.getAttribute("aria-pressed") === "true" ? "false" : "true"); break;
+      case "off-suche": offSuche(); break;
+      case "off-pick":
+        nwLesen(); var sko = nwStkPruefen(); if (!sko.ok) break;
+        var ot = UI.nw.off && UI.nw.off.treffer[+el.dataset.n]; if (!ot) break;
+        var opr = K.pruefeNaehrwerte(ot.n, { name: UI.nw.name, suche: BLS_SUCHE, stk: sko.v });
+        var oe = K.eigenerNaehrwert(UI.nw.name, ot.n, { stk: sko.v, quelle: "Open Food Facts (ODbL)", notiz: ot.name + (ot.marke ? " · " + ot.marke : ""), off: ot.code, hinweise: opr.hinweise });
+        oe.art = "off"; oe.name = ot.name + " (Open Food Facts)";
+        nwFertig(oe, "Gespeichert – Werte aus Open Food Facts für „" + UI.nw.name + "“"); break;
       case "nw-tab": nwLesen(); UI.nw.tab = el.dataset.t; UI.nw.pruefung = null; nwSheet(); break;
       case "nw-pick":
         nwLesen(); var sk = nwStkPruefen(); if (!sk.ok) break;

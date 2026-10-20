@@ -31,3 +31,7 @@ DOI 10.25826/Data20251217-134202-0. Lizenz: CC BY 4.0. Werte im Rezeptbuch sind 
 
 Rezepte, Vorrat und Einkaufsliste werden nur im Speicher des Geräts abgelegt. Sicherungen sind eine Datei,
 die der Nutzer selbst speichert (z. B. in iCloud Drive). Private Instagram-Exporte gehören nicht in dieses Projekt (siehe `.gitignore`).
+
+## Lizenzen der Daten
+- Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS) 4.0, CC BY 4.0.
+- Einträge in `daten/gelernt-zentral.json` mit `"art": "off"`: Enthält Daten von Open Food Facts (https://openfoodfacts.org), verfügbar unter der Open Database License (ODbL 1.0, https://opendatacommons.org/licenses/odbl/1-0/). Diese Einträge (der aus Open Food Facts abgeleitete Teil) stehen ebenfalls unter der ODbL.

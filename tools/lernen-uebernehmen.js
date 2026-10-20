@@ -61,7 +61,7 @@ Object.keys(nwEin).forEach(k => {
   if (zentral.naehrwerte[k] && !args.includes("--ersetzen")) { nwBericht.push(`= ${name}: schon zentral vorhanden (mit --ersetzen überschreiben)`); return; }
   if (ohne[K.lernNorm(k)] || ohne[K.lernNorm(name)]) return;
   const stks = list.map(x => x.stk).filter(x => x != null), stk = stks.length ? median(stks) : undefined;
-  const bls = list.filter(x => x.bls), eig = list.filter(x => x.art === "eigen" && x.n);
+  const bls = list.filter(x => x.bls), eig = list.filter(x => (x.art === "eigen" || x.art === "off") && x.n);
   let eintrag = null, zeile = "";
   if (bls.length >= eig.length && bls.length) {
     const st = {}; bls.forEach(x => { st[x.bls] = st[x.bls] || { n: 0, x }; st[x.bls].n++; });
@@ -76,7 +76,9 @@ Object.keys(nwEin).forEach(k => {
     const pr = K.pruefeNaehrwerte(n, { name, suche: BLS, stk });
     const streu = eig.length > 1 ? Math.round((Math.max(...eig.map(x => x.n.kcal)) - Math.min(...eig.map(x => x.n.kcal)))) : 0;
     if (!pr.ok) { nwBericht.push(`✗ ${name}: eigene Angabe nicht plausibel – ${pr.fehler.join(" ")}`); return; }
-    eintrag = { bls: null, name: name + " (Angabe von Nutzern)", n, art: "eigen", quelle: [...new Set(eig.map(x => x.quelle).filter(Boolean))].join(", ") };
+    const ausOff = eig.some(x => x.art === "off");
+    eintrag = { bls: null, name: name + (ausOff ? " (Open Food Facts / Nutzer)" : " (Angabe von Nutzern)"), n, art: ausOff ? "off" : "eigen", quelle: [...new Set(eig.map(x => x.quelle).filter(Boolean))].join(", ") };
+    if (ausOff) eintrag.lizenz = "Enthält Daten von Open Food Facts, verfügbar unter der Open Database License (ODbL 1.0)";
     zeile = `${name}: eigene Angabe von ${eig.length} Nutzer(n), ${n.kcal} kcal · ${n.protein ?? "–"} g Eiweiß · ${n.carbs ?? "–"} g KH · ${n.fat ?? "–"} g Fett je 100 g` +
       (streu > 50 ? ` · ACHTUNG: Angaben streuen um ${streu} kcal` : "") + (pr.hinweise.length ? ` · Hinweise: ${pr.hinweise.join(" ")}` : "") +
       (eig.some(x => x.notiz) ? ` · Produkt: ${[...new Set(eig.map(x => x.notiz).filter(Boolean))].join(", ")}` : "");
