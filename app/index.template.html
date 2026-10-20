@@ -285,7 +285,7 @@ a { color: var(--accent); }
   var LERN_ERINNERUNG = 20;
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.9.2";
+  var APP_VERSION = "0.9.3";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -1515,8 +1515,11 @@ a { color: var(--accent); }
     var head = iT >= 0 ? body.slice(0, iT) : body;
     p.u = (head.match(/https?:\/\/\S+/) || [""])[0];
     if (!p.u) { var sc = head.match(/\b(p|reel|reels|tv)\/[A-Za-z0-9_-]+/); if (sc) p.u = "https://www.instagram.com/" + sc[0]; }
-    if (iT >= 0) p.t = body.slice(body.indexOf("\n", iT) + 1, iD > iT ? iD : body.length).trim();
-    if (iD >= 0) p.d = body.slice(body.indexOf("\n", iD) + 1).trim();
+    // eckige Klammern um die Variablen (aus der Anleitung „[Inhalt]“ abgeschrieben) stören nicht
+    var ohneKl = function (x) { return x.replace(/^\[\s*/, "").replace(/\s*\]$/, "").trim(); };
+    if (iT >= 0) p.t = ohneKl(body.slice(body.indexOf("\n", iT) + 1, iD > iT ? iD : body.length).trim());
+    if (iD >= 0) p.d = ohneKl(body.slice(body.indexOf("\n", iD) + 1).trim());
+    p.u = p.u.replace(/[\[\]]/g, "");
     return p;
   }
   function payloadHash(text) {
