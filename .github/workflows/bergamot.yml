@@ -38,6 +38,7 @@ jobs:
           mkdir -p "$Z/ende"; : > "$L"
           echo "== Weg 1: Liste des Pakets (bergamot.s3.amazonaws.com)" >> "$L"
           curl -sSL -w "\nHTTP %{http_code}\n" https://bergamot.s3.amazonaws.com/models/index.json -o /tmp/index.json >> "$L" 2>&1
+          if gzip -t /tmp/index.json 2>/dev/null; then gunzip -c /tmp/index.json > /tmp/i2.json && mv /tmp/i2.json /tmp/index.json; fi
           head -c 1500 /tmp/index.json >> "$L"; echo >> "$L"
           node -e '
             let r; try { r = JSON.parse(require("fs").readFileSync("/tmp/index.json","utf8")); } catch (e) { console.log("kein JSON"); process.exit(0); }
