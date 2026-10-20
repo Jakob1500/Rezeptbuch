@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.3.7";
+  var VERSION = "0.4.0";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -158,7 +158,10 @@
     "carrot=Möhren~Möhre", "carrots=Möhren~Möhre", "potato=Kartoffeln~Kartoffel", "potatoes=Kartoffeln~Kartoffel", "sweet potato=Süßkartoffeln~Süßkartoffel",
     "sweet potatoes=Süßkartoffeln~Süßkartoffel", "broccoli=Brokkoli", "cauliflower=Blumenkohl", "spinach=Spinat", "baby spinach=Babyspinat",
     "fresh spinach=Spinat", "spinach leaves=Spinat", "kale=Grünkohl", "lettuce=Salat", "romaine=Romanasalat", "arugula=Rucola", "rocket=Rucola",
-    "mushrooms=Champignons", "mushroom=Champignons", "button mushrooms=Champignons", "shiitake mushrooms=Shiitake-Pilze", "leek=Lauch", "celery=Staudensellerie",
+    "mushrooms=Champignons", "mushroom=Champignons", "button mushrooms=Champignons", "shiitake mushrooms=Shiitake-Pilze",
+    "oyster mushrooms=Austernpilze", "oyster mushroom=Austernpilze", "king oyster mushrooms=Kräuterseitlinge", "king oyster mushroom=Kräuterseitlinge",
+    "enoki mushrooms=Enoki-Pilze", "enoki=Enoki-Pilze", "brown mushrooms=Braune Champignons", "cremini mushrooms=Braune Champignons", "chestnut mushrooms=Braune Champignons",
+    "portobello mushrooms=Portobello-Pilze", "portobello mushroom=Portobello-Pilze", "chanterelles=Pfifferlinge", "porcini=Steinpilze", "leek=Lauch", "celery=Staudensellerie",
     "celery stalks=Staudensellerie", "corn=Mais", "sweetcorn=Mais", "sweet corn=Mais", "peas=Erbsen", "green peas=Erbsen", "frozen peas=TK-Erbsen",
     "edamame=Edamame", "green beans=Grüne Bohnen", "pumpkin=Kürbis", "butternut squash=Butternutkürbis", "squash=Kürbis", "beetroot=Rote Bete", "beets=Rote Bete",
     "cabbage=Weißkohl", "red cabbage=Rotkohl", "bok choy=Pak Choi", "pak choi=Pak Choi", "asparagus=Spargel", "radishes=Radieschen", "fennel=Fenchel",
@@ -359,7 +362,7 @@
 
   // EU-Hauptallergene (VO (EU) 1169/2011, Anhang II) – Erkennung ohne Gewähr
   var ALLERGENS = {
-    "Gluten": ["weizen", "mehl", "dinkel", "roggen", "gerste", "hafer", "nudel", "pasta", "spaghetti", "penne",
+    "Gluten": ["weizen", "mehl", "dinkel", "spätzle", "knödel", "maultasche", "ravioli", "tortellini", "schupfnudel", "fladenbrot", "pita", "naan", "teig", "keks", "zwieback", "lasagneplatte", "orzo", "farro", "freekeh", "spelt", "roggen", "gerste", "hafer", "nudel", "pasta", "spaghetti", "penne",
       "fusilli", "tagliatelle", "lasagne", "brot", "brötchen", "toast", "couscous", "bulgur", "grieß",
       "semmelbrösel", "paniermehl", "panko", "seitan", "sojasauce", "sojasoße", "tortilla", "wrap",
       "blätterteig", "pizzateig", "croutons", "malz", "flour", "bread", "noodle", "soy sauce", "gnocchi",
@@ -452,7 +455,7 @@
   var BULLET_RE = /^[\s\-–—•*·▪◦●○■□►▶▸➤➜➡✓✔☑✗×+>|]+/u;
 
   function stripEmoji(s) { return String(s || "").replace(EMOJI_RE, " ").replace(/\s{2,}/g, " ").trim(); }
-  function clean(s) { return String(s == null ? "" : s).replace(/[\uFFFD\u2060\u200B-\u200D\uFEFF]/g, " ").replace(/\s+/g, " ").trim(); }
+  function clean(s) { return String(s == null ? "" : s).replace(/[\uFFFD\u2060-\u2064\u200B-\u200D\uFEFF]/g, " ").replace(/\s+/g, " ").trim(); }
   function lower(s) { return String(s || "").toLowerCase(); }
 
   var ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", ndash: "–", mdash: "—",
@@ -600,7 +603,7 @@
   // Gilt standardmäßig als vorhanden? (Grundvorrat mit Standard "ja" oder immer vorhanden)
   function isStaple(name) {
     var n = normName(name);
-    if (ALWAYS.indexOf(n) !== -1 || /^(wasser|water|eiswürfel|ice)\b/.test(n)) return true;
+    if (ALWAYS.indexOf(n) !== -1 || /^(wasser|water|eiswürfel|ice)\b/.test(n) || /^((heiße?s?|heisse?s?|warme?s?|kalte?s?|kochende?s?|lauwarme?s?|eiskalte?s?|hot|warm|cold|boiling|lukewarm|filtered)\s+)(wasser|water)$/.test(n)) return true;
     var k = vorratsSchluessel(n);
     if (!k) return false;
     var def = standardVorrat()[k];
@@ -691,8 +694,29 @@
    * "200 g / 2 cups rolled oats"    -> {qty:200, unit:"g", name:"Rolled oats"}
    * "Saft von 1 Limette"            -> {qty:1, unit:"Stk", name:"Limettensaft"}
    */
+  // Kennt der Kern die Zutat (Übersetzung, Abteilung oder Nährwert-Schlüssel)?
+  function zutatBekannt(i) { return !!(i && (i.nameOriginal || i.aisle !== "Sonstiges" || i.staple)); }
+  // "Nutritional yeast Juice of ½ lemon Chives": mehrere Zutaten in einer Zeile (Zeilenumbrüche verloren).
+  // Getrennt wird nur vor einem Großbuchstaben nach einem kleingeschriebenen Wort – und nur, wenn jedes Teil eine bekannte Zutat ist.
+  function klebeZutatenTrennen(line) {
+    var t = clean(stripEmoji(String(line || "")).replace(BULLET_RE, ""));
+    var pos = [], re = /[a-zäöüß)]\s+(?=[A-ZÄÖÜ])/g, m;
+    while ((m = re.exec(t))) pos.push(m.index + m[0].length);
+    if (!pos.length || pos.length > 5) return null;
+    var teile = [], start = 0;
+    pos.concat([t.length]).forEach(function (p) { teile.push(t.slice(start, p).trim()); start = p; });
+    // Teile wieder zusammenfügen, bis jedes für sich bekannt ist ("Frische Petersilie" bleibt zusammen)
+    var out = [], puffer = "";
+    for (var k = 0; k < teile.length; k++) {
+      puffer = puffer ? puffer + " " + teile[k] : teile[k];
+      var pi = parseIngredientLine(puffer);
+      if (zutatBekannt(pi)) { out.push(pi); puffer = ""; }
+    }
+    if (puffer || out.length < 2) return null;
+    return out;
+  }
   function parseIngredientLine(line) {
-    var raw = clean(stripEmoji(String(line || "")).replace(BULLET_RE, ""));
+    var raw = clean(stripEmoji(String(line || "")).replace(/[\u200b-\u200f\u2060-\u2064\ufeff]/g, "").replace(BULLET_RE, "").replace(/[„“”"«»]/g, ""));
     if (!raw) return null;
     var res = { raw: raw, qty: null, qtyMax: null, unit: "", name: "", note: "", optional: false };
     var note = [];
@@ -997,16 +1021,50 @@
   }
 
   // Grobe Zeitschätzung aus Schritten ("25 Minuten backen")
-  function estimateTimeFromSteps(steps) {
-    var sum = 0;
+  // Arbeitsschritte und typische Dauer in Minuten (Richtwerte; gelernte Werte aus Rezepten mit Zeitangabe gehen vor)
+  var ARBEIT = [
+    ["backen", /\b(back\w*|bake[ds]?|baking|überbacken)\b/i, 25],
+    ["rösten", /\b(rösten|röste|roast\w*|im ofen)\b/i, 25],
+    ["kochen", /\b(koch\w*|boil\w*|cook\w*|garen|gar)\b/i, 12],
+    ["köcheln", /\b(köcheln\w*|simmer\w*|einkochen|reduzieren|reduce)\b/i, 15],
+    ["braten", /\b(\w*brat\w*|fry\w*|fried|sauté\w*|saute\w*|sear\w*|brown)\b/i, 6],
+    ["dünsten", /\b(dünst\w*|dämpf\w*|steam\w*|glasig)\b/i, 6],
+    ["schneiden", /\b(schneid\w*|hack\w*|würfel\w*|schäl\w*|reib\w*|chop\w*|dice\w*|slice\w*|cut|mince\w*|peel\w*|grate\w*|hobel\w*)\b/i, 5],
+    ["mixen", /\b(mix\w*|pürier\w*|blend\w*|zerkleiner\w*|purée|puree)\b/i, 2],
+    ["rühren", /\b(rühr\w*|verrühr\w*|vermeng\w*|vermisch\w*|misch\w*|stir\w*|combine\w*|whisk\w*|toss\w*|knet\w*|knead\w*)\b/i, 2],
+    ["marinieren", /\b(marinier\w*|marinate\w*|einlegen)\b/i, 15],
+    ["quellen", /\b(quell\w*|ziehen lassen|einweich\w*|soak\w*)\b/i, 10],
+    ["ruhen", /\b(ruhen|abkühl\w*|cool\w*|rest\w*|abkühlen)\b/i, 10],
+    ["kühlen", /\b(kühl\w*|kalt stellen|chill\w*|refrigerat\w*|gefrier\w*|freez\w*)\b/i, 30],
+    ["anrichten", /\b(servier\w*|anricht\w*|garnier\w*|serve|garnish\w*|top with|toppen)\b/i, 1]
+  ];
+  function schrittArbeiten(s) { var o = []; ARBEIT.forEach(function (a) { if (a[1].test(s)) o.push(a[0]); }); return o; }
+  function schrittMinutenAngabe(s) {
+    s = String(s); var sum = 0;
+    var m = s.match(/(\d+)\s*(?:-|–|bis|to)?\s*(\d+)?\s*(min|minuten|minutes|mins)\b/i);
+    if (m) sum += +(m[2] || m[1]);
+    var h = s.match(/(\d+(?:[.,]\d+)?)\s*(std|stunden?|hours?|h)\b/i);
+    if (h && !/über nacht|overnight/i.test(s)) sum += parseFloat(h[1].replace(",", ".")) * 60;
+    return sum || null;
+  }
+  function estimateTimeFromSteps(steps, gelernt) {
+    var sum = 0, angaben = 0, n = 0;
     steps.forEach(function (s) {
-      var m = String(s).match(/(\d+)\s*(?:-|–|bis)?\s*(\d+)?\s*(min|minuten|minutes|mins)\b/i);
-      if (m) sum += +(m[2] || m[1]);
-      var h = String(s).match(/(\d+(?:[.,]\d+)?)\s*(std|stunden?|hours?|h)\b/i);
-      if (h) sum += parseFloat(h[1].replace(",", ".")) * 60;
+      if (/^## /.test(s)) return;
+      n++;
+      var ang = schrittMinutenAngabe(s);
+      if (ang) { sum += ang; angaben++; return; }
+      if (/über nacht|overnight/i.test(s)) return; // Ruhezeit über Nacht zählt nicht zur Arbeitszeit
+      var arb = schrittArbeiten(s), min = 0;
+      arb.forEach(function (a) {
+        var g = gelernt && gelernt[a], def = ARBEIT.filter(function (x) { return x[0] === a; })[0][2];
+        min += g && g.n >= 3 ? g.summe / g.n : def;
+      });
+      sum += Math.min(arb.length ? min : 2, 45);
     });
-    if (!sum) return null;
-    return Math.round(sum + Math.max(5, steps.length * 2)); // plus Schnippelzeit
+    if (!n) return null;
+    var t = sum + (angaben ? Math.max(5, n * 2) : 3);
+    return Math.max(5, Math.round(t / 5) * 5);
   }
 
   var TITLE_BAD = /^(https?:|www\.|\(?\s*(?:recipe|rezept)\b|comment|kommentier|i'?m curious|follow|.*\bi used\b|.*:\s*\d+$|rezept|zum rezept|das rezept|recipe|portionen|servings|perfekt (für|zum)|schnell gemacht|kann kochen|comment|kommentier|werbung|anzeige|unbezahlt|gewinnspiel|ad\b|follow|folge|save|speicher|teil \d|part \d|step by step|veganuary|must try|naja|glaubst|aufmerksam|mit den produkten|mit \w+ so |etwas |some |& so|und so|schwierigkeit|zubereitungszeit|dauer|what you need|was brauchen|[\d\s\/]+$)|\b(gewinnspiel|anzeige)\b|^[^(]*\)|^[\wäöüÄÖÜß-]+:\s/i;
@@ -1540,7 +1598,8 @@
     ingredients.forEach(function (l) {
       if (String(l).indexOf(GROUP_MARK) === 0) { grp = String(l).slice(GROUP_MARK.length); return; }
       var ing = parseIngredientLine(l);
-      if (ing) { if (grp) ing.group = grp; r.ingredients.push(ing); }
+      var teile = ing && !zutatBekannt(ing) ? klebeZutatenTrennen(l) : null;
+      (teile || [ing]).forEach(function (x) { if (x) { if (grp) x.group = grp; r.ingredients.push(x); } });
     });
     // Zutaten stehen nur im Fließtext der Zubereitung ("blend 1 can white beans, 2 cups of peas …")
     if (r.ingredients.filter(function (i) { return i.qty != null; }).length < 3) {
@@ -1601,7 +1660,7 @@
   function findClaims(text) {
     var t = lower(text), out = [];
     var map = [["proteinreich", /(high.?protein|proteinreich|eiweißreich|eiweissreich|\d+\s*g\s*(protein|eiweiß))/],
-      ["vegan", /(#?vegan\b|pflanzlich)/], ["vegetarisch", /(vegetarisch|vegetarian|#veggie)/],
+      ["vegan", /(#?vegan\b(?!\s*(möglich|option|variante|version))|#\w*vegan\w*|#plantbased|plant[- ]based|rein pflanzlich|100\s*%\s*pflanzlich)/], ["vegetarisch", /(vegetarisch|vegetarian|#veggie)/],
       ["glutenfrei", /(glutenfrei|gluten.?free)/], ["laktosefrei", /(laktosefrei|lactose.?free|dairy.?free|milchfrei)/],
       ["low-carb", /(low.?carb|lowcarb|keto)/], ["kalorienarm", /(kalorienarm|low.?cal|\bdefizit|kcal.?arm)/],
       ["meal-prep", /(meal.?prep|vorkochen)/]];
@@ -1806,23 +1865,39 @@
   // Klassifizierung (ohne LLM)
   // ---------------------------------------------------------------------------
 
+  // Zusätze, die eine Zutat als pflanzlich ausweisen ("vegane Mayo", "Butter (vegan)", "plant-based cheese", "Soja-Hack")
+  var VEG_ZUSATZ = /(^|[^a-zäöüß])(vegan\w*|pflanzlich\w*|plant[- ]?based|dairy[- ]?free|egg[- ]?free|milchfrei|eifrei|veggie|soja[- ]?\w*|seitan|tofu\w*|erbsenprotein|lupinen\w*|hafer[- ]?\w*|mandel[- ]?\w*|kokos[- ]?\w*|cashew[- ]?\w*|oat|almond|coconut|soy)([^a-zäöüß]|$)|ersatz|alternative|analog/i;
+  function veganAngabeImText(t) {
+    t = lower(t || "");
+    if (/vegan\w*\s+(möglich|option|variante|version|alternative)|(can be|easily|make it)\s+(made\s+)?vegan|auch vegan|für eine vegane|vegan zubereiten|veganisier/.test(t)) return false;
+    return /(^|[^a-zäöüß])(#?vegan(e[rsn]?)?|#?plantbased|plant[- ]based|pflanzlich|100\s*%\s*pflanzlich|rein pflanzlich)([^a-zäöüß]|$)|#\w*vegan\w*/.test(t);
+  }
   function classify(r) {
+    var tierText = [];
     var ingText = r.ingredients.map(function (i) {
-      if (/(^|,\s*)(v|vegan|vegane?r?|pflanzlich)(\s*,|$)/i.test(i.note || "")) return "vegan " + lower(i.name);
+      var full = lower(i.name + " " + (i.note || "") + " " + (i.nameOriginal || "") + " " + (i.raw || ""));
+      if (/(^|,\s*)(v|vegan|vegane?r?|pflanzlich)(\s*,|$)/i.test(i.note || "") || VEG_ZUSATZ.test(full)) return "vegan " + lower(i.name);
+      tierText.push(lower(i.name + " " + (i.note || "")));
       return lower(i.name + " " + (i.note || ""));
     }).join(" | ");
+    var tierZutaten = tierText.join(" | ");
     var allText = lower(r.title + " | " + ingText + " | " + r.steps.join(" | ") + " | " + (r.description || "") + " | " + (r.keywords || "") + " | " + (r.blogCategory || ""));
 
     // Ernährungsstil
     var diet = [];
     if (r.ingredients.length >= 2) {
-      var meat = matchWithExceptions(ingText, DICT.meat, NOT_ANIMAL);
-      var fish = matchWithExceptions(ingText, DICT.fish, NOT_ANIMAL);
-      var dairy = matchWithExceptions(ingText, DICT.dairy, NOT_ANIMAL);
-      var egg = matchWithExceptions(ingText, DICT.egg, NOT_ANIMAL);
-      var honey = matchWithExceptions(ingText, DICT.honey, NOT_ANIMAL);
-      if (!meat && !fish && !dairy && !egg && !honey) diet.push("vegan");
-      if (!meat && !fish) diet.push("vegetarisch");
+      var meat = matchWithExceptions(tierZutaten, DICT.meat, NOT_ANIMAL);
+      var fish = matchWithExceptions(tierZutaten, DICT.fish, NOT_ANIMAL);
+      var dairy = matchWithExceptions(tierZutaten, DICT.dairy, NOT_ANIMAL);
+      var egg = matchWithExceptions(tierZutaten, DICT.egg, NOT_ANIMAL);
+      var honey = matchWithExceptions(tierZutaten, DICT.honey, NOT_ANIMAL);
+      // Sagt der Creator „vegan“ (Titel, Text, Hashtag, Kontoname), gelten Milch-, Ei- und Honig-Wörter als vegane Alternativen
+      var angabe = veganAngabeImText([r.title, r.titleOriginal, r.description, r.keywords, (r.creatorClaims || []).indexOf("vegan") !== -1 ? "vegan" : ""].join(" | "));
+      var kontoVegan = /vegan|plantbased|pflanzlich/i.test((r.source && r.source.account) || "");
+      if (!meat && !fish && !dairy && !egg && !honey) { diet.push("vegan"); r.dietBasis = "Zutaten"; }
+      else if ((angabe || kontoVegan) && !meat && !fish) { diet.push("vegan"); r.dietBasis = "laut Creator"; }
+      else if (angabe && kontoVegan) { diet.push("vegan"); r.dietBasis = "laut Creator"; }
+      if (!meat && !fish || diet.indexOf("vegan") !== -1) diet.push("vegetarisch");
       else if (!meat && fish) diet.push("pescetarisch");
       else diet.push("mit Fleisch");
       r.dietEvidence = { meat: meat, fish: fish, dairy: dairy, egg: egg, honey: honey };
@@ -2006,14 +2081,15 @@
   function lernNorm(t) { return lower(stripEmoji(String(t || ""))).replace(/[^a-zäöüß0-9 ]+/g, " ").replace(/\s+/g, " ").trim(); }
   function neuerLernspeicher() {
     return { app: "rezeptbuch-lernen", version: LERN_VERSION, rezepte: 0, rezepteSeitSenden: 0, gesendetAm: null,
-      creator: {}, ignorieren: {}, keinSchritt: {}, istSchritt: {}, zutatAlias: {}, keineZutat: {}, keineFloskel: {}, unbekannt: {}, fehler: [] };
+      creator: {}, ignorieren: {}, keinSchritt: {}, istSchritt: {}, zutatAlias: {}, keineZutat: {}, keineFloskel: {}, unbekannt: {}, fehler: [], zeiten: {}, protokoll: [] };
   }
   // Regeln aus mehreren Quellen (zentral + lokal) zusammenführen
   function lernRegeln(list) {
-    var R = { ignorieren: {}, keinSchritt: {}, istSchritt: {}, zutatAlias: {}, keineZutat: {}, keineFloskel: {}, floskeln: {} };
+    var R = { ignorieren: {}, keinSchritt: {}, istSchritt: {}, zutatAlias: {}, keineZutat: {}, keineFloskel: {}, floskeln: {}, zeiten: {} };
     (list || []).filter(Boolean).forEach(function (L) {
       ["ignorieren", "keinSchritt", "istSchritt", "keineZutat", "keineFloskel"].forEach(function (k) { Object.keys(L[k] || {}).forEach(function (x) { R[k][x] = 1; }); });
       Object.keys(L.zutatAlias || {}).forEach(function (x) { R.zutatAlias[x] = L.zutatAlias[x]; });
+      Object.keys(L.zeiten || {}).forEach(function (a) { var z = L.zeiten[a]; if (!z || !z.n) return; var t = R.zeiten[a] = R.zeiten[a] || { n: 0, summe: 0 }; t.n += z.n; t.summe += z.summe; });
       Object.keys(L.floskeln || {}).forEach(function (a) { (L.floskeln[a] || []).forEach(function (x) { (R.floskeln[a] = R.floskeln[a] || {})[x] = 1; }); });
       Object.keys(L.creator || {}).forEach(function (a) {
         var c = L.creator[a]; if (!c || c.n < FLOSKEL_MIN) return;
@@ -2061,9 +2137,29 @@
       var nachher = lernRegeln([{ creator: (function () { var o = {}; o[acc] = c; return o; })() }]).floskeln[acc] || {};
       Object.keys(nachher).forEach(function (x) { if (!vorher[x]) neu.push(x); });
     }
-    ((recipe && recipe.ingredients) || []).forEach(function (i) {
-      if (i.aisle === "Sonstiges" && !i.nameOriginal && i.name && i.name.length < 40) { var k = lower(i.name); L.unbekannt[k] = (L.unbekannt[k] || 0) + 1; }
+    // Zutaten ohne Nährwert (nicht: ohne Supermarkt-Abteilung – Wasser oder Schalotten sind bekannt)
+    var offen = recipe && recipe.nutrition && recipe.nutrition.coverage ? (recipe.nutrition.coverage.offen || []).filter(function (o) { return o.grund === "unbekannt"; }).map(function (o) { return o.name; })
+      : ((recipe && recipe.ingredients) || []).filter(function (i) { return i.aisle === "Sonstiges" && !i.nameOriginal && !i.staple; }).map(function (i) { return i.name; });
+    offen.forEach(function (nm) { if (nm && nm.length < 40) { var k = lower(nm); L.unbekannt[k] = (L.unbekannt[k] || 0) + 1; } });
+    // Dauer je Arbeitsschritt lernen: Schritte mit Zeitangabe und genau einem Arbeitsschritt ("15 Minuten köcheln")
+    L.zeiten = L.zeiten || {};
+    ((recipe && recipe.steps) || []).forEach(function (st) {
+      var ang = schrittMinutenAngabe(st), arb = schrittArbeiten(st);
+      if (ang && ang <= 120 && arb.length === 1) { var z = L.zeiten[arb[0]] = L.zeiten[arb[0]] || { n: 0, summe: 0 }; if (z.n < 200) { z.n++; z.summe += ang; } }
     });
+    // Erkennungsprotokoll: was der Kern aus diesem Beitrag gemacht hat (für die Fehlersuche, ohne Rezepttext)
+    if (recipe) {
+      L.protokoll = L.protokoll || [];
+      var lg = recipe.logik || {};
+      L.protokoll.push({ link: (input && input.url) || (recipe.source && recipe.source.url) || "", datum: new Date().toISOString().slice(0, 16), kern: VERSION,
+        sprache: recipe.lang || "", uebersetzt: !!recipe.stepsOriginal, titel: recipe.title || "", titelGeraten: !!recipe.titleGuessed,
+        zutaten: (recipe.ingredients || []).length, schritte: (recipe.steps || []).filter(function (x) { return !/^## /.test(x); }).length,
+        zeit: recipe.timeTotal || null, zeitGeschaetzt: !!recipe.timeEstimated, portionen: recipe.servings || null, portionenGeschaetzt: !!recipe.servingsEstimated,
+        ernaehrung: (recipe.diet || [])[0] || "", ernaehrungBasis: recipe.dietBasis || "", vollstaendig: completeness(recipe).enough,
+        rezeptWo: (recipe.elsewhere && recipe.elsewhere.wo) || "", ohneNaehrwert: offen.slice(0, 10),
+        vageSchritte: (lg.vage || []).length, ergaenzteSchritte: (recipe.schritteErgaenzt || []).length, zutatenOhneSchritt: (lg.ohneSchritt || []).slice(0, 8), schritteOhneVerb: (lg.ohneVerb || []).length });
+      while (L.protokoll.length > 150) { var iS = L.protokoll.findIndex(function (x) { return x.gesendet; }); L.protokoll.splice(iS >= 0 ? iS : 0, 1); }
+    }
     var uk = Object.keys(L.unbekannt);
     if (uk.length > 300) uk.sort(function (a, b) { return L.unbekannt[a] - L.unbekannt[b]; }).slice(0, uk.length - 300).forEach(function (k) { delete L.unbekannt[k]; });
     return neu;
@@ -2124,7 +2220,9 @@
       rezepte: L.rezepte || 0, regeln: { floskeln: fl, ignorieren: Object.keys(L.ignorieren || {}), keinSchritt: Object.keys(L.keinSchritt || {}), istSchritt: Object.keys(L.istSchritt || {}),
       zutatAlias: L.zutatAlias || {}, keineZutat: Object.keys(L.keineZutat || {}), keineFloskel: Object.keys(L.keineFloskel || {}) }, unbekannt: L.unbekannt || {},
       naehrwerte: naehrwertExport(meta && meta.zuord),
-      teilenFehler: (L.fehler || []).filter(function (f) { return !f.gesendet; }) };
+      teilenFehler: (L.fehler || []).filter(function (f) { return !f.gesendet; }),
+      zeiten: L.zeiten || {},
+      protokoll: (L.protokoll || []).filter(function (x) { return !x.gesendet; }) };
   }
   // Nährwert-Zuordnungen und eigene Angaben (nur Zutatenname, Werte, Quelle – keine Rezepte)
   function naehrwertExport(z) {
@@ -2430,6 +2528,31 @@
     return r;
   }
   // Welche Zutaten werden in welchem Schritt verwendet? -> [[Zutat-Index, …], …] je Schritt (Überschriften: [])
+  var VAGE_ALLES = /(^|[^a-zäöüß])(alles|everything|all together|alles zusammen|sämtliche zutaten)([^a-zäöüß]|$)/i;
+  // Logik der Schritte prüfen und vage Schritte ergänzen ("Alles mixen" -> "Alles (Cashews, Wasser, Zitronensaft) mixen").
+  // Ergebnis: r.schritteErgaenzt (Nummern), r.logik = { vage: [...], ohneSchritt: [...] }
+  function pruefeSchrittLogik(r) {
+    var steps = r.steps || [], ings = r.ingredients || [];
+    r.logik = { vage: [], ohneSchritt: [], ohneVerb: [] };
+    if (!steps.length || ings.length < 2) return;
+    var map = stepIngredients(r), erg = [];
+    r.steps = steps.map(function (st, si) {
+      if (/^## /.test(st) || !VAGE_ALLES.test(st) || /\(/.test(st)) return st;
+      if (!map.vageInfo || !map.vageInfo[si]) return st;
+      if (!map.vageInfo[si].neu) return st; // „alles“ = was schon verarbeitet wurde: Zutaten stehen als Hinweis unter dem Schritt
+      var namen = (map[si] || []).map(function (n) { return ings[n]; }).filter(function (i) { return i && !isSpice(i) && !/^(salz|pfeffer|salt|pepper)/.test(i.key || ""); }).map(function (i) { return i.name; });
+      namen = uniq(namen);
+      if (namen.length < 2 || namen.length > 8 || namen.some(function (x) { return x.length > 28; })) { r.logik.vage.push(st.slice(0, 80)); return st; }
+      erg.push(si);
+      return st.replace(VAGE_ALLES, function (m0, a, w, b) { return a + w + " (" + namen.join(", ") + ")" + b; });
+    });
+    r.schritteErgaenzt = erg;
+    var map2 = stepIngredients(r), genutzt = {};
+    map2.forEach(function (h) { h.forEach(function (n) { genutzt[n] = 1; }); });
+    ings.forEach(function (i, n) { if (!genutzt[n] && !i.staple && !isSpice(i) && !i.optional) r.logik.ohneSchritt.push(i.name); });
+    steps.forEach(function (st) { if (!/^## /.test(st) && st.split(/\s+/).length <= 3 && !STEP_VERB.test(st)) r.logik.ohneVerb.push(st.slice(0, 60)); });
+  }
+  var STEP_VERB = /\b(\w+(en|ern|eln)|add|mix|stir|cook|bake|fry|blend|serve|chop|cut|boil|simmer|roast|pour|combine|season|whisk|place|top|let|heat|bring)\b/i;
   function stepIngredients(r) {
     var steps = r.steps || [], ings = r.ingredients || [];
     var heads = ings.map(function (i) {
@@ -2459,6 +2582,35 @@
       });
       hits.forEach(function (n) { used[n] = 1; });
       return hits;
+    });
+    // "Alles mixen", "Blend everything": alle Zutaten (des Abschnitts), die in späteren Schritten nicht mehr vorkommen
+    var spaeter = function (si) { var o = {}; res.forEach(function (h, k) { if (k > si) h.forEach(function (n) { o[n] = 1; }); }); return o; };
+    var erste = res.map(function (h) { return h.slice(); });
+    res.vageInfo = {};
+    steps.forEach(function (st, si) {
+      var l = lower(st);
+      if (!VAGE_ALLES.test(l) || /\b(alle\w*\s+(?:\w+\s+)?zutaten|all (?:the )?(?:\w+ )?ingredients|restlichen|übrigen|remaining)\b/.test(l)) return;
+      if (erste[si].length >= 2 || /[:+]/.test(st)) return; // Zutaten stehen schon im Schritt
+      var head = "", start = 0; for (var h = si - 1; h >= 0; h--) if (/^## /.test(steps[h])) { head = lower(steps[h].slice(3)); start = h + 1; break; }
+      // Wurde in diesem Abschnitt schon etwas verarbeitet, meint „alles“ genau das (was im Topf ist)
+      var bisher = []; for (var k = start; k < si; k++) erste[k].forEach(function (n) { if (bisher.indexOf(n) === -1) bisher.push(n); });
+      if (bisher.length) {
+        // Zutaten, die in keinem Schritt vorkommen, landen logisch hier („Cashews einweichen. Alles mixen.“ -> auch Wasser, Zitrone)
+        var nirgends = []; ings.forEach(function (i, n) { if (!erste.some(function (h) { return h.indexOf(n) !== -1; }) && !isSpice(i) && !/^(salz|pfeffer|salt|pepper)/.test(i.key || "") && !i.optional && (!head || !i.group || lower(i.group) === head || head.indexOf(lower(i.group).slice(0, 4)) !== -1)) nirgends.push(n); });
+        // nur beim Mixen/Pürieren gehören die übrigen Zutaten sicher dazu
+        var mixen = /(mix|pürier|blend|shake|mixer|zerkleiner)/i.test(st);
+        bisher.concat(mixen ? nirgends : []).forEach(function (n) { if (res[si].indexOf(n) === -1) res[si].push(n); });
+        res.vageInfo[si] = { neu: mixen && nirgends.length > 0 }; return;
+      }
+      res.vageInfo[si] = { neu: true };
+      var gruppe = head ? Object.keys(ings.reduce(function (o, i) { if (i.group) o[lower(i.group)] = 1; return o; }, {})).filter(function (g) { return g.split(/[\s-]+/).some(function (w) { return w.length > 3 && head.indexOf(w.replace(/(e|en|s)$/, "")) !== -1; }); })[0] : "";
+      var sp = spaeter(si);
+      ings.forEach(function (i, n) {
+        if (isSpice(i) || /^(salz|pfeffer|salt|pepper)/.test(i.key || "") || sp[n] || res[si].indexOf(n) !== -1) return;
+        if (gruppe && lower(i.group || "") !== gruppe) return;
+        if (!gruppe && head && i.group) return;
+        res[si].push(n); used[n] = 1;
+      });
     });
     // "Alle Zutaten für das Dressing …": Zutaten dieser Gruppe; "restliche Zutaten": bisher ungenutzte
     steps.forEach(function (st, si) {
@@ -2552,7 +2704,9 @@
     if (r.category) add("Gang", r.category, r.categoryBasis);
     (r.categoryAlso || []).forEach(function (c) { add("Gang", c, "Stichworte"); });
     // Ernährung
-    (r.diet || []).forEach(function (d) { add("Ernährung", d, "Zutaten"); });
+    // vegan schließt vegetarisch ein: angezeigt wird nur „vegan“ (der Filter „vegetarisch“ findet es trotzdem)
+    var veg = (r.diet || []).indexOf("vegan") !== -1;
+    (r.diet || []).forEach(function (d) { if (veg && d === "vegetarisch") return; add("Ernährung", d, d === "vegan" ? (r.dietBasis || "Zutaten") : "Zutaten"); });
     var claims = r.creatorClaims || [];
     if (r.ingredients.length >= 3 && r.allergens.indexOf("Gluten") === -1) add("Ernährung", "glutenfrei", claims.indexOf("glutenfrei") !== -1 ? "laut Creator" : "laut Zutaten");
     else if (claims.indexOf("glutenfrei") !== -1) add("Ernährung", "glutenfrei", "laut Creator");
@@ -2635,7 +2789,7 @@
 
   function finalize(r) {
     if (!r.timeTotal && r.steps.length) {
-      var est = estimateTimeFromSteps(r.steps);
+      var est = estimateTimeFromSteps(r.steps, LERN && LERN.zeiten);
       if (est) { r.timeTotal = est; r.timeEstimated = true; r.provenance.timeTotal = "geschätzt"; }
     }
     // Titel ist nur eine Zutat ("Stückige Tomaten"): Gerichtsname aus dem Text bevorzugen
@@ -2691,6 +2845,7 @@
     r.lang = detectLang(r);
     classify(r);
     estimateMissingQty(r);
+    try { pruefeSchrittLogik(r); } catch (e) { r.logik = null; }
     if (r.titleFromIngredients) {
       var suf = { "Salat & Bowl": /dressing|salat|salad/i.test(r.steps.join(" ") + r.ingredients.map(function (i) { return i.raw; }).join(" ")) ? "Salat" : "Bowl", "Suppe & Eintopf": "Suppe", "Backen": "Kuchen", "Frühstück": "", "Sauce & Dip": "Dip" }[r.category];
       if (suf) r.title = r.titleFromIngredients.join("-") + "-" + suf;
@@ -3626,6 +3781,7 @@
     parseIngredientLine: parseIngredientLine, parseDuration: parseDuration,
     classify: classify, completeness: completeness, focusFromNutrition: focusFromNutrition,
     teilenDiagnose: teilenDiagnose, lerneTeilenFehler: lerneTeilenFehler,
+    estimateTimeFromSteps: estimateTimeFromSteps, schrittArbeiten: schrittArbeiten, pruefeSchrittLogik: pruefeSchrittLogik,
     berechneNaehrwerte: berechneNaehrwerte, pruefeNaehrwerte: pruefeNaehrwerte, eigenerNaehrwert: eigenerNaehrwert, kcalAusNaehrstoffen: kcalAusNaehrstoffen, NW_FELDER: NW_FELDER, findNutrientEntry: findNutrientEntry, NUTRIENT_KEYS: NUTRIENT_KEYS,
     normName: normName, fmtQty: fmtQty, fmtIngredient: fmtIngredient, scaleRecipe: scaleRecipe,
     shoppingList: shoppingList, shoppingText: shoppingText,

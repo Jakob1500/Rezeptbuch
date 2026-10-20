@@ -12,3 +12,5 @@ node_modules/
 .DS_Store
 # Eingang „Gelerntes“ von Nutzern (nur lokal prüfen)
 lernen-eingang/
+# Echte Fälle aus Meldungen (fremde Instagram-Texte, nur lokal)
+tests/faelle/

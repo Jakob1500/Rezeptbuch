@@ -301,7 +301,7 @@ a { color: var(--accent); }
 (function (root) {
   "use strict";
 
-  var VERSION = "0.3.7";
+  var VERSION = "0.4.0";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -437,7 +437,10 @@ a { color: var(--accent); }
     "carrot=Möhren~Möhre", "carrots=Möhren~Möhre", "potato=Kartoffeln~Kartoffel", "potatoes=Kartoffeln~Kartoffel", "sweet potato=Süßkartoffeln~Süßkartoffel",
     "sweet potatoes=Süßkartoffeln~Süßkartoffel", "broccoli=Brokkoli", "cauliflower=Blumenkohl", "spinach=Spinat", "baby spinach=Babyspinat",
     "fresh spinach=Spinat", "spinach leaves=Spinat", "kale=Grünkohl", "lettuce=Salat", "romaine=Romanasalat", "arugula=Rucola", "rocket=Rucola",
-    "mushrooms=Champignons", "mushroom=Champignons", "button mushrooms=Champignons", "shiitake mushrooms=Shiitake-Pilze", "leek=Lauch", "celery=Staudensellerie",
+    "mushrooms=Champignons", "mushroom=Champignons", "button mushrooms=Champignons", "shiitake mushrooms=Shiitake-Pilze",
+    "oyster mushrooms=Austernpilze", "oyster mushroom=Austernpilze", "king oyster mushrooms=Kräuterseitlinge", "king oyster mushroom=Kräuterseitlinge",
+    "enoki mushrooms=Enoki-Pilze", "enoki=Enoki-Pilze", "brown mushrooms=Braune Champignons", "cremini mushrooms=Braune Champignons", "chestnut mushrooms=Braune Champignons",
+    "portobello mushrooms=Portobello-Pilze", "portobello mushroom=Portobello-Pilze", "chanterelles=Pfifferlinge", "porcini=Steinpilze", "leek=Lauch", "celery=Staudensellerie",
     "celery stalks=Staudensellerie", "corn=Mais", "sweetcorn=Mais", "sweet corn=Mais", "peas=Erbsen", "green peas=Erbsen", "frozen peas=TK-Erbsen",
     "edamame=Edamame", "green beans=Grüne Bohnen", "pumpkin=Kürbis", "butternut squash=Butternutkürbis", "squash=Kürbis", "beetroot=Rote Bete", "beets=Rote Bete",
     "cabbage=Weißkohl", "red cabbage=Rotkohl", "bok choy=Pak Choi", "pak choi=Pak Choi", "asparagus=Spargel", "radishes=Radieschen", "fennel=Fenchel",
@@ -638,7 +641,7 @@ a { color: var(--accent); }
 
   // EU-Hauptallergene (VO (EU) 1169/2011, Anhang II) – Erkennung ohne Gewähr
   var ALLERGENS = {
-    "Gluten": ["weizen", "mehl", "dinkel", "roggen", "gerste", "hafer", "nudel", "pasta", "spaghetti", "penne",
+    "Gluten": ["weizen", "mehl", "dinkel", "spätzle", "knödel", "maultasche", "ravioli", "tortellini", "schupfnudel", "fladenbrot", "pita", "naan", "teig", "keks", "zwieback", "lasagneplatte", "orzo", "farro", "freekeh", "spelt", "roggen", "gerste", "hafer", "nudel", "pasta", "spaghetti", "penne",
       "fusilli", "tagliatelle", "lasagne", "brot", "brötchen", "toast", "couscous", "bulgur", "grieß",
       "semmelbrösel", "paniermehl", "panko", "seitan", "sojasauce", "sojasoße", "tortilla", "wrap",
       "blätterteig", "pizzateig", "croutons", "malz", "flour", "bread", "noodle", "soy sauce", "gnocchi",
@@ -731,7 +734,7 @@ a { color: var(--accent); }
   var BULLET_RE = /^[\s\-–—•*·▪◦●○■□►▶▸➤➜➡✓✔☑✗×+>|]+/u;
 
   function stripEmoji(s) { return String(s || "").replace(EMOJI_RE, " ").replace(/\s{2,}/g, " ").trim(); }
-  function clean(s) { return String(s == null ? "" : s).replace(/[\uFFFD\u2060\u200B-\u200D\uFEFF]/g, " ").replace(/\s+/g, " ").trim(); }
+  function clean(s) { return String(s == null ? "" : s).replace(/[\uFFFD\u2060-\u2064\u200B-\u200D\uFEFF]/g, " ").replace(/\s+/g, " ").trim(); }
   function lower(s) { return String(s || "").toLowerCase(); }
 
   var ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", ndash: "–", mdash: "—",
@@ -879,7 +882,7 @@ a { color: var(--accent); }
   // Gilt standardmäßig als vorhanden? (Grundvorrat mit Standard "ja" oder immer vorhanden)
   function isStaple(name) {
     var n = normName(name);
-    if (ALWAYS.indexOf(n) !== -1 || /^(wasser|water|eiswürfel|ice)\b/.test(n)) return true;
+    if (ALWAYS.indexOf(n) !== -1 || /^(wasser|water|eiswürfel|ice)\b/.test(n) || /^((heiße?s?|heisse?s?|warme?s?|kalte?s?|kochende?s?|lauwarme?s?|eiskalte?s?|hot|warm|cold|boiling|lukewarm|filtered)\s+)(wasser|water)$/.test(n)) return true;
     var k = vorratsSchluessel(n);
     if (!k) return false;
     var def = standardVorrat()[k];
@@ -970,8 +973,29 @@ a { color: var(--accent); }
    * "200 g / 2 cups rolled oats"    -> {qty:200, unit:"g", name:"Rolled oats"}
    * "Saft von 1 Limette"            -> {qty:1, unit:"Stk", name:"Limettensaft"}
    */
+  // Kennt der Kern die Zutat (Übersetzung, Abteilung oder Nährwert-Schlüssel)?
+  function zutatBekannt(i) { return !!(i && (i.nameOriginal || i.aisle !== "Sonstiges" || i.staple)); }
+  // "Nutritional yeast Juice of ½ lemon Chives": mehrere Zutaten in einer Zeile (Zeilenumbrüche verloren).
+  // Getrennt wird nur vor einem Großbuchstaben nach einem kleingeschriebenen Wort – und nur, wenn jedes Teil eine bekannte Zutat ist.
+  function klebeZutatenTrennen(line) {
+    var t = clean(stripEmoji(String(line || "")).replace(BULLET_RE, ""));
+    var pos = [], re = /[a-zäöüß)]\s+(?=[A-ZÄÖÜ])/g, m;
+    while ((m = re.exec(t))) pos.push(m.index + m[0].length);
+    if (!pos.length || pos.length > 5) return null;
+    var teile = [], start = 0;
+    pos.concat([t.length]).forEach(function (p) { teile.push(t.slice(start, p).trim()); start = p; });
+    // Teile wieder zusammenfügen, bis jedes für sich bekannt ist ("Frische Petersilie" bleibt zusammen)
+    var out = [], puffer = "";
+    for (var k = 0; k < teile.length; k++) {
+      puffer = puffer ? puffer + " " + teile[k] : teile[k];
+      var pi = parseIngredientLine(puffer);
+      if (zutatBekannt(pi)) { out.push(pi); puffer = ""; }
+    }
+    if (puffer || out.length < 2) return null;
+    return out;
+  }
   function parseIngredientLine(line) {
-    var raw = clean(stripEmoji(String(line || "")).replace(BULLET_RE, ""));
+    var raw = clean(stripEmoji(String(line || "")).replace(/[\u200b-\u200f\u2060-\u2064\ufeff]/g, "").replace(BULLET_RE, "").replace(/[„“”"«»]/g, ""));
     if (!raw) return null;
     var res = { raw: raw, qty: null, qtyMax: null, unit: "", name: "", note: "", optional: false };
     var note = [];
@@ -1276,16 +1300,50 @@ a { color: var(--accent); }
   }
 
   // Grobe Zeitschätzung aus Schritten ("25 Minuten backen")
-  function estimateTimeFromSteps(steps) {
-    var sum = 0;
+  // Arbeitsschritte und typische Dauer in Minuten (Richtwerte; gelernte Werte aus Rezepten mit Zeitangabe gehen vor)
+  var ARBEIT = [
+    ["backen", /\b(back\w*|bake[ds]?|baking|überbacken)\b/i, 25],
+    ["rösten", /\b(rösten|röste|roast\w*|im ofen)\b/i, 25],
+    ["kochen", /\b(koch\w*|boil\w*|cook\w*|garen|gar)\b/i, 12],
+    ["köcheln", /\b(köcheln\w*|simmer\w*|einkochen|reduzieren|reduce)\b/i, 15],
+    ["braten", /\b(\w*brat\w*|fry\w*|fried|sauté\w*|saute\w*|sear\w*|brown)\b/i, 6],
+    ["dünsten", /\b(dünst\w*|dämpf\w*|steam\w*|glasig)\b/i, 6],
+    ["schneiden", /\b(schneid\w*|hack\w*|würfel\w*|schäl\w*|reib\w*|chop\w*|dice\w*|slice\w*|cut|mince\w*|peel\w*|grate\w*|hobel\w*)\b/i, 5],
+    ["mixen", /\b(mix\w*|pürier\w*|blend\w*|zerkleiner\w*|purée|puree)\b/i, 2],
+    ["rühren", /\b(rühr\w*|verrühr\w*|vermeng\w*|vermisch\w*|misch\w*|stir\w*|combine\w*|whisk\w*|toss\w*|knet\w*|knead\w*)\b/i, 2],
+    ["marinieren", /\b(marinier\w*|marinate\w*|einlegen)\b/i, 15],
+    ["quellen", /\b(quell\w*|ziehen lassen|einweich\w*|soak\w*)\b/i, 10],
+    ["ruhen", /\b(ruhen|abkühl\w*|cool\w*|rest\w*|abkühlen)\b/i, 10],
+    ["kühlen", /\b(kühl\w*|kalt stellen|chill\w*|refrigerat\w*|gefrier\w*|freez\w*)\b/i, 30],
+    ["anrichten", /\b(servier\w*|anricht\w*|garnier\w*|serve|garnish\w*|top with|toppen)\b/i, 1]
+  ];
+  function schrittArbeiten(s) { var o = []; ARBEIT.forEach(function (a) { if (a[1].test(s)) o.push(a[0]); }); return o; }
+  function schrittMinutenAngabe(s) {
+    s = String(s); var sum = 0;
+    var m = s.match(/(\d+)\s*(?:-|–|bis|to)?\s*(\d+)?\s*(min|minuten|minutes|mins)\b/i);
+    if (m) sum += +(m[2] || m[1]);
+    var h = s.match(/(\d+(?:[.,]\d+)?)\s*(std|stunden?|hours?|h)\b/i);
+    if (h && !/über nacht|overnight/i.test(s)) sum += parseFloat(h[1].replace(",", ".")) * 60;
+    return sum || null;
+  }
+  function estimateTimeFromSteps(steps, gelernt) {
+    var sum = 0, angaben = 0, n = 0;
     steps.forEach(function (s) {
-      var m = String(s).match(/(\d+)\s*(?:-|–|bis)?\s*(\d+)?\s*(min|minuten|minutes|mins)\b/i);
-      if (m) sum += +(m[2] || m[1]);
-      var h = String(s).match(/(\d+(?:[.,]\d+)?)\s*(std|stunden?|hours?|h)\b/i);
-      if (h) sum += parseFloat(h[1].replace(",", ".")) * 60;
+      if (/^## /.test(s)) return;
+      n++;
+      var ang = schrittMinutenAngabe(s);
+      if (ang) { sum += ang; angaben++; return; }
+      if (/über nacht|overnight/i.test(s)) return; // Ruhezeit über Nacht zählt nicht zur Arbeitszeit
+      var arb = schrittArbeiten(s), min = 0;
+      arb.forEach(function (a) {
+        var g = gelernt && gelernt[a], def = ARBEIT.filter(function (x) { return x[0] === a; })[0][2];
+        min += g && g.n >= 3 ? g.summe / g.n : def;
+      });
+      sum += Math.min(arb.length ? min : 2, 45);
     });
-    if (!sum) return null;
-    return Math.round(sum + Math.max(5, steps.length * 2)); // plus Schnippelzeit
+    if (!n) return null;
+    var t = sum + (angaben ? Math.max(5, n * 2) : 3);
+    return Math.max(5, Math.round(t / 5) * 5);
   }
 
   var TITLE_BAD = /^(https?:|www\.|\(?\s*(?:recipe|rezept)\b|comment|kommentier|i'?m curious|follow|.*\bi used\b|.*:\s*\d+$|rezept|zum rezept|das rezept|recipe|portionen|servings|perfekt (für|zum)|schnell gemacht|kann kochen|comment|kommentier|werbung|anzeige|unbezahlt|gewinnspiel|ad\b|follow|folge|save|speicher|teil \d|part \d|step by step|veganuary|must try|naja|glaubst|aufmerksam|mit den produkten|mit \w+ so |etwas |some |& so|und so|schwierigkeit|zubereitungszeit|dauer|what you need|was brauchen|[\d\s\/]+$)|\b(gewinnspiel|anzeige)\b|^[^(]*\)|^[\wäöüÄÖÜß-]+:\s/i;
@@ -1819,7 +1877,8 @@ a { color: var(--accent); }
     ingredients.forEach(function (l) {
       if (String(l).indexOf(GROUP_MARK) === 0) { grp = String(l).slice(GROUP_MARK.length); return; }
       var ing = parseIngredientLine(l);
-      if (ing) { if (grp) ing.group = grp; r.ingredients.push(ing); }
+      var teile = ing && !zutatBekannt(ing) ? klebeZutatenTrennen(l) : null;
+      (teile || [ing]).forEach(function (x) { if (x) { if (grp) x.group = grp; r.ingredients.push(x); } });
     });
     // Zutaten stehen nur im Fließtext der Zubereitung ("blend 1 can white beans, 2 cups of peas …")
     if (r.ingredients.filter(function (i) { return i.qty != null; }).length < 3) {
@@ -1880,7 +1939,7 @@ a { color: var(--accent); }
   function findClaims(text) {
     var t = lower(text), out = [];
     var map = [["proteinreich", /(high.?protein|proteinreich|eiweißreich|eiweissreich|\d+\s*g\s*(protein|eiweiß))/],
-      ["vegan", /(#?vegan\b|pflanzlich)/], ["vegetarisch", /(vegetarisch|vegetarian|#veggie)/],
+      ["vegan", /(#?vegan\b(?!\s*(möglich|option|variante|version))|#\w*vegan\w*|#plantbased|plant[- ]based|rein pflanzlich|100\s*%\s*pflanzlich)/], ["vegetarisch", /(vegetarisch|vegetarian|#veggie)/],
       ["glutenfrei", /(glutenfrei|gluten.?free)/], ["laktosefrei", /(laktosefrei|lactose.?free|dairy.?free|milchfrei)/],
       ["low-carb", /(low.?carb|lowcarb|keto)/], ["kalorienarm", /(kalorienarm|low.?cal|\bdefizit|kcal.?arm)/],
       ["meal-prep", /(meal.?prep|vorkochen)/]];
@@ -2085,23 +2144,39 @@ a { color: var(--accent); }
   // Klassifizierung (ohne LLM)
   // ---------------------------------------------------------------------------
 
+  // Zusätze, die eine Zutat als pflanzlich ausweisen ("vegane Mayo", "Butter (vegan)", "plant-based cheese", "Soja-Hack")
+  var VEG_ZUSATZ = /(^|[^a-zäöüß])(vegan\w*|pflanzlich\w*|plant[- ]?based|dairy[- ]?free|egg[- ]?free|milchfrei|eifrei|veggie|soja[- ]?\w*|seitan|tofu\w*|erbsenprotein|lupinen\w*|hafer[- ]?\w*|mandel[- ]?\w*|kokos[- ]?\w*|cashew[- ]?\w*|oat|almond|coconut|soy)([^a-zäöüß]|$)|ersatz|alternative|analog/i;
+  function veganAngabeImText(t) {
+    t = lower(t || "");
+    if (/vegan\w*\s+(möglich|option|variante|version|alternative)|(can be|easily|make it)\s+(made\s+)?vegan|auch vegan|für eine vegane|vegan zubereiten|veganisier/.test(t)) return false;
+    return /(^|[^a-zäöüß])(#?vegan(e[rsn]?)?|#?plantbased|plant[- ]based|pflanzlich|100\s*%\s*pflanzlich|rein pflanzlich)([^a-zäöüß]|$)|#\w*vegan\w*/.test(t);
+  }
   function classify(r) {
+    var tierText = [];
     var ingText = r.ingredients.map(function (i) {
-      if (/(^|,\s*)(v|vegan|vegane?r?|pflanzlich)(\s*,|$)/i.test(i.note || "")) return "vegan " + lower(i.name);
+      var full = lower(i.name + " " + (i.note || "") + " " + (i.nameOriginal || "") + " " + (i.raw || ""));
+      if (/(^|,\s*)(v|vegan|vegane?r?|pflanzlich)(\s*,|$)/i.test(i.note || "") || VEG_ZUSATZ.test(full)) return "vegan " + lower(i.name);
+      tierText.push(lower(i.name + " " + (i.note || "")));
       return lower(i.name + " " + (i.note || ""));
     }).join(" | ");
+    var tierZutaten = tierText.join(" | ");
     var allText = lower(r.title + " | " + ingText + " | " + r.steps.join(" | ") + " | " + (r.description || "") + " | " + (r.keywords || "") + " | " + (r.blogCategory || ""));
 
     // Ernährungsstil
     var diet = [];
     if (r.ingredients.length >= 2) {
-      var meat = matchWithExceptions(ingText, DICT.meat, NOT_ANIMAL);
-      var fish = matchWithExceptions(ingText, DICT.fish, NOT_ANIMAL);
-      var dairy = matchWithExceptions(ingText, DICT.dairy, NOT_ANIMAL);
-      var egg = matchWithExceptions(ingText, DICT.egg, NOT_ANIMAL);
-      var honey = matchWithExceptions(ingText, DICT.honey, NOT_ANIMAL);
-      if (!meat && !fish && !dairy && !egg && !honey) diet.push("vegan");
-      if (!meat && !fish) diet.push("vegetarisch");
+      var meat = matchWithExceptions(tierZutaten, DICT.meat, NOT_ANIMAL);
+      var fish = matchWithExceptions(tierZutaten, DICT.fish, NOT_ANIMAL);
+      var dairy = matchWithExceptions(tierZutaten, DICT.dairy, NOT_ANIMAL);
+      var egg = matchWithExceptions(tierZutaten, DICT.egg, NOT_ANIMAL);
+      var honey = matchWithExceptions(tierZutaten, DICT.honey, NOT_ANIMAL);
+      // Sagt der Creator „vegan“ (Titel, Text, Hashtag, Kontoname), gelten Milch-, Ei- und Honig-Wörter als vegane Alternativen
+      var angabe = veganAngabeImText([r.title, r.titleOriginal, r.description, r.keywords, (r.creatorClaims || []).indexOf("vegan") !== -1 ? "vegan" : ""].join(" | "));
+      var kontoVegan = /vegan|plantbased|pflanzlich/i.test((r.source && r.source.account) || "");
+      if (!meat && !fish && !dairy && !egg && !honey) { diet.push("vegan"); r.dietBasis = "Zutaten"; }
+      else if ((angabe || kontoVegan) && !meat && !fish) { diet.push("vegan"); r.dietBasis = "laut Creator"; }
+      else if (angabe && kontoVegan) { diet.push("vegan"); r.dietBasis = "laut Creator"; }
+      if (!meat && !fish || diet.indexOf("vegan") !== -1) diet.push("vegetarisch");
       else if (!meat && fish) diet.push("pescetarisch");
       else diet.push("mit Fleisch");
       r.dietEvidence = { meat: meat, fish: fish, dairy: dairy, egg: egg, honey: honey };
@@ -2285,14 +2360,15 @@ a { color: var(--accent); }
   function lernNorm(t) { return lower(stripEmoji(String(t || ""))).replace(/[^a-zäöüß0-9 ]+/g, " ").replace(/\s+/g, " ").trim(); }
   function neuerLernspeicher() {
     return { app: "rezeptbuch-lernen", version: LERN_VERSION, rezepte: 0, rezepteSeitSenden: 0, gesendetAm: null,
-      creator: {}, ignorieren: {}, keinSchritt: {}, istSchritt: {}, zutatAlias: {}, keineZutat: {}, keineFloskel: {}, unbekannt: {}, fehler: [] };
+      creator: {}, ignorieren: {}, keinSchritt: {}, istSchritt: {}, zutatAlias: {}, keineZutat: {}, keineFloskel: {}, unbekannt: {}, fehler: [], zeiten: {}, protokoll: [] };
   }
   // Regeln aus mehreren Quellen (zentral + lokal) zusammenführen
   function lernRegeln(list) {
-    var R = { ignorieren: {}, keinSchritt: {}, istSchritt: {}, zutatAlias: {}, keineZutat: {}, keineFloskel: {}, floskeln: {} };
+    var R = { ignorieren: {}, keinSchritt: {}, istSchritt: {}, zutatAlias: {}, keineZutat: {}, keineFloskel: {}, floskeln: {}, zeiten: {} };
     (list || []).filter(Boolean).forEach(function (L) {
       ["ignorieren", "keinSchritt", "istSchritt", "keineZutat", "keineFloskel"].forEach(function (k) { Object.keys(L[k] || {}).forEach(function (x) { R[k][x] = 1; }); });
       Object.keys(L.zutatAlias || {}).forEach(function (x) { R.zutatAlias[x] = L.zutatAlias[x]; });
+      Object.keys(L.zeiten || {}).forEach(function (a) { var z = L.zeiten[a]; if (!z || !z.n) return; var t = R.zeiten[a] = R.zeiten[a] || { n: 0, summe: 0 }; t.n += z.n; t.summe += z.summe; });
       Object.keys(L.floskeln || {}).forEach(function (a) { (L.floskeln[a] || []).forEach(function (x) { (R.floskeln[a] = R.floskeln[a] || {})[x] = 1; }); });
       Object.keys(L.creator || {}).forEach(function (a) {
         var c = L.creator[a]; if (!c || c.n < FLOSKEL_MIN) return;
@@ -2340,9 +2416,29 @@ a { color: var(--accent); }
       var nachher = lernRegeln([{ creator: (function () { var o = {}; o[acc] = c; return o; })() }]).floskeln[acc] || {};
       Object.keys(nachher).forEach(function (x) { if (!vorher[x]) neu.push(x); });
     }
-    ((recipe && recipe.ingredients) || []).forEach(function (i) {
-      if (i.aisle === "Sonstiges" && !i.nameOriginal && i.name && i.name.length < 40) { var k = lower(i.name); L.unbekannt[k] = (L.unbekannt[k] || 0) + 1; }
+    // Zutaten ohne Nährwert (nicht: ohne Supermarkt-Abteilung – Wasser oder Schalotten sind bekannt)
+    var offen = recipe && recipe.nutrition && recipe.nutrition.coverage ? (recipe.nutrition.coverage.offen || []).filter(function (o) { return o.grund === "unbekannt"; }).map(function (o) { return o.name; })
+      : ((recipe && recipe.ingredients) || []).filter(function (i) { return i.aisle === "Sonstiges" && !i.nameOriginal && !i.staple; }).map(function (i) { return i.name; });
+    offen.forEach(function (nm) { if (nm && nm.length < 40) { var k = lower(nm); L.unbekannt[k] = (L.unbekannt[k] || 0) + 1; } });
+    // Dauer je Arbeitsschritt lernen: Schritte mit Zeitangabe und genau einem Arbeitsschritt ("15 Minuten köcheln")
+    L.zeiten = L.zeiten || {};
+    ((recipe && recipe.steps) || []).forEach(function (st) {
+      var ang = schrittMinutenAngabe(st), arb = schrittArbeiten(st);
+      if (ang && ang <= 120 && arb.length === 1) { var z = L.zeiten[arb[0]] = L.zeiten[arb[0]] || { n: 0, summe: 0 }; if (z.n < 200) { z.n++; z.summe += ang; } }
     });
+    // Erkennungsprotokoll: was der Kern aus diesem Beitrag gemacht hat (für die Fehlersuche, ohne Rezepttext)
+    if (recipe) {
+      L.protokoll = L.protokoll || [];
+      var lg = recipe.logik || {};
+      L.protokoll.push({ link: (input && input.url) || (recipe.source && recipe.source.url) || "", datum: new Date().toISOString().slice(0, 16), kern: VERSION,
+        sprache: recipe.lang || "", uebersetzt: !!recipe.stepsOriginal, titel: recipe.title || "", titelGeraten: !!recipe.titleGuessed,
+        zutaten: (recipe.ingredients || []).length, schritte: (recipe.steps || []).filter(function (x) { return !/^## /.test(x); }).length,
+        zeit: recipe.timeTotal || null, zeitGeschaetzt: !!recipe.timeEstimated, portionen: recipe.servings || null, portionenGeschaetzt: !!recipe.servingsEstimated,
+        ernaehrung: (recipe.diet || [])[0] || "", ernaehrungBasis: recipe.dietBasis || "", vollstaendig: completeness(recipe).enough,
+        rezeptWo: (recipe.elsewhere && recipe.elsewhere.wo) || "", ohneNaehrwert: offen.slice(0, 10),
+        vageSchritte: (lg.vage || []).length, ergaenzteSchritte: (recipe.schritteErgaenzt || []).length, zutatenOhneSchritt: (lg.ohneSchritt || []).slice(0, 8), schritteOhneVerb: (lg.ohneVerb || []).length });
+      while (L.protokoll.length > 150) { var iS = L.protokoll.findIndex(function (x) { return x.gesendet; }); L.protokoll.splice(iS >= 0 ? iS : 0, 1); }
+    }
     var uk = Object.keys(L.unbekannt);
     if (uk.length > 300) uk.sort(function (a, b) { return L.unbekannt[a] - L.unbekannt[b]; }).slice(0, uk.length - 300).forEach(function (k) { delete L.unbekannt[k]; });
     return neu;
@@ -2403,7 +2499,9 @@ a { color: var(--accent); }
       rezepte: L.rezepte || 0, regeln: { floskeln: fl, ignorieren: Object.keys(L.ignorieren || {}), keinSchritt: Object.keys(L.keinSchritt || {}), istSchritt: Object.keys(L.istSchritt || {}),
       zutatAlias: L.zutatAlias || {}, keineZutat: Object.keys(L.keineZutat || {}), keineFloskel: Object.keys(L.keineFloskel || {}) }, unbekannt: L.unbekannt || {},
       naehrwerte: naehrwertExport(meta && meta.zuord),
-      teilenFehler: (L.fehler || []).filter(function (f) { return !f.gesendet; }) };
+      teilenFehler: (L.fehler || []).filter(function (f) { return !f.gesendet; }),
+      zeiten: L.zeiten || {},
+      protokoll: (L.protokoll || []).filter(function (x) { return !x.gesendet; }) };
   }
   // Nährwert-Zuordnungen und eigene Angaben (nur Zutatenname, Werte, Quelle – keine Rezepte)
   function naehrwertExport(z) {
@@ -2709,6 +2807,31 @@ a { color: var(--accent); }
     return r;
   }
   // Welche Zutaten werden in welchem Schritt verwendet? -> [[Zutat-Index, …], …] je Schritt (Überschriften: [])
+  var VAGE_ALLES = /(^|[^a-zäöüß])(alles|everything|all together|alles zusammen|sämtliche zutaten)([^a-zäöüß]|$)/i;
+  // Logik der Schritte prüfen und vage Schritte ergänzen ("Alles mixen" -> "Alles (Cashews, Wasser, Zitronensaft) mixen").
+  // Ergebnis: r.schritteErgaenzt (Nummern), r.logik = { vage: [...], ohneSchritt: [...] }
+  function pruefeSchrittLogik(r) {
+    var steps = r.steps || [], ings = r.ingredients || [];
+    r.logik = { vage: [], ohneSchritt: [], ohneVerb: [] };
+    if (!steps.length || ings.length < 2) return;
+    var map = stepIngredients(r), erg = [];
+    r.steps = steps.map(function (st, si) {
+      if (/^## /.test(st) || !VAGE_ALLES.test(st) || /\(/.test(st)) return st;
+      if (!map.vageInfo || !map.vageInfo[si]) return st;
+      if (!map.vageInfo[si].neu) return st; // „alles“ = was schon verarbeitet wurde: Zutaten stehen als Hinweis unter dem Schritt
+      var namen = (map[si] || []).map(function (n) { return ings[n]; }).filter(function (i) { return i && !isSpice(i) && !/^(salz|pfeffer|salt|pepper)/.test(i.key || ""); }).map(function (i) { return i.name; });
+      namen = uniq(namen);
+      if (namen.length < 2 || namen.length > 8 || namen.some(function (x) { return x.length > 28; })) { r.logik.vage.push(st.slice(0, 80)); return st; }
+      erg.push(si);
+      return st.replace(VAGE_ALLES, function (m0, a, w, b) { return a + w + " (" + namen.join(", ") + ")" + b; });
+    });
+    r.schritteErgaenzt = erg;
+    var map2 = stepIngredients(r), genutzt = {};
+    map2.forEach(function (h) { h.forEach(function (n) { genutzt[n] = 1; }); });
+    ings.forEach(function (i, n) { if (!genutzt[n] && !i.staple && !isSpice(i) && !i.optional) r.logik.ohneSchritt.push(i.name); });
+    steps.forEach(function (st) { if (!/^## /.test(st) && st.split(/\s+/).length <= 3 && !STEP_VERB.test(st)) r.logik.ohneVerb.push(st.slice(0, 60)); });
+  }
+  var STEP_VERB = /\b(\w+(en|ern|eln)|add|mix|stir|cook|bake|fry|blend|serve|chop|cut|boil|simmer|roast|pour|combine|season|whisk|place|top|let|heat|bring)\b/i;
   function stepIngredients(r) {
     var steps = r.steps || [], ings = r.ingredients || [];
     var heads = ings.map(function (i) {
@@ -2738,6 +2861,35 @@ a { color: var(--accent); }
       });
       hits.forEach(function (n) { used[n] = 1; });
       return hits;
+    });
+    // "Alles mixen", "Blend everything": alle Zutaten (des Abschnitts), die in späteren Schritten nicht mehr vorkommen
+    var spaeter = function (si) { var o = {}; res.forEach(function (h, k) { if (k > si) h.forEach(function (n) { o[n] = 1; }); }); return o; };
+    var erste = res.map(function (h) { return h.slice(); });
+    res.vageInfo = {};
+    steps.forEach(function (st, si) {
+      var l = lower(st);
+      if (!VAGE_ALLES.test(l) || /\b(alle\w*\s+(?:\w+\s+)?zutaten|all (?:the )?(?:\w+ )?ingredients|restlichen|übrigen|remaining)\b/.test(l)) return;
+      if (erste[si].length >= 2 || /[:+]/.test(st)) return; // Zutaten stehen schon im Schritt
+      var head = "", start = 0; for (var h = si - 1; h >= 0; h--) if (/^## /.test(steps[h])) { head = lower(steps[h].slice(3)); start = h + 1; break; }
+      // Wurde in diesem Abschnitt schon etwas verarbeitet, meint „alles“ genau das (was im Topf ist)
+      var bisher = []; for (var k = start; k < si; k++) erste[k].forEach(function (n) { if (bisher.indexOf(n) === -1) bisher.push(n); });
+      if (bisher.length) {
+        // Zutaten, die in keinem Schritt vorkommen, landen logisch hier („Cashews einweichen. Alles mixen.“ -> auch Wasser, Zitrone)
+        var nirgends = []; ings.forEach(function (i, n) { if (!erste.some(function (h) { return h.indexOf(n) !== -1; }) && !isSpice(i) && !/^(salz|pfeffer|salt|pepper)/.test(i.key || "") && !i.optional && (!head || !i.group || lower(i.group) === head || head.indexOf(lower(i.group).slice(0, 4)) !== -1)) nirgends.push(n); });
+        // nur beim Mixen/Pürieren gehören die übrigen Zutaten sicher dazu
+        var mixen = /(mix|pürier|blend|shake|mixer|zerkleiner)/i.test(st);
+        bisher.concat(mixen ? nirgends : []).forEach(function (n) { if (res[si].indexOf(n) === -1) res[si].push(n); });
+        res.vageInfo[si] = { neu: mixen && nirgends.length > 0 }; return;
+      }
+      res.vageInfo[si] = { neu: true };
+      var gruppe = head ? Object.keys(ings.reduce(function (o, i) { if (i.group) o[lower(i.group)] = 1; return o; }, {})).filter(function (g) { return g.split(/[\s-]+/).some(function (w) { return w.length > 3 && head.indexOf(w.replace(/(e|en|s)$/, "")) !== -1; }); })[0] : "";
+      var sp = spaeter(si);
+      ings.forEach(function (i, n) {
+        if (isSpice(i) || /^(salz|pfeffer|salt|pepper)/.test(i.key || "") || sp[n] || res[si].indexOf(n) !== -1) return;
+        if (gruppe && lower(i.group || "") !== gruppe) return;
+        if (!gruppe && head && i.group) return;
+        res[si].push(n); used[n] = 1;
+      });
     });
     // "Alle Zutaten für das Dressing …": Zutaten dieser Gruppe; "restliche Zutaten": bisher ungenutzte
     steps.forEach(function (st, si) {
@@ -2831,7 +2983,9 @@ a { color: var(--accent); }
     if (r.category) add("Gang", r.category, r.categoryBasis);
     (r.categoryAlso || []).forEach(function (c) { add("Gang", c, "Stichworte"); });
     // Ernährung
-    (r.diet || []).forEach(function (d) { add("Ernährung", d, "Zutaten"); });
+    // vegan schließt vegetarisch ein: angezeigt wird nur „vegan“ (der Filter „vegetarisch“ findet es trotzdem)
+    var veg = (r.diet || []).indexOf("vegan") !== -1;
+    (r.diet || []).forEach(function (d) { if (veg && d === "vegetarisch") return; add("Ernährung", d, d === "vegan" ? (r.dietBasis || "Zutaten") : "Zutaten"); });
     var claims = r.creatorClaims || [];
     if (r.ingredients.length >= 3 && r.allergens.indexOf("Gluten") === -1) add("Ernährung", "glutenfrei", claims.indexOf("glutenfrei") !== -1 ? "laut Creator" : "laut Zutaten");
     else if (claims.indexOf("glutenfrei") !== -1) add("Ernährung", "glutenfrei", "laut Creator");
@@ -2914,7 +3068,7 @@ a { color: var(--accent); }
 
   function finalize(r) {
     if (!r.timeTotal && r.steps.length) {
-      var est = estimateTimeFromSteps(r.steps);
+      var est = estimateTimeFromSteps(r.steps, LERN && LERN.zeiten);
       if (est) { r.timeTotal = est; r.timeEstimated = true; r.provenance.timeTotal = "geschätzt"; }
     }
     // Titel ist nur eine Zutat ("Stückige Tomaten"): Gerichtsname aus dem Text bevorzugen
@@ -2970,6 +3124,7 @@ a { color: var(--accent); }
     r.lang = detectLang(r);
     classify(r);
     estimateMissingQty(r);
+    try { pruefeSchrittLogik(r); } catch (e) { r.logik = null; }
     if (r.titleFromIngredients) {
       var suf = { "Salat & Bowl": /dressing|salat|salad/i.test(r.steps.join(" ") + r.ingredients.map(function (i) { return i.raw; }).join(" ")) ? "Salat" : "Bowl", "Suppe & Eintopf": "Suppe", "Backen": "Kuchen", "Frühstück": "", "Sauce & Dip": "Dip" }[r.category];
       if (suf) r.title = r.titleFromIngredients.join("-") + "-" + suf;
@@ -3905,6 +4060,7 @@ a { color: var(--accent); }
     parseIngredientLine: parseIngredientLine, parseDuration: parseDuration,
     classify: classify, completeness: completeness, focusFromNutrition: focusFromNutrition,
     teilenDiagnose: teilenDiagnose, lerneTeilenFehler: lerneTeilenFehler,
+    estimateTimeFromSteps: estimateTimeFromSteps, schrittArbeiten: schrittArbeiten, pruefeSchrittLogik: pruefeSchrittLogik,
     berechneNaehrwerte: berechneNaehrwerte, pruefeNaehrwerte: pruefeNaehrwerte, eigenerNaehrwert: eigenerNaehrwert, kcalAusNaehrstoffen: kcalAusNaehrstoffen, NW_FELDER: NW_FELDER, findNutrientEntry: findNutrientEntry, NUTRIENT_KEYS: NUTRIENT_KEYS,
     normName: normName, fmtQty: fmtQty, fmtIngredient: fmtIngredient, scaleRecipe: scaleRecipe,
     shoppingList: shoppingList, shoppingText: shoppingText,
@@ -3929,7 +4085,7 @@ a { color: var(--accent); }
 <script>
   // iCloud-Link des fertigen Kurzbefehls („Ins Rezeptbuch“ → Teilen → „iCloud-Link kopieren“).
   // Sobald er hier steht, richten Nutzer den Kurzbefehl mit einem Tipp ein statt ihn selbst zu bauen.
-  window.KURZBEFEHL_LINK = "";
+  window.KURZBEFEHL_LINK = "https://www.icloud.com/shortcuts/148c7f91aef14a4d9c8023192de0f6b2";
 </script>
 <script>
 (function () {
@@ -3940,7 +4096,7 @@ a { color: var(--accent); }
   var LERN_ERINNERUNG = 20;
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.9.3";
+  var APP_VERSION = "0.10.0";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -4186,6 +4342,7 @@ a { color: var(--accent); }
     sheet('<h2>Problem melden</h2><p class="small">Was stimmt nicht? Jakob bekommt den Instagram-Link und kann die Erkennung für alle verbessern. Selbst korrigieren kannst du über „Rezept bearbeiten“.</p>' +
       '<div class="chips" style="display:flex;flex-wrap:wrap;gap:8px">' + ["Zutaten fehlen", "Zutaten falsch", "Schritte fehlen", "Schritte falsch", "Titel falsch", "Fremder Text im Rezept"].map(function (x) { return '<button class="chip" data-a="melden-toggle" data-mg="' + esc(x) + '" aria-pressed="false">' + esc(x) + '</button>'; }).join("") + '</div>' +
       '<div class="field"><label for="meldetext">Kurz beschreiben (freiwillig)</label><textarea class="input" id="meldetext" maxlength="200" style="min-height:80px"></textarea></div>' +
+      '<label class="row" style="gap:10px"><input type="checkbox" id="mitText" checked><span class="main"><span class="sub">Beschreibung des Beitrags mitschicken (öffentlicher Instagram-Text; hilft Jakob, den Fehler nachzustellen)</span></span></label>' +
       '<button class="btn accent" data-a="melden-send" data-id="' + esc(id) + '">' + ic("share") + 'An Jakob schicken</button><button class="btn soft" data-a="close-sheet">Abbrechen</button>');
   }
   // ------------------------------------------------------------------ Nährwerte ergänzen (Datenbank oder eigene Angabe)
@@ -4282,9 +4439,10 @@ a { color: var(--accent); }
         return '<div class="row"><span class="main"><span class="title">' + esc(FEHLER_TEXT[f.grund] || f.grund) + (f.anzahl > 1 ? " (" + f.anzahl + "×)" : "") + '</span><span class="sub" style="overflow-wrap:anywhere">' + esc(f.datum.replace("T", " ") + " · " + (f.link || "ohne Link").replace(/^https:\/\/(www\.)?/, "") + (f.gesendet ? " · gesendet" : "")) + '</span></span>' +
           (f.gesendet ? '' : '<button class="iconbtn" data-a="fehler-send" data-n="' + n + '" aria-label="Dieses Problem schicken">' + ic("share") + '</button>') + '<button class="iconbtn" data-a="fehler-del" data-n="' + n + '" aria-label="Problem löschen">' + ic("trash") + '</button></div>';
       }).join("") + '</div>' : '') +
+      (Object.keys(L.zeiten || {}).length ? '<p class="small muted" style="padding-inline:4px">Gelernte Dauer je Arbeitsschritt: ' + esc(Object.keys(L.zeiten).filter(function (a) { return L.zeiten[a].n; }).map(function (a) { return a + " ≈ " + Math.round(L.zeiten[a].summe / L.zeiten[a].n) + " Min. (" + L.zeiten[a].n + "×)"; }).join(" · ")) + '</p>' : '') +
       '<p class="small muted" style="padding-inline:4px">' + (L.rezepte || 0) + ' Rezepte ausgewertet · seit dem letzten Senden ' + (L.rezepteSeitSenden || 0) + (L.gesendetAm ? ' · zuletzt gesendet ' + esc(dateDe(L.gesendetAm)) : '') + '</p>' +
       '<button class="btn accent" data-a="lern-send">' + ic("share") + 'An Jakob schicken</button>' +
-      '<p class="small muted" style="padding-inline:4px">Geschickt wird eine kleine Datei mit den Regeln, deinen Nährwert-Angaben, unbekannten Zutatennamen und – bei Problemen beim Teilen – dem Instagram-Link und den ersten Zeilen der Vorschau. Keine Rezepttexte, keine Fotos, nichts über dich. Du wählst selbst, wie (z. B. WhatsApp oder Mail an Jakob).</p>' +
+      '<p class="small muted" style="padding-inline:4px">Geschickt wird eine kleine Datei mit den Regeln, deinen Nährwert-Angaben, unbekannten Zutatennamen, einem Protokoll je Rezept (Link, was erkannt wurde, was geschätzt ist) und Problemen beim Teilen. Rezepttexte nur, wenn du sie beim Melden ausdrücklich mitschickst. Keine Fotos, nichts über dich. Du wählst selbst, wie (z. B. WhatsApp oder Mail an Jakob).</p>' +
       '<div class="btnrow"><button class="btn soft" data-a="lern-reset">Alles zurücksetzen</button><button class="btn soft" data-a="close-sheet">Schließen</button></div>');
   }
   function lernBanner() {
@@ -4296,7 +4454,7 @@ a { color: var(--accent); }
   function lernSenden() {
     var data = K.lernExport(S.lernen, { app: APP_VERSION, zuord: S.zuord });
     var text = JSON.stringify(data, null, 1), name = "Rezeptbuch-Gelerntes-" + data.datum + ".json";
-    var done = function () { S.lernen.rezepteSeitSenden = 0; S.lernen.gesendetAm = Date.now(); (S.lernen.fehler || []).forEach(function (f) { f.gesendet = true; }); save("lernen"); closeSheet(); render(); toast("Danke! Gelerntes geteilt"); };
+    var done = function () { S.lernen.rezepteSeitSenden = 0; S.lernen.gesendetAm = Date.now(); (S.lernen.fehler || []).forEach(function (f) { f.gesendet = true; }); (S.lernen.protokoll || []).forEach(function (x) { x.gesendet = true; }); save("lernen"); closeSheet(); render(); toast("Danke! Gelerntes geteilt"); };
     try {
       var file = new File([text], name, { type: "application/json" });
       if (navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: "Rezeptbuch: Gelerntes für Jakob", text: "Gelerntes aus meinem Rezeptbuch (nur Regeln, keine Rezepte)" }).then(done, function () { /* abgebrochen */ }); return; }
@@ -4371,7 +4529,7 @@ a { color: var(--accent); }
     var q = UI.q.trim().toLowerCase();
     var list = all.filter(function (e) {
       var r = e.recipe;
-      for (var g in UI.filter) { if (UI.filter[g] && !(r.labels || []).some(function (l) { return l.gruppe === g && l.label === UI.filter[g]; })) return false; }
+      for (var g in UI.filter) { if (UI.filter[g] && !(r.labels || []).some(function (l) { return l.gruppe === g && (l.label === UI.filter[g] || (UI.filter[g] === "vegetarisch" && l.label === "vegan")); })) return false; }
       if (!q) return true;
       var hay = (titleOf(e) + " " + (r.titleOriginal || "") + " " + r.source.account + " " + r.ingredients.map(function (i) { return i.name + " " + (i.nameOriginal || ""); }).join(" ") + " " + (r.labels || []).map(function (l) { return l.label; }).join(" ")).toLowerCase();
       return hay.indexOf(q) !== -1;
@@ -4675,7 +4833,10 @@ a { color: var(--accent); }
       (hideSteps ? '<section class="sec"><div class="sec-head"><h2>Zubereitung</h2></div><div class="note info"><b>Die Zubereitung erscheint hier, sobald sie auf Deutsch übersetzt ist.</b><span>Apples Übersetzer auf deinem iPhone übersetzt sie, ohne Internet und kostenlos.</span><button class="btn accent" data-a="translate" data-id="' + esc(id) + '">' + ic("lang") + 'Jetzt übersetzen</button></div></section>' : '') +
       (steps && !hideSteps ? '<section class="sec"><div class="sec-head"><h2>Zubereitung</h2>' + (orig && r.stepsOriginal ? '<span class="small muted">Original</span>' : '') + '</div>' +
         (stepLang ? '<div class="note info"><b>Die Schritte sind noch auf ' + LANG_NAME[stepLang] + '.</b><span>Apples Übersetzer auf deinem iPhone macht sie deutsch, ohne Internet und kostenlos.</span><button class="btn accent" data-a="translate" data-id="' + esc(id) + '">' + ic("lang") + 'Auf Deutsch übersetzen</button></div>' : '') +
-        '<div class="group"><ol class="steps">' + steps + '</ol></div></section>' : '') +
+        '<div class="group"><ol class="steps">' + steps + '</ol>' +
+        ((r.schritteErgaenzt || []).length ? '<p class="small muted" style="padding:0 14px 10px">In Klammern ergänzt: welche Zutaten mit „alles“ gemeint sind.</p>' : '') +
+        (r.logik && r.logik.ohneSchritt && r.logik.ohneSchritt.length ? '<p class="small muted" style="padding:0 14px 12px">In keinem Schritt erwähnt: ' + esc(r.logik.ohneSchritt.join(", ")) + '. Wenn etwas fehlt: „Mehr → Rezept bearbeiten“ oder „Problem melden“.</p>' : '') +
+        '</div></section>' : '') +
       nut +
       (labels ? '<section class="sec"><div class="sec-head"><h2>Labels</h2></div><div class="group labels">' + labels + '</div></section>' : '') +
       ((src || blog) ? '<section class="sec"><div class="sec-head"><h2>Quelle</h2></div><div class="group">' + src + blog + '</div></section>' : '') +
@@ -4989,7 +5150,7 @@ a { color: var(--accent); }
     var ok = !!S.meta.shortcutOk;
     sheet('<h2>Aus Instagram ins Rezeptbuch</h2>' +
       (ok ? '<div class="note info"><b>Eingerichtet.</b><span>In Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“. Dann Rezeptbuch öffnen und oben auf „Einfügen“ tippen (iOS fragt einmal „Einsetzen erlauben?“).</span></div>' : '') +
-      (ok && !UI.showBuild ? '<button class="btn soft" data-a="show-build">Bauanleitung anzeigen</button>' : link ? '<p class="small">Tippe auf „Kurzbefehl hinzufügen“ und bestätige. Danach in Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“.</p><a class="btn accent" href="' + esc(link) + '" target="_blank" rel="noopener">Kurzbefehl hinzufügen</a>' :
+      (ok && !UI.showBuild ? '<button class="btn soft" data-a="show-build">Bauanleitung anzeigen</button>' : link ? '<p class="small">1. Tippe auf „Kurzbefehl hinzufügen“ und dort auf „Kurzbefehl hinzufügen“. 2. In Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“. 3. Beim ersten Mal fragt iOS, ob instagram.com abgerufen werden darf: „Immer erlauben“. 4. Rezeptbuch öffnen → „Einfügen“.</p><a class="btn accent" href="' + esc(link) + '" target="_blank" rel="noopener">Kurzbefehl hinzufügen</a>' :
       '<p class="small">Einmal in der Kurzbefehle-App anlegen (ca. 5 Minuten). Danach in Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“, dann Rezeptbuch öffnen und oben auf „Einfügen“ tippen.</p>' +
       '<div class="build"><ol>' +
       '<li>Kurzbefehle-App → „+“ → oben auf den Namen → Umbenennen: <b>' + SC_NAME + '</b>.' + snip(SC_NAME) + '</li>' +
@@ -5002,6 +5163,12 @@ a { color: var(--accent); }
       '<li><b>Text</b> mit genau diesen Zeilen; an die Stellen in [ ] die Variablen setzen:' + snip("REZEPTBUCH\nhttps://www.instagram.com/[Objekt aus Liste]\n###TEXT###\n[Inhalt von URL]\n###DEUTSCH###\n[Übersetzter Text]") + '</li>' +
       '<li><b>In Zwischenablage kopieren</b>. Fertig – kein „URL öffnen“.</li>' +
       '</ol></div>' +
+      '<p class="small"><b>Für Rezepte auf Blogs (empfohlen):</b> direkt nach „Text abgleichen“ einfügen:</p><div class="build"><ol>' +
+      '<li><b>Wenn</b> → „Treffer“ → <b>hat keinen Wert</b> (den „Sonst“-Teil löschen).</li>' +
+      '<li>Darin <b>Inhalte von URL abrufen</b> mit <b>Kurzbefehleingabe</b>.</li>' +
+      '<li><b>Text</b>:' + snip("REZEPTBUCH\n[Kurzbefehleingabe]\n###TEXT###\n[Inhalt der URL]") + '(die Wörter in [ ] durch die Variablen ersetzen, ohne Klammern)</li>' +
+      '<li><b>In Zwischenablage kopieren</b>, dann <b>Kurzbefehl stoppen</b>. „Ende“ bleibt stehen.</li>' +
+      '</ol></div><p class="small muted">Dann: Blog in Safari öffnen → Teilen → „' + SC_NAME + '“ → Rezeptbuch → Einfügen. Die App fragt, zu welchem Rezept der Blog gehört.</p>' +
       '<p class="small muted">Beim ersten Mal fragt iOS, ob der Kurzbefehl instagram.com abrufen und die Seite öffnen darf: „Immer erlauben“. Ist das Rezept deutsch, gibt der Übersetzer den Text unverändert zurück.</p>') +
       '<p class="small muted">Der Kurzbefehl liest nur die öffentliche Vorschau des Posts, den du teilst. Ohne Anmeldung, ohne Zugriff auf dein Instagram-Konto. Alles bleibt auf deinem iPhone.</p>' +
       '<button class="btn" data-a="sc-test">' + ic("play") + 'Kurzbefehl jetzt testen</button>' +
@@ -5204,9 +5371,9 @@ a { color: var(--accent); }
     try { navigator.clipboard.readText().then(go, function () { pasteSheet(); }); } catch (x) { pasteSheet(); }
   }
   // Teilen-Probleme merken (die App lernt, wo es hakt; geht mit „An Jakob schicken“ mit)
-  var HARTE_FEHLER = { "zwischenablage-leer": 1, "keine-daten": 1, "keine-beschreibung": 1, "nicht-gelesen": 1, "share-link": 1, "gemeldet": 1 };
+  var HARTE_FEHLER = { "zwischenablage-leer": 1, "keine-daten": 1, "keine-beschreibung": 1, "nicht-gelesen": 1, "share-link": 1, "gemeldet": 1, "nicht-uebersetzt": 1, "blog-unvollstaendig": 1 };
   var FEHLER_TEXT = { "zwischenablage-leer": "Zwischenablage war leer", "keine-daten": "Kein Rezeptbuch-Text in der Zwischenablage", "keine-beschreibung": "Instagram gab keine Beschreibung heraus",
-    "nicht-gelesen": "Text kam an, Rezept nicht lesbar", "share-link": "Teilen-Link (instagram.com/share/…) nicht unterstützt", "unvollstaendig": "Gespeichert, aber unvollständig", "gemeldet": "Von dir gemeldet" };
+    "nicht-gelesen": "Text kam an, Rezept nicht lesbar", "nicht-uebersetzt": "Schritte nicht übersetzt", "blog-unvollstaendig": "Blog angehängt, Rezept trotzdem unvollständig", "share-link": "Teilen-Link (instagram.com/share/…) nicht unterstützt", "unvollstaendig": "Gespeichert, aber unvollständig", "gemeldet": "Von dir gemeldet" };
   function merkeFehler(grund, txt, extra) {
     if (!S.lernen) return null;
     try {
@@ -5222,7 +5389,8 @@ a { color: var(--accent); }
       "\nApp " + f.app + " · Kern " + f.kern + " · " + f.datum.replace("T", " ") +
       (d.laenge != null ? "\nAngekommen: " + d.laenge + " Zeichen · Text " + d.text + " · Deutsch " + d.deutsch + " · Zeilen " + d.zeilen + (d.html ? " · HTML" : "") : "") +
       (d.kopf && d.kopf.length ? "\nKopf: " + d.kopf.join(" | ") : "") + (d.fuss && d.fuss.length ? "\nFuß: " + d.fuss.join(" | ") : "") +
-      (f.rezept ? "\nErkannt: " + f.rezept.zutaten + " Zutaten, " + f.rezept.schritte + " Schritte" + (f.rezept.wo ? ", Rezept steht im " + f.rezept.wo : "") : "");
+      (f.rezept ? "\nErkannt: " + f.rezept.zutaten + " Zutaten, " + f.rezept.schritte + " Schritte" + (f.rezept.wo ? ", Rezept steht im " + f.rezept.wo : "") : "") +
+      (f.beschreibung ? "\n\n--- Beschreibung des Beitrags ---\n" + f.beschreibung : "");
   }
   function fehlerSenden(f) {
     var text = fehlerText(f);
@@ -5233,11 +5401,12 @@ a { color: var(--accent); }
   // Zeigt, was angekommen ist, merkt sich das Problem und bietet an, es direkt an Jakob zu schicken
   function diagSheet(msg, txt, grund, extra) {
     var li = S.meta.lastImport || {};
-    var f = merkeFehler(grund || "nicht-gelesen", txt, extra); UI.fehler = f;
+    var f = merkeFehler(grund || "nicht-gelesen", txt, extra); UI.fehler = f; UI.fehlerText = String(txt || "").slice(0, 6000);
     sheet('<h2>Nicht erkannt</h2><p class="small">' + esc(msg) + '</p>' +
       '<div class="note"><b>Was angekommen ist</b><span>Länge: ' + String(txt || "").length + ' Zeichen · Link ' + (li.u || 0) + ' · Text ' + (li.t || 0) + ' · Übersetzung ' + (li.d || 0) + '</span>' +
       '<span class="small" style="overflow-wrap:anywhere">Anfang: ' + esc(String(txt || "").slice(0, 160) || "(leer)") + '</span></div>' +
-      (f ? '<button class="btn accent" data-a="fehler-send">' + ic("share") + 'Problem an Jakob schicken</button><p class="small muted">Geschickt werden der Instagram-Link, was ankam (Länge, erste Zeilen der Vorschau) und die App-Version – kein Rezepttext. Das Problem ist auch unter „Was die App gelernt hat“ gespeichert.</p>' : '') +
+      (f ? '<label class="row" style="gap:10px"><input type="checkbox" id="mitText" checked><span class="main"><span class="sub">Angekommenen Text mitschicken (hilft beim Beheben; öffentliche Beschreibung des Beitrags)</span></span></label>' +
+        '<button class="btn accent" data-a="fehler-send" data-txt="1">' + ic("share") + 'Problem an Jakob schicken</button><p class="small muted">Geschickt werden der Instagram-Link, was ankam und die App-Version. Das Problem ist auch unter „Was die App gelernt hat“ gespeichert.</p>' : '') +
       '<p class="small muted">App ' + APP_VERSION + ' · Kern ' + esc(K.VERSION) + '</p><button class="btn soft" data-a="close-sheet">Schließen</button>');
   }
   function pasteSheet() {
@@ -5264,6 +5433,9 @@ a { color: var(--accent); }
         setTimeout(function () { toast("Rezept vom Blog ergänzt"); }, 300);
         return true;
       }
+      // Link noch keinem Rezept zugeordnet („Link in Bio“): fragen, zu welchem unvollständigen Rezept der Blog gehört
+      var kandidaten = entries().filter(function (e) { return e.input && !e.example && !K.completeness(e.recipe).enough; }).sort(function (a, b) { return b.addedAt - a.addedAt; }).slice(0, 4);
+      if (kandidaten.length) { UI.blogPending = { url: url, text: text, isHtml: isHtml }; setTimeout(function () { blogWahlSheet(kandidaten); }, 250); UI.tab = "rezepte"; UI.detail = null; return true; }
       var bInput = isHtml ? { caption: "", blogHtml: text, blogUrl: url, url: url } : { caption: text, url: url };
       startDraft(bInput);
       if (UI.draft && UI.draft.res.recipe.ingredients.length >= 2) {
@@ -5306,12 +5478,31 @@ a { color: var(--accent); }
     if (UI.draft && ((UI.draft.like && UI.draft.like.recipe) || (forceSave && caption && caption.length > 40))) {
       var out = addRecipe(UI.draft.res, { input: input, typ: UI.draft.like ? UI.draft.like.typ : null });
       UI.draft = null; UI.tab = "rezepte"; UI.detail = out.id;
-      try { var rS = S.recipes[out.id].recipe; if (!out.dupe && !K.completeness(rS).enough) merkeFehler("unvollstaendig", null, { link: url, rezept: { zutaten: rS.ingredients.length, schritte: rS.steps.length, wo: (rS.elsewhere && rS.elsewhere.wo) || "" } }); } catch (x) { /* egal */ }
+      try {
+        var rS = S.recipes[out.id].recipe;
+        if (!out.dupe && !K.completeness(rS).enough) merkeFehler("unvollstaendig", null, { link: url, rezept: { zutaten: rS.ingredients.length, schritte: rS.steps.length, wo: (rS.elsewhere && rS.elsewhere.wo) || "" } });
+        // Englische Schritte trotz Kurzbefehl nicht übersetzt: merken, woran es lag (Übersetzung leer oder gleich dem Original)
+        if (!out.dupe && rS.lang && rS.lang !== "de" && rS.steps.length && !rS.stepsOriginal) {
+          var dTxt = String(p.d || ""), tTxt = String(p.t || "");
+          merkeFehler("nicht-uebersetzt", null, { link: url, notiz: "Sprache " + rS.lang + " · Übersetzungsteil " + dTxt.length + " Zeichen" + (dTxt && dTxt.replace(/\s+/g, " ").trim() === tTxt.replace(/\s+/g, " ").trim() ? " · identisch mit dem Original (Kurzbefehl hat nicht übersetzt)" : dTxt ? " · übersetzt, aber nicht übernommen" : " · leer") });
+        }
+      } catch (x) { /* egal */ }
       setTimeout(function () { toast(out.dupe ? "Schon im Rezeptbuch" : "Im Rezeptbuch gespeichert"); }, 300);
       return true;
     }
     UI.tab = "neu"; UI.detail = null;
     return !!(caption && caption.length > 40);
+  }
+  function blogWahlSheet(kandidaten) {
+    var bp = UI.blogPending;
+    sheet('<h2>Rezept vom Blog</h2><p class="small">Zu welchem Rezept gehört diese Seite?</p><p class="small muted" style="overflow-wrap:anywhere">' + esc(String(bp.url).replace(/^https?:\/\/(www\.)?/, "").slice(0, 80)) + '</p>' +
+      '<div class="group">' + kandidaten.map(function (e) { return '<button class="row" data-a="blog-zu" data-id="' + esc(e.id) + '"><span class="main"><span class="title">' + esc(titleOf(e)) + '</span><span class="sub">' + esc(e.recipe.source.account ? "@" + e.recipe.source.account : "") + ' · unvollständig</span></span>' + ic("chev", "chev") + '</button>'; }).join("") + '</div>' +
+      '<button class="btn soft" data-a="blog-neu">Als neues Rezept speichern</button><button class="btn soft" data-a="close-sheet">Abbrechen</button>');
+  }
+  function blogAnhaengen(e, bp) {
+    if (bp.isHtml) { e.input.blogHtml = bp.text; e.input.blogUrl = bp.url; } else { e.input.commentText = (e.input.commentText ? e.input.commentText + "\n\n" : "") + bp.text; }
+    e.recipe.links = (e.recipe.links || []).concat([bp.url]);
+    reanalyse(e); e.recipe.source.blogUrl = bp.url; save("recipes");
   }
   function startDraft(input) {
     var res = A(input);
@@ -5373,6 +5564,12 @@ a { color: var(--accent); }
       case "setup": setupSheet(); render(); break;
       case "share-paste": importFromClipboard(); break;
       case "blog-fetch": toast("Der Kurzbefehl holt die Blog-Seite …"); runShortcut(el.dataset.t); break;
+      case "blog-zu": var bz = S.recipes[id]; if (bz && UI.blogPending) { blogAnhaengen(bz, UI.blogPending); UI.blogPending = null; closeSheet(); UI.tab = "rezepte"; UI.detail = id; render(); toast(K.completeness(bz.recipe).enough ? "Rezept vom Blog ergänzt" : "Blog angehängt – Rezept noch unvollständig"); if (!K.completeness(bz.recipe).enough) merkeFehler("blog-unvollstaendig", null, { link: bz.recipe.source.url, notiz: "Blog: " + String(bz.recipe.source.blogUrl || "").slice(0, 120) }); } break;
+      case "blog-neu":
+        var bp2 = UI.blogPending; UI.blogPending = null; closeSheet();
+        var bIn = bp2.isHtml ? { caption: "", blogHtml: bp2.text, blogUrl: bp2.url, url: bp2.url } : { caption: bp2.text, url: bp2.url };
+        startDraft(bIn); if (UI.draft && UI.draft.res.recipe.ingredients.length >= 2) { var bo = addRecipe(UI.draft.res, { input: bIn }); UI.draft = null; UI.tab = "rezepte"; UI.detail = bo.id; toast("Rezept vom Blog gespeichert"); } else { UI.tab = "neu"; }
+        render(); break;
       case "share-apply": var stx = (($("#sharetext") || {}).value || ""); closeSheet(); var sf = payloadFields(stx); if (sf && handleImport(sf, true)) render(); else diagSheet("Kein geteiltes Rezept erkannt.", stx, !stx.trim() ? "zwischenablage-leer" : sf ? "nicht-gelesen" : "keine-daten"); break;
       case "show-build": UI.showBuild = true; setupSheet(); break;
       case "sc-run-link": closeSheet(); UI.pasteText = ""; runShortcut(el.dataset.t); break;
@@ -5414,13 +5611,17 @@ a { color: var(--accent); }
       case "rename": renameSheet(id); break;
       case "edit": editSheet(id); break;
       case "nw-add": nwStart(el.dataset); break;
-      case "fehler-send": var fs0 = el.dataset.n != null ? S.lernen.fehler[+el.dataset.n] : UI.fehler; if (fs0) fehlerSenden(fs0); break;
+      case "fehler-send":
+        var fs0 = el.dataset.n != null ? S.lernen.fehler[+el.dataset.n] : UI.fehler;
+        if (fs0 && el.dataset.txt && $("#mitText") && $("#mitText").checked && UI.fehlerText) fs0.beschreibung = UI.fehlerText;
+        if (fs0) fehlerSenden(fs0); break;
       case "fehler-del": S.lernen.fehler.splice(+el.dataset.n, 1); save("lernen"); lernSheet(); break;
       case "fehler-later": S.meta.fehlerSnooze = offeneFehler().length + 2; save("meta"); render(); break;
       case "melden": meldenSheet(id); break;
       case "melden-send":
         var me = S.recipes[id], mr = me.recipe, wahl = [].map.call(document.querySelectorAll("#layer [data-mg][aria-pressed=true]"), function (b) { return b.dataset.mg; });
         var mf = merkeFehler("gemeldet", null, { link: (mr.source && mr.source.url) || "", notiz: (wahl.join(", ") + ((($("#meldetext") || {}).value || "").trim() ? " – " + $("#meldetext").value.trim().slice(0, 200) : "")) || "ohne Angabe", rezept: { zutaten: mr.ingredients.length, schritte: mr.steps.length, wo: (mr.elsewhere && mr.elsewhere.wo) || "" } });
+        if (mf && $("#mitText") && $("#mitText").checked && me.input) mf.beschreibung = String(me.input.caption || "").slice(0, 6000) + (me.input.captionDe ? "\n\n--- Übersetzung ---\n" + String(me.input.captionDe).slice(0, 4000) : "");
         if (mf) fehlerSenden(mf); break;
       case "melden-toggle": el.setAttribute("aria-pressed", el.getAttribute("aria-pressed") === "true" ? "false" : "true"); break;
       case "nw-tab": nwLesen(); UI.nw.tab = el.dataset.t; UI.nw.pruefung = null; nwSheet(); break;

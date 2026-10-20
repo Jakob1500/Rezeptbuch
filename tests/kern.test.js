@@ -502,5 +502,25 @@ check("Teilen-Probleme: gleiche Fehler werden gezählt statt doppelt gespeichert
 LF.fehler[0].gesendet = true; K.lerneTeilenFehler(LF, { grund: "keine-daten", diagnose: K.teilenDiagnose("") });
 check("Teilen-Probleme: Export enthält nur noch nicht gesendete", K.lernExport(LF, {}).teilenFehler.length === 1);
 
+// 20.10. Tests aus Jakobs iPhone-Test
+const rV = K.analyse({ caption: "Vegane Bowl\n\nZutaten:\n200 g Tofu\n2 EL vegane Mayo\n100 ml Hafermilch\n50 g veganer Feta\n1 EL Butter (vegan)\n\nZubereitung:\n1. Tofu anbraten.\n2. Alles mischen." }).recipe;
+check("Vegan: vegane Mayo, veganer Feta, Butter (vegan) zählen nicht als tierisch", rV.diet.includes("vegan") && rV.labels.filter(l => l.gruppe === "Ernährung").map(l => l.label).join() === "vegan", rV.labels);
+const rC = K.analyse({ caption: "Cremige Pasta #vegan\n\nZutaten:\n250 g Nudeln\n200 ml Sahne\n50 g Parmesan\n\nZubereitung:\n1. Nudeln kochen.\n2. Mit Sahne und Parmesan mischen." }).recipe;
+check("Vegan: Creator sagt #vegan -> Sahne/Parmesan sind vegane Alternativen (laut Creator)", rC.diet.includes("vegan") && rC.dietBasis === "laut Creator", [rC.diet, rC.dietBasis]);
+const rM = K.analyse({ caption: "Auch vegan möglich: Käsespätzle\n\nZutaten:\n400 g Spätzle\n200 g Bergkäse\n2 Zwiebeln\n\nZubereitung:\n1. Spätzle kochen.\n2. Mit Käse schichten." }).recipe;
+check("Vegan: „auch vegan möglich“ macht Käsespätzle nicht vegan, Spätzle nicht glutenfrei", !rM.diet.includes("vegan") && !rM.labels.some(l => l.label === "glutenfrei"), [rM.diet, rM.labels.map(l => l.label)]);
+const rG = K.analyse({ caption: "Creamy pasta\n\nIngredients:\n200 g pasta\n150 g Oyster mushrooms\n2 tbsp Nutritional yeast Juice of ½ lemon Chives\nveganer „Kashk“\n300 ml heißes Wasser\n\nInstructions:\n1. Cook the pasta.\n2. Fry the mushrooms." }).recipe;
+const gn = rG.ingredients.map(i => i.name);
+check("Zutaten: zusammengeklebte Zeile wird getrennt, Austernpilze übersetzt, Anführungszeichen weg, heißes Wasser ist Grundvorrat",
+  gn.includes("Hefeflocken") && gn.includes("Zitronensaft") && gn.includes("Schnittlauch") && gn.includes("Austernpilze") && gn.includes("Veganer Kashk") && rG.ingredients.find(i => /wasser/i.test(i.name)).staple, gn);
+const rA = K.analyse({ caption: "Cremiger Dip\n\nZutaten:\n150 g Cashews\n100 ml Wasser\n1 Zitrone\n1 TL Salz\n2 EL Granatapfelkerne\n\nZubereitung:\n1. Cashews 2 Stunden einweichen.\n2. Alles mixen bis cremig.\n3. Mit Granatapfelkernen toppen und servieren." }).recipe;
+check("Schritte: „Alles mixen“ nennt die gemeinten Zutaten, Toppings bleiben draußen", /Alles \(.*Wasser.*Zitrone.*\) mixen/.test(rA.steps[1]) && !/Granatapfel/.test(rA.steps[1]), rA.steps);
+const rT = K.analyse({ caption: "Linsen-Curry\n\nZutaten:\n1 Zwiebel\n200 g rote Linsen\n400 ml Kokosmilch\n1 EL Currypaste\n\nZubereitung:\n1. Zwiebel würfeln und anbraten.\n2. Linsen, Currypaste und Kokosmilch dazugeben und köcheln lassen.\n3. Servieren." }).recipe;
+check("Zeit: ohne Angabe aus Arbeitsschritten geschätzt", rT.timeEstimated && rT.timeTotal >= 20 && rT.timeTotal <= 45, rT.timeTotal);
+const LZ = K.neuerLernspeicher(); for (let k = 0; k < 3; k++) K.lerneAusRezept(LZ, { caption: "x", url: "u" + k }, K.analyse({ caption: "Suppe\n\nZutaten:\n1 Zwiebel\n500 ml Brühe\n\nZubereitung:\n1. Alles 40 Minuten köcheln lassen." }).recipe);
+const rT2 = K.analyse({ caption: "Eintopf\n\nZutaten:\n1 Zwiebel\n500 ml Brühe\n\nZubereitung:\n1. Alles köcheln lassen." }, { lernen: [LZ] }).recipe;
+check("Zeit: gelernte Dauer (köcheln ≈ 40 Min.) wird genutzt", LZ.zeiten["köcheln"].n === 3 && rT2.timeTotal >= 40, [LZ.zeiten, rT2.timeTotal]);
+check("Lernen: Protokoll je Rezept mit Link, ohne Rezepttext", LZ.protokoll.length === 3 && LZ.protokoll[0].link === "u0" && !JSON.stringify(LZ.protokoll).includes("Brühe"), LZ.protokoll[0]);
+
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);
