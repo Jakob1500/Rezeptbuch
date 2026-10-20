@@ -30,24 +30,34 @@ jobs:
           cp package.json LICENSE* README* "$GITHUB_WORKSPACE/docs/bergamot/" 2>/dev/null || true
           # Laufzeitdateien (JS + WASM) übernehmen
           find . -type f \( -name "*.wasm" -o -name "*.js" \) ! -path "*/node_modules/*" -exec cp --parents {} "$GITHUB_WORKSPACE/docs/bergamot/" \;
-      - name: Modell Englisch→Deutsch laden
+      - name: Modell Englisch→Deutsch laden (passend zum Paket)
         run: |
           set -x
-          GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 https://github.com/mozilla/firefox-translations-models /tmp/m
-          cd /tmp/m
-          find models -path "*ende*" -type f -printf "%p\n" | sort > "$GITHUB_WORKSPACE/docs/bergamot/_modelle-ende.txt"
-          git log -1 --format="%H %cs" > "$GITHUB_WORKSPACE/docs/bergamot/_modelle-stand.txt"
-          cp LICENSE* "$GITHUB_WORKSPACE/docs/bergamot/" 2>/dev/null || true
-          VAR=""
-          for v in tiny base-memory base prod; do if ls models/$v/ende >/dev/null 2>&1; then VAR=$v; break; fi; done
-          echo "Variante: $VAR" >> "$GITHUB_WORKSPACE/docs/bergamot/_modelle-stand.txt"
-          test -n "$VAR"
-          git lfs pull --include "models/$VAR/ende/*"
-          mkdir -p "$GITHUB_WORKSPACE/docs/bergamot/ende"
-          for f in models/$VAR/ende/*; do
-            case "$f" in *.gz) gunzip -c "$f" > "$GITHUB_WORKSPACE/docs/bergamot/ende/$(basename "${f%.gz}")";; *) cp "$f" "$GITHUB_WORKSPACE/docs/bergamot/ende/";; esac
-          done
-          ls -la "$GITHUB_WORKSPACE/docs/bergamot/ende" >> "$GITHUB_WORKSPACE/docs/bergamot/_modelle-stand.txt"
+          Z="$GITHUB_WORKSPACE/docs/bergamot"
+          mkdir -p "$Z/ende" && cd /tmp
+          # 1. Weg: die Modell-Liste, auf die das Paket selbst eingestellt ist (garantiert passende Fassung)
+          if curl -fsSL https://bergamot.s3.amazonaws.com/models/index.json -o index.json; then
+            node -e '
+              const r=require("/tmp/index.json"), e=r.ende; if(!e) { console.error("kein ende"); process.exit(1); }
+              require("fs").writeFileSync("/tmp/ende.json", JSON.stringify(e,null,1));
+              Object.values(e).forEach(f=>{ if(f && f.name) console.log(f.name); });' > urls.txt
+            cat urls.txt
+            while read -r u; do curl -fsSL "$u" -o "$Z/ende/$(basename "$u")"; done < urls.txt
+            echo "Quelle: bergamot.s3.amazonaws.com/models/index.json" > "$Z/_modelle-stand.txt"
+          else
+            echo "S3-Liste nicht erreichbar" > "$Z/_modelle-stand.txt"
+          fi
+          cd "$Z/ende"
+          for f in *.gz; do [ -e "$f" ] && gunzip -f "$f"; done
+          ls -la >> "$Z/_modelle-stand.txt"
+          # Eigene Modell-Liste mit Prüfsummen (relativ zur App-Adresse)
+          node -e '
+            const fs=require("fs"), c=require("crypto"), d=process.argv[1], files=fs.readdirSync(d);
+            const teil=n=>/^model\./.test(n)?"model":/^lex\./.test(n)?"lex":/^vocab\./.test(n)?"vocab":/^qualityModel|quality/.test(n)?"qualityModel":null;
+            const e={}; files.forEach(n=>{ const t=teil(n); if(!t) return; const b=fs.readFileSync(d+"/"+n); e[t]={ name:"bergamot/ende/"+n, size:b.length, expectedSha256Hash:c.createHash("sha256").update(b).digest("hex") }; });
+            fs.writeFileSync(d+"/../registry.json", JSON.stringify({ ende:e }, null, 1));
+            console.log(JSON.stringify(e,null,1));' "$Z/ende"
+          test -s "$Z/registry.json"
       - name: Ins Repository schreiben
         if: always()
         run: |
