@@ -1,7 +1,0 @@
-10075 ./README.md
-481 ./main.js
-1433 ./package.json
-30661 ./translator.js
-80474 ./worker/bergamot-translator-worker.js
-5174294 ./worker/bergamot-translator-worker.wasm
-17191 ./worker/translator-worker.js

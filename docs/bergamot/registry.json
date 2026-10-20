@@ -2,18 +2,18 @@
  "ende": {
   "lex": {
    "name": "bergamot/ende/lex.50.50.ende.s2t.bin",
-   "size": 2111954,
-   "expectedSha256Hash": "c67eaf5b21b57e4d82ad686b50accc8161e3b67d171bcf1c22fc10a6eb0d581a"
+   "size": 3943644,
+   "expectedSha256Hash": "f03eb8245042feb7a5800815b8d0dc215d7a60691632405b65c461d250cedbe6"
   },
   "model": {
    "name": "bergamot/ende/model.ende.intgemm.alphas.bin",
-   "size": 12759725,
-   "expectedSha256Hash": "497b3a9e466dace676923101af62502ef4bb92f75fd50b70ad16867e77f55a5f"
+   "size": 17140835,
+   "expectedSha256Hash": "b3e980d6602ab0bdfe8d9315cb5fc282a16bb1c8dccf38e70945c584551c4318"
   },
   "vocab": {
    "name": "bergamot/ende/vocab.deen.spm",
-   "size": 411633,
-   "expectedSha256Hash": "8c703b2e0684711d99398d9ce848c85bd01f8cef7ad013bfeafda20302b79724"
+   "size": 784269,
+   "expectedSha256Hash": "417668f2ed297970febafb5b079a9d5ebc4ed0b3550ac8386d67a90473a09bd7"
   }
  }
 }

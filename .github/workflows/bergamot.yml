@@ -62,7 +62,7 @@ jobs:
             done
             cd "$GITHUB_WORKSPACE"
           fi
-          cd "$Z/ende"; for f in *.gz; do [ -e "$f" ] && gunzip -f "$f"; done
+          cd "$Z/ende"; for f in *; do if gzip -t "$f" 2>/dev/null; then gunzip -c "$f" > "$f.tmp" && mv "$f.tmp" "${f%.gz}"; [ "$f" != "${f%.gz}" ] && rm -f "$f"; fi; done
           ls -la >> "$L"
           node -e '
             const fs=require("fs"), c=require("crypto"), d=process.argv[1], files=fs.readdirSync(d);

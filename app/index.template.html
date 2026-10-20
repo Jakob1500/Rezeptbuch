@@ -28,7 +28,7 @@
   --accent: #3DC48F; --accent-ink: #04140D; --accent-soft: #10271D; --warn: #E3A94A; --warn-soft: #2A2113; --danger: #FF8A80; color-scheme: dark; }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { min-height: 100%; }
+html, body { min-height: 100%; overscroll-behavior-y: none; }
 body { background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
@@ -155,7 +155,7 @@ textarea.input { min-height: 140px; resize: vertical; line-height: 1.4; }
 .toggle[aria-checked="true"]::after { transform: translateX(20px); }
 
 /* Tab-Leiste */
-.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: color-mix(in srgb, var(--bg) 88%, transparent); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; transform: translate3d(0, 0, 0); will-change: transform; background: color-mix(in srgb, var(--bg) 88%, transparent); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
   border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px);
   padding-left: max(8px, env(safe-area-inset-left, 0px)); padding-right: max(8px, env(safe-area-inset-right, 0px)); }
 .tabbar nav { max-width: 640px; margin: 0 auto; display: grid; grid-template-columns: repeat(5, 1fr); height: var(--tabbar-h); }
@@ -285,7 +285,7 @@ a { color: var(--accent); }
   var LERN_ERINNERUNG = 20;
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.12.0";
+  var APP_VERSION = "0.13.1";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -534,7 +534,7 @@ a { color: var(--accent); }
     sheet('<h2>Problem melden</h2><p class="small">Was stimmt nicht? Jakob bekommt den Instagram-Link und kann die Erkennung für alle verbessern. Selbst korrigieren kannst du über „Rezept bearbeiten“.</p>' +
       '<div class="chips" style="display:flex;flex-wrap:wrap;gap:8px">' + ["Zutaten fehlen", "Zutaten falsch", "Schritte fehlen", "Schritte falsch", "Titel falsch", "Fremder Text im Rezept"].map(function (x) { return '<button class="chip" data-a="melden-toggle" data-mg="' + esc(x) + '" aria-pressed="false">' + esc(x) + '</button>'; }).join("") + '</div>' +
       '<div class="field"><label for="meldetext">Kurz beschreiben (freiwillig)</label><textarea class="input" id="meldetext" maxlength="200" style="min-height:80px"></textarea></div>' +
-      '<button class="btn accent" data-a="melden-send" data-id="' + esc(id) + '">' + ic("share") + 'An Jakob schicken</button><button class="btn soft" data-a="close-sheet">Abbrechen</button>');
+      '<button class="btn accent" data-a="melden-send" data-id="' + esc(id) + '">Problem speichern</button><p class="small muted">Gespeicherte Probleme gehen gesammelt mit „An Jakob schicken“ raus.</p><button class="btn soft" data-a="close-sheet">Abbrechen</button>');
   }
   // ------------------------------------------------------------------ Nährwerte ergänzen (Datenbank oder eigene Angabe)
   var NW_FORM = [["kcal", "Energie", "kcal"], ["fat", "Fett", "g"], ["satFat", "davon gesättigte Fettsäuren", "g"], ["carbs", "Kohlenhydrate", "g"], ["sugar", "davon Zucker", "g"], ["fiber", "Ballaststoffe", "g"], ["protein", "Eiweiß", "g"], ["salt", "Salz", "g"]];
@@ -659,7 +659,7 @@ a { color: var(--accent); }
       ((L.fehler || []).length ? '<p class="small muted" style="padding-inline:4px">Probleme beim Teilen (' + L.fehler.length + '):</p><div class="group">' + L.fehler.slice().reverse().slice(0, 15).map(function (f) {
         var n = L.fehler.indexOf(f);
         return '<div class="row"><span class="main"><span class="title">' + esc(FEHLER_TEXT[f.grund] || f.grund) + (f.anzahl > 1 ? " (" + f.anzahl + "×)" : "") + '</span><span class="sub" style="overflow-wrap:anywhere">' + esc(f.datum.replace("T", " ") + " · " + (f.link || "ohne Link").replace(/^https:\/\/(www\.)?/, "") + (f.gesendet ? " · gesendet" : "")) + '</span></span>' +
-          (f.gesendet ? '' : '<button class="iconbtn" data-a="fehler-send" data-n="' + n + '" aria-label="Dieses Problem schicken">' + ic("share") + '</button>') + '<button class="iconbtn" data-a="fehler-del" data-n="' + n + '" aria-label="Problem löschen">' + ic("trash") + '</button></div>';
+          '<button class="iconbtn" data-a="fehler-del" data-n="' + n + '" aria-label="Problem löschen">' + ic("trash") + '</button></div>';
       }).join("") + '</div>' : '') +
       (Object.keys(L.zeiten || {}).length ? '<p class="small muted" style="padding-inline:4px">Gelernte Dauer je Arbeitsschritt: ' + esc(Object.keys(L.zeiten).filter(function (a) { return L.zeiten[a].n; }).map(function (a) { return a + " ≈ " + Math.round(L.zeiten[a].summe / L.zeiten[a].n) + " Min. (" + L.zeiten[a].n + "×)"; }).join(" · ")) + '</p>' : '') +
       '<p class="small muted" style="padding-inline:4px">' + (L.rezepte || 0) + ' Rezepte ausgewertet · seit dem letzten Senden ' + (L.rezepteSeitSenden || 0) + (L.gesendetAm ? ' · zuletzt gesendet ' + esc(dateDe(L.gesendetAm)) : '') + '</p>' +
@@ -802,7 +802,7 @@ a { color: var(--accent); }
     var hidden = !searching && S.prefs.diet !== "alles" ? all.length - mine.length : 0;
     var ex = all.some(function (e) { return e.example; });
     var enN = englishEntries().length;
-    var enHint = enN && !S.meta.trPending ? '<div class="banner">' + ic("lang") + '<div class="main"><b>' + enN + (enN === 1 ? " Rezept hat" : " Rezepte haben") + ' Schritte in einer Fremdsprache.</b> Jetzt auf Deutsch übersetzen.</div><button class="btn accent" data-a="translate">Übersetzen</button></div>' : '';
+    var enHint = enN && !UEB.laeuft && uebersetzbar().length ? '<div class="banner">' + ic("lang") + '<div class="main"><b>' + enN + (enN === 1 ? " Rezept hat" : " Rezepte haben") + ' Schritte in einer Fremdsprache.</b> Jetzt auf Deutsch übersetzen.</div><button class="btn accent" data-a="translate">Übersetzen</button></div>' : '';
     // Immer nur ein Hinweis auf einmal, der wichtigste zuerst
     var banner = [shareBanner(), onboardBanner(), lernBanner(), translateBanner(), enHint, backupBanner()].filter(Boolean)[0] || "";
     return head + banner + (S.prefs.onboarded ? guide("rezepte") : "") + tools + personal +
@@ -891,12 +891,12 @@ a { color: var(--accent); }
   }
   function visibleLabels(r) { return (r.labels || []).filter(function (l) { return showNutri() || l.gruppe !== "Nährwert-Fokus"; }); }
 
-  // ------------------------------------------------------------------ Zubereitung auf Deutsch (Apple-Übersetzer über den Kurzbefehl)
-  // Ablauf: App kopiert die englischen Schritte mit Markierungen (#Rezept.Schritt#) -> Kurzbefehl
-  // „Rezeptbuch übersetzen“ übersetzt auf dem iPhone und kopiert das Ergebnis -> App setzt es ein.
-  var TR_MAX = 12000; // ca. 20 Rezepte pro Durchgang; bei Problemen kleiner stellen
+  // ------------------------------------------------------------------ Zubereitung auf Deutsch: Bergamot (Mozilla, Open Source)
+  // Übersetzt komplett auf dem iPhone. Übersetzer und Sprachmodell liegen unter bergamot/ auf derselben Adresse
+  // wie die App und werden beim ersten fremdsprachigen Rezept einmalig geladen, danach offline aus dem Speicher.
   var LANG_NAME = { en: "Englisch", nl: "Niederländisch", fr: "Französisch" };
-  var ING_OFFSET = 500; // Zutaten bekommen die Marken #n.501#, #n.502# …
+  var UEB_SPRACHEN = { en: 1 }; // vorhandene Modelle (Englisch → Deutsch); weitere Sprachen später
+  var UEB = { laden: null, laeuft: false, fertig: 0, gesamt: 0 };
   function titleForeign(r, e) { return !!(r && !r.titleTranslated && !(e && e.userTitle) && K.isEnglishTitle(r.title)); }
   function foreignLang(r, e) {
     var l = K.detectLang(r);
@@ -904,70 +904,73 @@ a { color: var(--accent); }
     return titleForeign(r, e) ? "en" : "";
   }
   function englishEntries() { return entries().filter(function (e) { return !!foreignLang(e.recipe, e); }); }
-  function startTranslate(firstId) {
-    var list = englishEntries();
+  function uebersetzbar() { return englishEntries().filter(function (e) { return UEB_SPRACHEN[foreignLang(e.recipe, e)]; }); }
+  function uebersetzerLaden() {
+    if (UEB.laden) return UEB.laden;
+    UEB.laden = import("./bergamot/translator.js").then(function (m) {
+      var tr = new m.BatchTranslator({ registryUrl: "bergamot/registry.json", workers: 1, batchSize: 4, downloadTimeout: 300000 });
+      tr.onerror = function (err) { try { console.warn("Übersetzer:", err); } catch (x) { /* egal */ } }; // nicht in die Optionen: die gehen an den Worker
+      return tr;
+    });
+    UEB.laden.catch(function () { UEB.laden = null; });
+    return UEB.laden;
+  }
+  function uebersetze(tr, lang, text) {
+    // kleine Vorbereitung, die dem Modell hilft ("Rinse + drain" -> "Rinse and drain", Szene-Wörter ausschreiben)
+    var vor = String(text).replace(/\s\+\s/g, " and ").replace(/\s&\s/g, " and ").replace(/\bnooch\b/gi, "nutritional yeast").replace(/\bevoo\b/gi, "extra virgin olive oil");
+    return tr.translate({ from: lang, to: "de", text: vor, html: false, qualityScores: false }).then(function (res) { return res && res.target && res.target.text ? res.target.text : text; });
+  }
+  function uebersetzeRezept(tr, e) {
+    var r = e.recipe, lang = foreignLang(r, e) || "en";
+    var titel = titleForeign(r, e) ? r.title : (!r.titleTranslated && r.titleOriginal && !/[äöüß]/i.test(titleOf(e)) && K.isEnglishTitle(r.titleOriginal) ? r.titleOriginal : "");
+    var steps = r.stepsTranslated ? [] : r.steps.slice();
+    return Promise.all(steps.map(function (st) {
+      var kopf = /^## /.test(st);
+      return uebersetze(tr, lang, kopf ? st.slice(3) : st).then(function (x) { return kopf ? "## " + x : x; });
+    })).then(function (neu) {
+      if (neu.length) K.uebersetzeSchritte(r, neu);
+      if (titel && !e.userTitle) return uebersetze(tr, lang, titel).then(function (t) { r.titleOriginal = r.titleOriginal || r.title; r.title = K.polishTitle(t); r.titleTranslated = true; });
+    }).then(function () { e.updatedAt = Date.now(); });
+  }
+  // Übersetzt alle offenen Rezepte (oder zuerst firstId). still = automatisch nach dem Import, ohne Meldungen
+  function startTranslate(firstId, still) {
+    if (UEB.laeuft) { if (!still) toast("Übersetzung läuft schon …"); return; }
+    var list = uebersetzbar();
     if (firstId) list.sort(function (a, b) { return (b.id === firstId) - (a.id === firstId); });
-    if (!list.length) { toast("Alle Rezepte sind schon auf Deutsch"); return; }
-    // pro Durchgang nur eine Sprache, damit Apples Übersetzer sie sicher erkennt
-    var lang = foreignLang(list[0].recipe, list[0]);
-    list = list.filter(function (e) { return foreignLang(e.recipe, e) === lang; });
-    var lines = [], ids = [], len = 0;
-    for (var n = 0; n < list.length; n++) {
-      var r = list[n].recipe, block = [];
-      if (titleForeign(r, list[n]) || (!r.titleTranslated && r.titleOriginal && !/[äöüß]/i.test(titleOf(list[n])) && K.isEnglishTitle(r.titleOriginal))) block.push("#" + n + ".0# " + (titleForeign(r, list[n]) ? r.title : r.titleOriginal));
-      if (r.stepsTranslated) { /* nur der Titel fehlt noch */ } else r.steps.forEach(function (st, k) { block.push("#" + n + "." + (k + 1) + "# " + st.replace(/^## /, "")); });
-      if (lang !== "en") r.ingredients.forEach(function (i, k) { block.push("#" + n + "." + (ING_OFFSET + k + 1) + "# " + i.raw); });
-      var bl = block.join("\n");
-      if (ids.length && len + bl.length > TR_MAX) break;
-      lines.push(bl); ids.push(list[n].id); len += bl.length;
-    }
-    S.meta.trPending = { ids: ids, at: Date.now(), lang: lang }; save("meta");
-    copy(lines.join("\n\n"), ids.length + (ids.length === 1 ? " Rezept" : " Rezepte") + " (" + LANG_NAME[lang] + ") zum Übersetzen kopiert");
-    var go = function () { try { location.href = "shortcuts://run-shortcut?name=" + encodeURIComponent("Rezeptbuch übersetzen"); } catch (x) { /* kein Kurzbefehl verfügbar */ } };
-    if (/claude|claudeusercontent/.test(location.hostname)) { setTimeout(translateSheet, 400); return; }
-    setTimeout(go, 150);
-    setTimeout(function () { if (!document.hidden) translateSheet(); }, 2500);
+    if (!list.length) { if (!still) toast(englishEntries().length ? "Für diese Sprache gibt es noch keinen Übersetzer" : "Alle Rezepte sind schon auf Deutsch"); return; }
+    var ersteMal = !S.meta.uebGeladen;
+    if (!S.meta.uebInfo) { S.meta.uebInfo = Date.now(); save("meta"); setTimeout(uebersetzerInfoSheet, 400); }
+    UEB.laeuft = true; UEB.fertig = 0; UEB.gesamt = list.length; UEB.ersteMal = ersteMal; render();
+    uebersetzerLaden().then(function (tr) {
+      var kette = Promise.resolve();
+      list.forEach(function (e) {
+        kette = kette.then(function () { return uebersetzeRezept(tr, e); }).then(function () {
+          UEB.fertig++; if (!S.meta.uebGeladen) { S.meta.uebGeladen = Date.now(); save("meta"); } UEB.ersteMal = false; save("recipes"); render();
+        });
+      });
+      return kette;
+    }).then(function () {
+      UEB.laeuft = false; render();
+      toast(UEB.fertig + (UEB.fertig === 1 ? " Rezept" : " Rezepte") + " auf Deutsch übersetzt");
+    }, function (err) {
+      UEB.laeuft = false; render();
+      if (!still || !navigator.onLine) toast(navigator.onLine ? "Der Übersetzer konnte nicht starten. Bitte später noch einmal versuchen." : "Für das erste Übersetzen braucht die App einmal Internet.");
+      merkeFehler("uebersetzer", null, { notiz: String((err && err.message) || err).slice(0, 300) + " · " + navigator.userAgent.slice(0, 120) });
+    });
   }
   function translateBanner() {
-    if (!S.meta.trPending) return "";
-    return '<div class="banner">' + ic("lang") + '<div class="main"><b>Übersetzung bereit?</b> Wenn der Kurzbefehl fertig ist, hier einsetzen.</div><button class="btn accent" data-a="translate-paste">Einsetzen</button></div>';
+    if (!UEB.laeuft) return "";
+    return '<div class="banner">' + ic("lang") + '<div class="main"><b>Übersetze ' + Math.min(UEB.fertig + 1, UEB.gesamt) + ' von ' + UEB.gesamt + (UEB.gesamt === 1 ? ' Rezept' : ' Rezepten') + ' …</b> ' + (UEB.ersteMal ? 'Beim ersten Mal wird der Übersetzer einmalig geladen (ca. ' + UEB_MB + ' MB).' : 'Läuft auf deinem iPhone.') + '</div></div>';
   }
-  function translateSheet() {
-    sheet('<h2>Übersetzung einsetzen</h2><p class="small">Der Kurzbefehl „Rezeptbuch übersetzen“ übersetzt den kopierten Text mit Apples Übersetzer auf deinem iPhone. Danach tippst du hier auf „Einsetzen“. Ist der Kurzbefehl noch nicht eingerichtet, kannst du die Übersetzung auch selbst hier einfügen.</p>' +
-      '<button class="btn accent" data-a="translate-paste">' + ic("copy") + 'Einsetzen</button>' +
-      '<div class="field"><label for="trtext">Oder Übersetzung hier einfügen</label><textarea class="input" id="trtext" placeholder="#0.1# Die Nudeln kochen …"></textarea></div>' +
-      '<div class="btnrow"><button class="btn" data-a="translate-apply">Übernehmen</button><button class="btn soft" data-a="translate-cancel">Abbrechen</button></div>');
-  }
-  function pasteTranslation() {
-    try {
-      navigator.clipboard.readText().then(function (t) { applyTranslationText(t); }, function () { translateSheet(); toast("Bitte die Übersetzung unten einfügen"); });
-    } catch (x) { translateSheet(); }
-  }
-  function applyTranslationText(text) {
-    var p = S.meta.trPending;
-    if (!p) { closeSheet(); return; }
-    var re = /#\s*(\d+)\s*[.,]\s*(\d+)\s*#\s*([^\n#]*)/g, m, got = {};
-    while ((m = re.exec(String(text || ""))) !== null) { (got[m[1]] = got[m[1]] || {})[+m[2]] = m[3].trim(); }
-    var done = 0;
-    p.ids.forEach(function (id, n) {
-      var e = S.recipes[id], g = got[n];
-      if (!e || !g) return;
-      var r = e.recipe, steps = [];
-      if (!r.stepsTranslated && r.steps.length) {
-        for (var k = 1; k <= r.steps.length; k++) steps.push(g[k] || r.steps[k - 1]);
-        var translated = steps.filter(function (x, k) { return x !== r.steps[k]; }).length;
-        if (translated < Math.ceil(r.steps.length / 2)) return;
-        K.uebersetzeSchritte(r, steps);
-      } else if (!g[0]) return;
-      var ingLines = r.ingredients.map(function (_, k) { return g[ING_OFFSET + k + 1] || ""; });
-      if (ingLines.some(Boolean)) { K.uebersetzeZutaten(r, ingLines); K.berechneNaehrwerte(r, NW, null, { zuordnungen: Z() }); }
-      if (g[0] && !e.userTitle) { r.titleOriginal = r.titleOriginal || r.title; r.title = K.polishTitle(g[0]); r.titleTranslated = true; }
-      e.updatedAt = Date.now(); done++;
-    });
-    if (!done) { toast("Keine Übersetzung erkannt. Bitte den übersetzten Text einfügen."); translateSheet(); return; }
-    S.meta.trPending = null; save("meta"); save("recipes"); closeSheet(); render();
-    var rest = englishEntries().length;
-    toast(done + (done === 1 ? " Rezept" : " Rezepte") + " übersetzt" + (rest ? ", " + rest + " noch nicht auf Deutsch" : ""));
+  var UEB_MB = 20;
+  function uebersetzerInfoSheet() {
+    sheet('<h2>Übersetzung auf deinem iPhone</h2>' +
+      '<p class="small">Fremdsprachige Rezepte übersetzt die App jetzt selbst ins Deutsche. Dafür lädt sie <b>einmalig</b> den Übersetzer (ca. ' + UEB_MB + ' MB, am besten im WLAN). Danach funktioniert er auch ohne Internet.</p>' +
+      '<ul class="small"><li><b>Privat:</b> Die Rezepte verlassen dein iPhone nicht. Es gibt keinen Übersetzungsdienst im Internet.</li>' +
+      '<li><b>Technik:</b> Bergamot von Mozilla (Firefox), Open Source, ein reines Übersetzungsmodell – keine KI zum Chatten.</li>' +
+      '<li><b>Qualität:</b> gut für Kochschritte; einzelne Sätze können holprig sein. Das Original bleibt gespeichert („Original zeigen“).</li>' +
+      '<li><b>Speicher:</b> ca. ' + UEB_MB + ' MB im Speicher der App. Wird er von iOS geleert, lädt die App ihn beim nächsten Mal neu.</li></ul>' +
+      '<button class="btn soft" data-a="close-sheet">Verstanden</button>');
   }
 
   // ------------------------------------------------------------------ Ansicht: Detail
@@ -1055,9 +1058,9 @@ a { color: var(--accent); }
       (m.total ? '<p class="have-line"><span class="dot have"></span>' + (m.missing ? "Grün: hast du. " + m.missing + (m.missing === 1 ? " Zutat fehlt." : " Zutaten fehlen.") : "Du hast alles zu Hause.") + '</p>' : '') +
       '<div class="group">' + (ings || '<div class="row"><span class="muted">Keine Zutaten erkannt.</span></div>') + '</div>' +
       (m.missing ? '<button class="btn ' + (onList ? "soft" : "accent") + '" data-a="to-list" data-id="' + esc(id) + '">' + ic(onList ? "check" : "bag") + (onList ? "Auf der Einkaufsliste · aktualisieren" : m.missing + " fehlende Zutaten auf die Liste") + '</button>' : '') + '</section>' +
-      (hideSteps ? '<section class="sec"><div class="sec-head"><h2>Zubereitung</h2></div><div class="note info"><b>Die Zubereitung erscheint hier, sobald sie auf Deutsch übersetzt ist.</b><span>Apples Übersetzer auf deinem iPhone übersetzt sie, ohne Internet und kostenlos.</span><button class="btn accent" data-a="translate" data-id="' + esc(id) + '">' + ic("lang") + 'Jetzt übersetzen</button></div></section>' : '') +
+      (hideSteps ? '<section class="sec"><div class="sec-head"><h2>Zubereitung</h2></div><div class="note info"><b>Die Zubereitung erscheint hier, sobald sie auf Deutsch übersetzt ist.</b><span>Die App übersetzt sie auf deinem iPhone (Bergamot, Open Source) – privat und nach dem ersten Laden auch offline.</span><button class="btn accent" data-a="translate" data-id="' + esc(id) + '">' + ic("lang") + 'Jetzt übersetzen</button></div></section>' : '') +
       (steps && !hideSteps ? '<section class="sec"><div class="sec-head"><h2>Zubereitung</h2>' + (orig && r.stepsOriginal ? '<span class="small muted">Original</span>' : '') + '</div>' +
-        (stepLang ? '<div class="note info"><b>Die Schritte sind noch auf ' + LANG_NAME[stepLang] + '.</b><span>Apples Übersetzer auf deinem iPhone macht sie deutsch, ohne Internet und kostenlos.</span><button class="btn accent" data-a="translate" data-id="' + esc(id) + '">' + ic("lang") + 'Auf Deutsch übersetzen</button></div>' : '') +
+        (stepLang ? '<div class="note info"><b>Die Schritte sind noch auf ' + LANG_NAME[stepLang] + '.</b><span>Die App übersetzt sie auf deinem iPhone – privat, kostenlos, nach dem ersten Laden offline.</span><button class="btn accent" data-a="translate" data-id="' + esc(id) + '">' + ic("lang") + 'Auf Deutsch übersetzen</button></div>' : '') +
         '<div class="group"><ol class="steps">' + steps + '</ol>' +
         ((r.schritteErgaenzt || []).length ? '<p class="small muted" style="padding:0 14px 10px">In Klammern ergänzt: welche Zutaten mit „alles“ gemeint sind.</p>' : '') +
         (r.logik && r.logik.ohneSchritt && r.logik.ohneSchritt.length ? '<p class="small muted" style="padding:0 14px 12px">In keinem Schritt erwähnt: ' + esc(r.logik.ohneSchritt.join(", ")) + '. Wenn etwas fehlt: „Mehr → Rezept bearbeiten“ oder „Problem melden“.</p>' : '') +
@@ -1074,7 +1077,7 @@ a { color: var(--accent); }
       '<button class="row" data-a="share-recipe" data-id="' + esc(id) + '">' + ic("share") + '<span class="main"><span class="title">Rezept teilen</span><span class="sub">Als Text mit Link zum Original</span></span></button>' +
       '<button class="row" data-a="edit" data-id="' + esc(id) + '">' + ic("edit") + '<span class="main"><span class="title">Rezept bearbeiten</span><span class="sub">Zutaten und Schritte korrigieren – die App lernt daraus</span></span></button>' +
       '<button class="row" data-a="rename" data-id="' + esc(id) + '">' + ic("edit") + '<span class="main"><span class="title">Titel ändern</span></span></button>' +
-      '<button class="row" data-a="melden" data-id="' + esc(id) + '">' + ic("info") + '<span class="main"><span class="title">Problem melden</span><span class="sub">Falsch erkannt? Jakob bekommt den Link und kann es verbessern</span></span></button>' +
+      '<button class="row" data-a="melden" data-id="' + esc(id) + '">' + ic("info") + '<span class="main"><span class="title">Problem melden</span><span class="sub">Falsch erkannt? Wird gespeichert und gesammelt an Jakob geschickt</span></span></button>' +
       (translated && showOrigAllowed() ? '<button class="row" data-a="orig" data-id="' + esc(id) + '">' + ic("lang") + '<span class="main"><span class="title">' + (UI.showOrig[id] ? "Deutsch zeigen" : "Original zeigen") + '</span><span class="sub">Das Rezept wurde übersetzt</span></span></button>' : '') +
       (e.cooked ? '<button class="row" data-a="uncook" data-id="' + esc(id) + '">' + ic("clock") + '<span class="main"><span class="title">„Gekocht“ zurücksetzen</span></span></button>' : '') +
       '</div><div class="group"><button class="row" data-a="delete" data-id="' + esc(id) + '" style="color:var(--danger)">' + ic("trash") + '<span class="main"><span class="title">Rezept löschen</span></span></button></div>' +
@@ -1244,7 +1247,7 @@ a { color: var(--accent); }
       '<div class="btnrow"><button class="btn accent" data-a="backup">' + ic("cloud") + 'Jetzt sichern</button><label class="btn soft" for="restorefile">Sicherung laden</label></div>' +
       '<input type="file" id="restorefile" accept=".json,application/json" class="sr"></section>' +
       '<section class="sec"><div class="sec-head"><h2>Instagram</h2></div><div class="group"><button class="row" data-a="setup">' + ic("share") + '<span class="main"><span class="title">Kurzbefehl einrichten</span><span class="sub">„Ins Rezeptbuch“ im Teilen-Menü</span></span>' + ic("chev", "chev") + '</button></div></section>' +
-      '<section class="sec"><div class="sec-head"><h2>Sprache</h2></div><div class="group"><button class="row" data-a="translate">' + ic("lang") + '<span class="main"><span class="title">Zubereitung auf Deutsch übersetzen</span><span class="sub">' + englishEntries().length + ' Rezepte noch nicht auf Deutsch · Apples Übersetzer über den Kurzbefehl „Rezeptbuch übersetzen“</span></span>' + ic("chev", "chev") + '</button></div></section>' +
+      '<section class="sec"><div class="sec-head"><h2>Sprache</h2></div><div class="group"><button class="row" data-a="translate">' + ic("lang") + '<span class="main"><span class="title">Zubereitung auf Deutsch übersetzen</span><span class="sub">' + englishEntries().length + ' Rezepte noch nicht auf Deutsch · Übersetzung auf dem iPhone (Bergamot)</span></span>' + ic("chev", "chev") + '</button></div></section>' +
       '<section class="sec"><div class="sec-head"><h2>Lernen</h2></div><div class="group"><button class="row" data-a="lern-show">' + ic("sparkle") + '<span class="main"><span class="title">Was die App gelernt hat</span><span class="sub">' + lernZahl() + ' Regeln · ansehen, löschen, an Jakob schicken</span></span>' + ic("chev", "chev") + '</button></div></section>' +
       '<section class="sec"><div class="sec-head"><h2>Hilfe</h2></div><div class="group"><button class="row" data-a="guides-reset"><span class="main"><span class="title">Anleitungen wieder zeigen</span></span></button></div></section>' +
       '<section class="sec"><div class="sec-head"><h2>Datenschutz und Infos</h2></div><div class="group"><button class="row" data-a="info">' + ic("info") + '<span class="main"><span class="title">So funktioniert die App</span><span class="sub">Datenschutz, Quellen, Regeln von Instagram, Grenzen der Erkennung</span></span>' + ic("chev", "chev") + '</button></div></section>' +
@@ -1309,12 +1312,12 @@ a { color: var(--accent); }
       sec("sparkle", "Wie die Erkennung funktioniert",
         '<p>Die App erkennt Zutaten, Schritte, Zeit, Portionen und Labels mit festen Regeln und Wörterbüchern, ohne KI-Modell. Das ist schnell, sparsam und läuft offline.</p>' +
         '<ul><li>Fehler sind möglich. Was die App schätzt, steht als „geschätzt“ oder „vorgeschlagen“ dabei.</li><li>Titel und Mengen kannst du jederzeit ändern.</li>' +
-        '<li>Englische Zutaten übersetzt ein Wörterbuch. Die Zubereitung übersetzt Apples Übersetzer auf deinem iPhone, auch ohne Internet. Das Original bleibt gespeichert („Original zeigen“).</li>' +
+        '<li>Englische Zutaten übersetzt ein Wörterbuch. Die Zubereitung übersetzt der Übersetzer Bergamot auf deinem iPhone, nach dem ersten Laden auch ohne Internet. Das Original bleibt gespeichert („Original zeigen“).</li>' +
         '<li>Allergene erkennt die App noch nicht zuverlässig genug und zeigt sie deshalb nicht an. Bei Allergien bitte immer die Zutaten selbst prüfen.</li></ul>', false,
         '<p><b>Was die Regeln erkennen:</b> Überschriften (Zutaten, Zubereitung …), Mengen mit Einheiten, Zeiten, Portionen, Backformen, zweisprachige Captions und Text ohne Zeilenumbrüche. Mengen in Tassen rechnet die App in Gramm oder ml um.</p>' +
         '<p><b>Portionen ohne Angabe:</b> Backblech 20 Stück, Springform 12, Kastenform 12 Scheiben, Muffinblech 12, Brownie-Form 9, Auflaufform 4 Portionen; Smoothie und Porridge 1 Portion; sonst geschätzt aus der Gesamtmenge.</p>' +
         '<p><b>Labels:</b> neun Gruppen (Gang, Ernährung, Zeit, Hauptzutat, Praktisch, Nährwert-Fokus, Aufwand, Küche, Saison). „vegan“ heißt: keine tierische Zutat erkannt. „glutenfrei laut Zutaten“ heißt: keine glutenhaltige Zutat erkannt, keine Garantie.</p>' +
-        '<p><b>Übersetzung:</b> Apples Übersetzer arbeitet auf dem iPhone mit heruntergeladenen Sprachen. Die App setzt die „Sie“-Form in Rezeptsprache um („Die Nudeln kochen“).</p>') +
+        '<p><b>Übersetzung:</b> Bergamot (Mozilla) übersetzt auf dem iPhone. Übersetzer und Sprachmodell (ca. ' + UEB_MB + ' MB) liegen auf derselben Adresse wie die App und werden einmalig geladen; die Rezepte verlassen das Gerät nicht. Die App setzt die „Sie“-Form in Rezeptsprache um („Die Nudeln kochen“). Bisher: Englisch → Deutsch.</p>') +
       sec("sparkle", "Was die App lernt",
         '<p>Mit jedem Rezept wird die Erkennung auf deinem iPhone etwas besser – ohne KI und ohne dass etwas dein iPhone verlässt.</p>' +
         '<ul><li><b>Floskeln:</b> Schreibt ein Creator in mindestens drei Beiträgen denselben Satz (z. B. „Folge mir für mehr Rezepte“), blendet die App ihn ab dann aus.</li>' +
@@ -1347,7 +1350,7 @@ a { color: var(--accent); }
           return '<li>' + q[0] + (q[1] ? ' <a href="' + esc(q[1]) + '" target="_blank" rel="noopener">' + esc(q[1]) + '</a>' : '') + '</li>';
         }).join("") + '</ol>' +
         '<p class="small muted">Nährwerte von Produkten, die du ausdrücklich aus Open Food Facts übernimmst: Enthält Daten von Open Food Facts, verfügbar unter der Open Database License (ODbL 1.0, https://opendatacommons.org/licenses/odbl/1-0/). Nur zur Information, nicht für medizinische Zwecke.</p>' +
-        '<p class="small muted">Die Nährwertdaten stehen unter der Lizenz CC BY 4.0. Die Übersetzung der Zubereitung übernimmt die Funktion „Text übersetzen“ von Apple auf dem iPhone.</p>') +
+        '<p class="small muted">Die Nährwertdaten stehen unter der Lizenz CC BY 4.0. Übersetzer: Bergamot-Translator (Mozilla u. a., Mozilla Public License 2.0); Sprachmodell Englisch→Deutsch: Bergamot-Projekt, Creative Commons BY-SA 4.0.</p>') +
       '</div><p class="foot">Kombüse ' + APP_VERSION + ' · Kern ' + esc(K.VERSION) + '</p><button class="btn soft" data-a="close-sheet">Fertig</button>');
   }
   // Quellen (APA 7), alphabetisch nach Urheber
@@ -1362,6 +1365,7 @@ a { color: var(--accent); }
     ["heise online. (o. J.). <i>iOS 26 and iPadOS 26: Changed web app behaviour on the home screen</i>. Abgerufen am 18. Oktober 2026, von", "https://heise.de/-10749652"],
     ["Instagram. (o. J.). <i>Nutzungsbedingungen</i>. Abgerufen am 18. Oktober 2026, von", "https://help.instagram.com/581066165581870"],
     ["Open Food Facts. (o. J.). <i>Open Food Facts – die freie Lebensmitteldatenbank</i> [Datenbank, Open Database License 1.0]. Abgerufen am 20. Oktober 2026, von", "https://de.openfoodfacts.org"],
+    ["Bergamot-Projekt. (o. J.). <i>Bergamot translator</i> [Software, Mozilla Public License 2.0] und <i>Bergamot student models</i> [Sprachmodelle, CC BY-SA 4.0]. Abgerufen am 20. Oktober 2026, von", "https://github.com/browsermt/bergamot-translator"],
     ["Max Rubner-Institut. (2025). <i>Bundeslebensmittelschlüssel (BLS)</i> (Version 4.0) [Datensatz].", "https://doi.org/10.25826/Data20251217-134202-0"],
     ["Meta Platforms. (o. J.). <i>oEmbed – Instagram Platform</i>. Abgerufen am 18. Oktober 2026, von", "https://developers.facebook.com/documentation/instagram-platform/oembed"]
   ];
@@ -1387,8 +1391,7 @@ a { color: var(--accent); }
       '<li><b>Objekt aus Liste abrufen</b> (Erstes Objekt).</li>' +
       '<li><b>Text</b>: davor <code>https://www.instagram.com/</code>, dann Variable <b>Objekt aus Liste</b>, direkt dahinter' + snip("/embed/captioned/") + '</li>' +
       '<li><b>Inhalt von URL abrufen</b>.</li>' +
-      '<li><b>Text übersetzen</b>: Inhalt von URL, von <b>Ermitteln</b> nach <b>Deutsch</b>.</li>' +
-      '<li><b>Text</b> mit genau diesen Zeilen; an die Stellen in [ ] die Variablen setzen:' + snip("REZEPTBUCH\nhttps://www.instagram.com/[Objekt aus Liste]\n###TEXT###\n[Inhalt von URL]\n###DEUTSCH###\n[Übersetzter Text]") + '</li>' +
+      '<li><b>Text</b> mit genau diesen Zeilen; an die Stellen in [ ] die Variablen setzen:' + snip("REZEPTBUCH\nhttps://www.instagram.com/[Objekt aus Liste]\n###TEXT###\n[Inhalt von URL]") + '</li>' +
       '<li><b>In Zwischenablage kopieren</b>. Fertig – kein „URL öffnen“.</li>' +
       '</ol></div>' +
       '<p class="small"><b>Blog-Link aus der Beschreibung gleich mitholen (empfohlen):</b> nach „Variable Inhalt festlegen“ einfügen:</p><div class="build"><ol>' +
@@ -1553,7 +1556,7 @@ a { color: var(--accent); }
   }
   function readHashImport() {
     var h = location.hash.replace(/^#/, "");
-    if (h === "uebersetzt") { try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* egal */ } if (S.meta.trPending) setTimeout(pasteTranslation, 300); return false; }
+    if (h === "uebersetzt") { try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* egal */ } return false; } // alter Kurzbefehl „Rezeptbuch übersetzen“
     if (!/(^|&)(t|u|o|s)=/.test(h)) return false;
     try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* egal */ }
     return handleImport(parseImportHash(h));
@@ -1612,9 +1615,9 @@ a { color: var(--accent); }
     try { navigator.clipboard.readText().then(go, function () { pasteSheet(); }); } catch (x) { pasteSheet(); }
   }
   // Teilen-Probleme merken (die App lernt, wo es hakt; geht mit „An Jakob schicken“ mit)
-  var HARTE_FEHLER = { "zwischenablage-leer": 1, "keine-daten": 1, "keine-beschreibung": 1, "nicht-gelesen": 1, "share-link": 1, "gemeldet": 1, "nicht-uebersetzt": 1, "blog-unvollstaendig": 1 };
+  var HARTE_FEHLER = { "zwischenablage-leer": 1, "keine-daten": 1, "keine-beschreibung": 1, "nicht-gelesen": 1, "share-link": 1, "gemeldet": 1, "nicht-uebersetzt": 1, "blog-unvollstaendig": 1, "uebersetzer": 1 };
   var FEHLER_TEXT = { "zwischenablage-leer": "Zwischenablage war leer", "keine-daten": "Kein Rezeptbuch-Text in der Zwischenablage", "keine-beschreibung": "Instagram gab keine Beschreibung heraus",
-    "nicht-gelesen": "Text kam an, Rezept nicht lesbar", "nicht-uebersetzt": "Schritte nicht übersetzt", "blog-unvollstaendig": "Blog angehängt, Rezept trotzdem unvollständig", "share-link": "Teilen-Link (instagram.com/share/…) nicht unterstützt", "unvollstaendig": "Gespeichert, aber unvollständig", "gemeldet": "Von dir gemeldet" };
+    "nicht-gelesen": "Text kam an, Rezept nicht lesbar", "nicht-uebersetzt": "Schritte nicht übersetzt", "uebersetzer": "Übersetzer konnte nicht starten", "blog-unvollstaendig": "Blog angehängt, Rezept trotzdem unvollständig", "share-link": "Teilen-Link (instagram.com/share/…) nicht unterstützt", "unvollstaendig": "Gespeichert, aber unvollständig", "gemeldet": "Von dir gemeldet" };
   function merkeFehler(grund, txt, extra) {
     if (!S.lernen) return null;
     try {
@@ -1635,12 +1638,6 @@ a { color: var(--accent); }
       (f.rezept ? "\nErkannt: " + f.rezept.zutaten + " Zutaten, " + f.rezept.schritte + " Schritte" + (f.rezept.wo ? ", Rezept steht im " + f.rezept.wo : "") : "") +
       (f.beschreibung ? "\n\n--- Beschreibung des Beitrags ---\n" + f.beschreibung : "");
   }
-  function fehlerSenden(f) {
-    var text = fehlerText(f);
-    var done = function () { f.gesendet = true; save("lernen"); toast("Danke! Problem geteilt"); closeSheet(); render(); };
-    if (navigator.share) { navigator.share({ title: "Rezeptbuch: Problem beim Teilen", text: text }).then(done, function () { /* abgebrochen */ }); return; }
-    copy(text, "Problem kopiert – bitte an Jakob schicken"); done();
-  }
   // Zeigt, was angekommen ist, merkt sich das Problem und bietet an, es direkt an Jakob zu schicken
   function diagSheet(msg, txt, grund, extra) {
     var li = S.meta.lastImport || {};
@@ -1649,7 +1646,7 @@ a { color: var(--accent); }
     sheet('<h2>Nicht erkannt</h2><p class="small">' + esc(msg) + '</p>' +
       '<div class="note"><b>Was angekommen ist</b><span>Länge: ' + String(txt || "").length + ' Zeichen · Link ' + (li.u || 0) + ' · Text ' + (li.t || 0) + ' · Übersetzung ' + (li.d || 0) + '</span>' +
       '<span class="small" style="overflow-wrap:anywhere">Anfang: ' + esc(String(txt || "").slice(0, 160) || "(leer)") + '</span></div>' +
-      (f ? '<button class="btn accent" data-a="fehler-send" data-txt="1">' + ic("share") + 'Problem an Jakob schicken</button><p class="small muted">Geschickt werden der Instagram-Link, was ankam und die App-Version. Das Problem ist auch unter „Was die App gelernt hat“ gespeichert.</p>' : '') +
+      (f ? '<div class="note info"><b>Problem gespeichert.</b><span>Es geht gesammelt mit „An Jakob schicken“ raus (Einstellungen → Was die App gelernt hat), zusammen mit dem angekommenen Text.</span></div>' : '') +
       '<p class="small muted">App ' + APP_VERSION + ' · Kern ' + esc(K.VERSION) + '</p><button class="btn soft" data-a="close-sheet">Schließen</button>');
   }
   function pasteSheet() {
@@ -1658,7 +1655,7 @@ a { color: var(--accent); }
       '<div class="btnrow"><button class="btn" data-a="share-apply">Übernehmen</button><button class="btn soft" data-a="close-sheet">Abbrechen</button></div>');
   }
   function shareBanner() {
-    if (!UI.shareBanner || S.meta.trPending) return "";
+    if (!UI.shareBanner || UEB.laeuft) return "";
     return '<div class="banner">' + ic("share") + '<div class="main"><b>Rezept aus Instagram geteilt?</b> Hier einfügen, dann ist es gespeichert.</div><button class="btn accent" data-a="share-paste">Einfügen</button></div>';
   }
   function handleImport(p, forceSave) {
@@ -1727,11 +1724,8 @@ a { color: var(--accent); }
       try {
         var rS = S.recipes[out.id].recipe;
         if (!out.dupe && !K.completeness(rS).enough) merkeFehler("unvollstaendig", null, { link: url, rezept: { zutaten: rS.ingredients.length, schritte: rS.steps.length, wo: (rS.elsewhere && rS.elsewhere.wo) || "" } });
-        // Englische Schritte trotz Kurzbefehl nicht übersetzt: merken, woran es lag (Übersetzung leer oder gleich dem Original)
-        if (!out.dupe && rS.lang && rS.lang !== "de" && rS.steps.length && !rS.stepsOriginal) {
-          var dTxt = String(p.d || ""), tTxt = String(p.t || "");
-          merkeFehler("nicht-uebersetzt", null, { link: url, notiz: "Sprache " + rS.lang + " · Übersetzungsteil " + dTxt.length + " Zeichen" + (dTxt && dTxt.replace(/\s+/g, " ").trim() === tTxt.replace(/\s+/g, " ").trim() ? " · identisch mit dem Original (Kurzbefehl hat nicht übersetzt)" : dTxt ? " · übersetzt, aber nicht übernommen" : " · leer") });
-        }
+        // Fremdsprachige Schritte gleich auf dem iPhone übersetzen (Bergamot)
+        if (!out.dupe && UEB_SPRACHEN[foreignLang(rS, S.recipes[out.id])]) setTimeout(function () { startTranslate(out.id, true); }, 900);
       } catch (x) { /* egal */ }
       setTimeout(function () { toast(out.dupe ? "Schon im Rezeptbuch" : "Im Rezeptbuch gespeichert"); }, 300);
       return true;
@@ -1773,9 +1767,7 @@ a { color: var(--accent); }
         break;
       case "translate": startTranslate(el.dataset.id); break;
       case "orig-toggle": S.prefs.showOriginal = !showOrigAllowed(); if (!S.prefs.showOriginal) UI.showOrig = {}; save("prefs"); el.setAttribute("aria-checked", String(S.prefs.showOriginal)); render(); break;
-      case "translate-paste": pasteTranslation(); break;
-      case "translate-apply": applyTranslationText(($("#trtext") || {}).value || ""); break;
-      case "translate-cancel": S.meta.trPending = null; save("meta"); closeSheet(); render(); break;
+      case "translate-info": uebersetzerInfoSheet(); break;
       case "open": closeSheet(); UI.detail = id; if (S.recipes[id]) { S.recipes[id].viewedAt = Date.now(); save("recipes"); } render(); window.scrollTo(0, 0); break;
       case "filters": filterSheet(); break;
       case "sort": UI.sort = el.dataset.v; render(); break;
@@ -1862,10 +1854,6 @@ a { color: var(--accent); }
       case "rename": renameSheet(id); break;
       case "edit": editSheet(id); break;
       case "nw-add": nwStart(el.dataset); break;
-      case "fehler-send":
-        var fs0 = el.dataset.n != null ? S.lernen.fehler[+el.dataset.n] : UI.fehler;
-        if (fs0 && el.dataset.txt && UI.fehlerText) fs0.beschreibung = UI.fehlerText;
-        if (fs0) fehlerSenden(fs0); break;
       case "fehler-del": S.lernen.fehler.splice(+el.dataset.n, 1); save("lernen"); lernSheet(); break;
       case "fehler-later": S.meta.fehlerSnooze = offeneFehler().length + 2; save("meta"); render(); break;
       case "melden": meldenSheet(id); break;
@@ -1873,7 +1861,7 @@ a { color: var(--accent); }
         var me = S.recipes[id], mr = me.recipe, wahl = [].map.call(document.querySelectorAll("#layer [data-mg][aria-pressed=true]"), function (b) { return b.dataset.mg; });
         var mf = merkeFehler("gemeldet", null, { link: (mr.source && mr.source.url) || "", notiz: (wahl.join(", ") + ((($("#meldetext") || {}).value || "").trim() ? " – " + $("#meldetext").value.trim().slice(0, 200) : "")) || "ohne Angabe", rezept: { zutaten: mr.ingredients.length, schritte: mr.steps.length, wo: (mr.elsewhere && mr.elsewhere.wo) || "" } });
         if (mf && me.input) mf.beschreibung = String(me.input.caption || "").slice(0, 6000) + (me.input.captionDe ? "\n\n--- Übersetzung ---\n" + String(me.input.captionDe).slice(0, 4000) : "");
-        if (mf) fehlerSenden(mf); break;
+        save("lernen"); closeSheet(); render(); toast(mf ? "Gespeichert – geht gesammelt mit „An Jakob schicken“ raus" : "Konnte nicht gespeichert werden"); break;
       case "melden-toggle": el.setAttribute("aria-pressed", el.getAttribute("aria-pressed") === "true" ? "false" : "true"); break;
       case "off-suche": offSuche(); break;
       case "off-pick":
@@ -1978,7 +1966,7 @@ a { color: var(--accent); }
     if (S.meta.shortcutOk || S.meta.awaitShortcut || S.meta.setupAsked) {
       if (hiddenAt && Date.now() - hiddenAt > 2000) UI.shareBanner = true;
     }
-    if (S.meta.awaitShortcut && Date.now() - S.meta.awaitShortcut < 600000 && !S.meta.trPending) { UI.detail = null; UI.tab = "rezepte"; }
+    if (S.meta.awaitShortcut && Date.now() - S.meta.awaitShortcut < 600000 && !UEB.laeuft) { UI.detail = null; UI.tab = "rezepte"; }
     render();
   });
 

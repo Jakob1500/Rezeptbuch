@@ -52,7 +52,7 @@ self.addEventListener("fetch", e => {
     return;
   }
   e.respondWith(caches.match(e.request, { ignoreSearch: true }).then(hit => hit || fetch(e.request).then(res => {
-    if (res.ok && /bls-suche\\.json$/.test(u.pathname)) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); }
+    if (res.ok && (/bls-suche\\.json$/.test(u.pathname) || /\\/bergamot\\//.test(u.pathname))) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); }
     return res;
   })));
 });
