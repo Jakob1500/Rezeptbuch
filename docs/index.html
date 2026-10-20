@@ -301,7 +301,7 @@ a { color: var(--accent); }
 (function (root) {
   "use strict";
 
-  var VERSION = "0.4.2";
+  var VERSION = "0.4.3";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -3939,6 +3939,8 @@ a { color: var(--accent); }
     var a = String(account || "").replace(/^@/, "");
     if (!a) return { fragen: false, stand: stand };
     var s = stand[a] || (stand[a] = { rezepte: 0, gefragtBei: [], antwort: null });
+    // Stand aus älteren Fassungen (dort wurde schon beim 1. Rezept gefragt): frühe Fragen zählen nicht mehr
+    if (s.antwort !== "nie" && (s.gefragtBei || []).some(function (x) { return x < FOLGEN_AB; })) { s.gefragtBei = s.gefragtBei.filter(function (x) { return x >= FOLGEN_AB; }); if (s.antwort === "später") s.antwort = null; }
     s.rezepte = anzahl != null ? Math.max(anzahl, s.rezepte) : s.rezepte + 1;
     var fragen = false;
     if (s.antwort === "nie") fragen = false;
@@ -4137,7 +4139,7 @@ a { color: var(--accent); }
   var LERN_ERINNERUNG = 20;
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.13.3";
+  var APP_VERSION = "0.13.4";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -4950,6 +4952,7 @@ a { color: var(--accent); }
       '<button class="row" data-a="share-recipe" data-id="' + esc(id) + '">' + ic("share") + '<span class="main"><span class="title">Rezept teilen</span><span class="sub">Als Text mit Link zum Original</span></span></button>' +
       '<button class="row" data-a="edit" data-id="' + esc(id) + '">' + ic("edit") + '<span class="main"><span class="title">Rezept bearbeiten</span><span class="sub">Zutaten und Schritte korrigieren – die App lernt daraus</span></span></button>' +
       '<button class="row" data-a="rename" data-id="' + esc(id) + '">' + ic("edit") + '<span class="main"><span class="title">Titel ändern</span></span></button>' +
+      ((S.recipes[id].recipe.source || {}).account ? '<button class="row" data-a="follow-zeigen" data-acc="' + esc(S.recipes[id].recipe.source.account) + '">' + ic("person") + '<span class="main"><span class="title">Kanal von @' + esc(S.recipes[id].recipe.source.account) + '</span><span class="sub">Folgen und weitere Rezepte ansehen</span></span></button>' : '') +
       '<button class="row" data-a="melden" data-id="' + esc(id) + '">' + ic("info") + '<span class="main"><span class="title">Problem melden</span><span class="sub">Falsch erkannt? Wird gespeichert und gesammelt an Jakob geschickt</span></span></button>' +
       (translated && showOrigAllowed() ? '<button class="row" data-a="orig" data-id="' + esc(id) + '">' + ic("lang") + '<span class="main"><span class="title">' + (UI.showOrig[id] ? "Deutsch zeigen" : "Original zeigen") + '</span><span class="sub">Das Rezept wurde übersetzt</span></span></button>' : '') +
       (e.cooked ? '<button class="row" data-a="uncook" data-id="' + esc(id) + '">' + ic("clock") + '<span class="main"><span class="title">„Gekocht“ zurücksetzen</span></span></button>' : '') +
@@ -5297,6 +5300,7 @@ a { color: var(--accent); }
   }
   function followSheet(account, fv) {
     fv = fv || {};
+    if (fv.manuell) { fv.wieder = false; }
     var kopf = fv.wieder ? (fv.gefolgt ? 'Schon ' + fv.anzahl + ' Rezepte von @' + esc(account) + ' 💛' : 'Schon ' + fv.anzahl + ' Rezepte von @' + esc(account) + '!') : 'Du magst die Küche von @' + esc(account) + ' 💛';
     var text = fv.wieder && fv.gefolgt ? 'Schau doch mal wieder im Kanal vorbei – vielleicht wartet dort schon dein nächstes Lieblingsrezept. Likes und Kommentare zeigen, dass dir die Rezepte gefallen.'
       : 'Du hast schon ' + (fv.anzahl || 5) + ' Rezepte aus diesem Kanal gespeichert. Hinter jedem steckt viel Arbeit. Folge dem Kanal und schau dir die Beiträge noch einmal an – so unterstützt du die Person, die für dich kocht, und siehst neue Rezepte als Erste:r.';
@@ -5602,7 +5606,7 @@ a { color: var(--accent); }
     if (p.b && p.b.length > 200) { if (/<(html|body|div|script)[\s>]/i.test(p.b)) input.blogHtml = p.b; else input.commentText = p.b; input.blogUrl = p.bu; }
     // schon gespeichert? Dann öffnen statt doppelt anlegen
     var same = url ? entries().filter(function (e) { return e.input && e.input.url && e.input.url.split("?")[0].replace(/\/$/, "") === url.split("?")[0].replace(/\/$/, ""); })[0] : null;
-    if (same) { UI.tab = "rezepte"; UI.detail = same.id; setTimeout(function () { toast("Schon im Rezeptbuch"); }, 300); return true; }
+    if (same) { UI.tab = "rezepte"; UI.detail = same.id; setTimeout(function () { toast("Schon im Rezeptbuch"); }, 300); var accS = (same.recipe.source && same.recipe.source.account) || account; if (accS) setTimeout(function () { folgenPruefen(accS); }, 1800); return true; }
     startDraft(input);
     // Rezept erkannt (oder bewusst geteilt und Text vorhanden): sofort speichern, ohne weiteren Tipp
     if (UI.draft && ((UI.draft.like && UI.draft.like.recipe) || (forceSave && caption && caption.length > 40))) {
@@ -5825,6 +5829,7 @@ a { color: var(--accent); }
         var acc = d.res.recipe.source.account;
         if (acc) setTimeout(function () { folgenPruefen(acc); }, 600);
         break;
+      case "follow-zeigen": var accZ = el.dataset.acc; followSheet(accZ, { anzahl: entries().filter(function (e) { return !e.example && String((e.recipe.source || {}).account || "").toLowerCase() === accZ.toLowerCase(); }).length, manuell: true }); break;
       case "follow-yes": K.folgenAntwort(S.follow, el.dataset.acc, "gefolgt"); save("follow"); setTimeout(closeSheet, 300); break;
       case "follow-ans": K.folgenAntwort(S.follow, el.dataset.acc, el.dataset.v); save("follow"); closeSheet(); break;
       case "import-commit":

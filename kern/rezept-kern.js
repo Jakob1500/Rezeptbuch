@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.4.2";
+  var VERSION = "0.4.3";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -3660,6 +3660,8 @@
     var a = String(account || "").replace(/^@/, "");
     if (!a) return { fragen: false, stand: stand };
     var s = stand[a] || (stand[a] = { rezepte: 0, gefragtBei: [], antwort: null });
+    // Stand aus älteren Fassungen (dort wurde schon beim 1. Rezept gefragt): frühe Fragen zählen nicht mehr
+    if (s.antwort !== "nie" && (s.gefragtBei || []).some(function (x) { return x < FOLGEN_AB; })) { s.gefragtBei = s.gefragtBei.filter(function (x) { return x >= FOLGEN_AB; }); if (s.antwort === "später") s.antwort = null; }
     s.rezepte = anzahl != null ? Math.max(anzahl, s.rezepte) : s.rezepte + 1;
     var fragen = false;
     if (s.antwort === "nie") fragen = false;
