@@ -30,7 +30,7 @@ if (!files.length) { console.error("Aufruf: node tools/lernen-uebernehmen.js <da
 const zentral = JSON.parse(fs.readFileSync(ZPFAD, "utf8"));
 const KEYS = ["ignorieren", "keinSchritt", "istSchritt", "keineZutat", "keineFloskel"];
 const zaehler = { floskeln: {}, zutatAlias: {} }; KEYS.forEach(k => zaehler[k] = {});
-const unbekannt = {}, nwEin = {}; let ok = 0;
+const unbekannt = {}, nwEin = {}, tFehler = []; let ok = 0;
 const BLS = require("../daten/bls-suche.json");
 
 files.forEach(f => {
@@ -42,6 +42,7 @@ files.forEach(f => {
   Object.keys(R.zutatAlias || {}).forEach(x => { const id = x + " → " + R.zutatAlias[x]; zaehler.zutatAlias[id] = (zaehler.zutatAlias[id] || 0) + 1; });
   Object.keys(R.floskeln || {}).forEach(a => (R.floskeln[a] || []).forEach(x => { const id = a + "\u0000" + x; zaehler.floskeln[id] = (zaehler.floskeln[id] || 0) + 1; }));
   Object.keys(j.unbekannt || {}).forEach(u => { unbekannt[u] = (unbekannt[u] || 0) + j.unbekannt[u]; });
+  (j.teilenFehler || []).forEach(f => tFehler.push(Object.assign({ datei: path.basename(f.datei || "") || "" }, f)));
   Object.keys(j.naehrwerte || {}).forEach(k => { (nwEin[k] = nwEin[k] || []).push(Object.assign({ datei: path.basename(f) }, j.naehrwerte[k])); });
 });
 
@@ -97,6 +98,14 @@ Object.keys(nwEin).forEach(k => {
 
 console.log(`${ok} von ${files.length} Dateien gelesen · ${neu.length} neue Regeln${min > 1 ? ` (ab ${min} Nutzern)` : ""}`);
 neu.forEach(x => console.log("  + " + x));
+if (tFehler.length) {
+  console.log(`\nProbleme beim Teilen (${tFehler.length}) – zum Nachstellen und Beheben im Kern:`);
+  const byG = {}; tFehler.forEach(f => (byG[f.grund] = byG[f.grund] || []).push(f));
+  Object.keys(byG).sort((a, b) => byG[b].length - byG[a].length).forEach(g => {
+    console.log(`  ${g} (${byG[g].length}×)`);
+    byG[g].slice(0, 8).forEach(f => { const d = f.diagnose || {}; console.log(`    - ${f.link || "ohne Link"} · App ${f.app} · ${d.laenge ?? "?"} Zeichen · Text ${d.text ?? "?"} · DE ${d.deutsch ?? "?"}` + (f.notiz ? ` · „${f.notiz}“` : "") + (d.kopf && d.kopf.length ? `\n      Kopf: ${d.kopf.join(" | ")}` : "") + (d.fuss && d.fuss.length ? `\n      Fuß: ${d.fuss.join(" | ")}` : "")); });
+  });
+}
 if (nwBericht.length) console.log(`\nNährwerte (${nwBericht.length}):\n  ` + nwBericht.join("\n  "));
 const unb = Object.entries(unbekannt).sort((a, b) => b[1] - a[1]);
 if (unb.length) console.log(`\nZutaten ohne Nährwert (für das Nährwert-Training, ${unb.length}):\n  ` + unb.slice(0, 60).map(([k, n]) => `${k} (${n}×)`).join(", "));

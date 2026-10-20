@@ -301,7 +301,7 @@ a { color: var(--accent); }
 (function (root) {
   "use strict";
 
-  var VERSION = "0.3.6";
+  var VERSION = "0.3.7";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -2285,7 +2285,7 @@ a { color: var(--accent); }
   function lernNorm(t) { return lower(stripEmoji(String(t || ""))).replace(/[^a-zäöüß0-9 ]+/g, " ").replace(/\s+/g, " ").trim(); }
   function neuerLernspeicher() {
     return { app: "rezeptbuch-lernen", version: LERN_VERSION, rezepte: 0, rezepteSeitSenden: 0, gesendetAm: null,
-      creator: {}, ignorieren: {}, keinSchritt: {}, istSchritt: {}, zutatAlias: {}, keineZutat: {}, keineFloskel: {}, unbekannt: {} };
+      creator: {}, ignorieren: {}, keinSchritt: {}, istSchritt: {}, zutatAlias: {}, keineZutat: {}, keineFloskel: {}, unbekannt: {}, fehler: [] };
   }
   // Regeln aus mehreren Quellen (zentral + lokal) zusammenführen
   function lernRegeln(list) {
@@ -2365,6 +2365,36 @@ a { color: var(--accent); }
     }
     return gelernt;
   }
+  // Teilen-Probleme: kurze Diagnose dessen, was aus dem Kurzbefehl ankam (ohne Rezepttext)
+  // Kopf und Fuß der Instagram-Vorschau zeigen, welche Bedienzeilen Instagram gerade schickt.
+  var FEHLER_MAX = 60;
+  function teilenDiagnose(txt) {
+    txt = String(txt || "");
+    var lines = txt.split("\n").map(function (l) { return l.trim(); }).filter(Boolean);
+    var link = (txt.match(/https?:\/\/(?:www\.)?instagram\.com\/[A-Za-z0-9_\/.-]+/) || [""])[0].slice(0, 120);
+    if (!link) link = (txt.match(/https?:\/\/[^\s#&?%]+/) || [""])[0].slice(0, 120);
+    var teil = function (a, b) { var i = txt.indexOf(a); if (i < 0) return 0; var j = b ? txt.indexOf(b, i + a.length) : -1; return (j < 0 ? txt.length : j) - i - a.length; };
+    var ui = /^(Gefällt|Liked by|Kommentieren|Comment|Teilen|Share|Speichern|Save|Sichern|Profil ansehen|View profile|Mehr auf Instagram|View more on|Instagram|Verifiziert|Verified|Original-Audio|Original audio|Alle \d+|View all|Kommentar hinzufügen|Add a comment|\d[\d.,]*\s*(Mal|likes|Beiträge|posts|Follower))/i;
+    var start = lines.indexOf("###TEXT###"), body = start >= 0 ? lines.slice(start + 1) : lines;
+    var endDe = body.indexOf("###DEUTSCH###"); if (endDe >= 0) body = body.slice(0, endDe);
+    // Kopf: Zeilen bis zur ersten langen (Rezept-)Zeile, höchstens 12; Fuß: letzte Bedienzeilen
+    var kopf = [], fuss = [];
+    for (var i = 0; i < body.length && kopf.length < 12; i++) { if (body[i].length > 60 && !ui.test(body[i])) break; kopf.push(body[i].slice(0, 50)); }
+    if (!kopf.length && body.length) kopf.push(body[0].slice(0, 160));
+    for (var k = body.length - 1; k >= 0 && fuss.length < 5; k--) { if (!ui.test(body[k]) && body[k].length > 30) break; fuss.unshift(body[k].slice(0, 50)); }
+    return { laenge: txt.length, link: link, rezeptbuch: /^\s*REZEPTBUCH/.test(txt), text: teil("###TEXT###", "###DEUTSCH###"), deutsch: teil("###DEUTSCH###"),
+      zeilen: body.length, kopf: kopf, fuss: fuss, shareLink: /instagram\.com\/share\//.test(txt), html: /<html|class="Caption"/i.test(txt) };
+  }
+  function lerneTeilenFehler(L, info) {
+    L.fehler = L.fehler || [];
+    var f = { grund: info.grund, link: info.link || (info.diagnose && info.diagnose.link) || "", datum: new Date().toISOString().slice(0, 16), app: info.app || "", kern: VERSION, anzahl: 1 };
+    ["diagnose", "rezept", "notiz", "art"].forEach(function (k) { if (info[k]) f[k] = info[k]; });
+    var alt = L.fehler.filter(function (x) { return x.link === f.link && x.grund === f.grund && !x.gesendet; })[0];
+    if (alt && f.link) { alt.anzahl++; alt.datum = f.datum; if (f.diagnose) alt.diagnose = f.diagnose; if (f.notiz) alt.notiz = f.notiz; return alt; }
+    L.fehler.push(f);
+    while (L.fehler.length > FEHLER_MAX) { var iS = L.fehler.findIndex ? L.fehler.findIndex(function (x) { return x.gesendet; }) : -1; L.fehler.splice(iS >= 0 ? iS : 0, 1); }
+    return f;
+  }
   // Datei für den Betreiber: nur Regeln, keine Rezepttexte, keine persönlichen Daten
   function lernExport(L, meta) {
     var R = lernRegeln([L]);
@@ -2372,7 +2402,8 @@ a { color: var(--accent); }
     return { app: "rezeptbuch-lernen", version: LERN_VERSION, kern: VERSION, app_version: (meta && meta.app) || "", datum: new Date().toISOString().slice(0, 10),
       rezepte: L.rezepte || 0, regeln: { floskeln: fl, ignorieren: Object.keys(L.ignorieren || {}), keinSchritt: Object.keys(L.keinSchritt || {}), istSchritt: Object.keys(L.istSchritt || {}),
       zutatAlias: L.zutatAlias || {}, keineZutat: Object.keys(L.keineZutat || {}), keineFloskel: Object.keys(L.keineFloskel || {}) }, unbekannt: L.unbekannt || {},
-      naehrwerte: naehrwertExport(meta && meta.zuord) };
+      naehrwerte: naehrwertExport(meta && meta.zuord),
+      teilenFehler: (L.fehler || []).filter(function (f) { return !f.gesendet; }) };
   }
   // Nährwert-Zuordnungen und eigene Angaben (nur Zutatenname, Werte, Quelle – keine Rezepte)
   function naehrwertExport(z) {
@@ -3401,7 +3432,9 @@ a { color: var(--accent); }
     }
     var vergleich = null;
     if (opts.name && opts.suche && v.kcal != null) {
-      var sug = zuordnungsVorschlaege(opts.name, opts.suche, 3).filter(function (x) { return x.score >= 3 && x.kcal != null; });
+      // nur echte Treffer vergleichen: jedes Wort des Namens muss im BLS-Namen vorkommen (sonst „Vanille“ → Vanilleeis)
+      var tok = suggestTokens(opts.name);
+      var sug = zuordnungsVorschlaege(opts.name, opts.suche, 5).filter(function (x) { var nm = lower(x.name); return x.score >= 3 && x.kcal != null && tok.length && tok.every(function (t) { return nm.indexOf(t) !== -1; }); }).slice(0, 3);
       if (sug.length) {
         var ks = sug.map(function (x) { return x.kcal; }), lo = Math.min.apply(null, ks), hi = Math.max.apply(null, ks);
         vergleich = { min: Math.round(lo), max: Math.round(hi), namen: sug.map(function (x) { return x.name + " (" + Math.round(x.kcal) + " kcal)"; }) };
@@ -3871,6 +3904,7 @@ a { color: var(--accent); }
     parseText: parseText, parseTranscript: parseTranscript, parseSchemaOrg: parseSchemaOrg,
     parseIngredientLine: parseIngredientLine, parseDuration: parseDuration,
     classify: classify, completeness: completeness, focusFromNutrition: focusFromNutrition,
+    teilenDiagnose: teilenDiagnose, lerneTeilenFehler: lerneTeilenFehler,
     berechneNaehrwerte: berechneNaehrwerte, pruefeNaehrwerte: pruefeNaehrwerte, eigenerNaehrwert: eigenerNaehrwert, kcalAusNaehrstoffen: kcalAusNaehrstoffen, NW_FELDER: NW_FELDER, findNutrientEntry: findNutrientEntry, NUTRIENT_KEYS: NUTRIENT_KEYS,
     normName: normName, fmtQty: fmtQty, fmtIngredient: fmtIngredient, scaleRecipe: scaleRecipe,
     shoppingList: shoppingList, shoppingText: shoppingText,
@@ -3906,7 +3940,7 @@ a { color: var(--accent); }
   var LERN_ERINNERUNG = 20;
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.9.1";
+  var APP_VERSION = "0.9.2";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -4148,6 +4182,12 @@ a { color: var(--accent); }
     closeSheet(); render();
     toast(regeln.length ? "Gespeichert · " + regeln.length + (regeln.length === 1 ? " Regel" : " Regeln") + " gelernt" : "Gespeichert");
   }
+  function meldenSheet(id) {
+    sheet('<h2>Problem melden</h2><p class="small">Was stimmt nicht? Jakob bekommt den Instagram-Link und kann die Erkennung für alle verbessern. Selbst korrigieren kannst du über „Rezept bearbeiten“.</p>' +
+      '<div class="chips" style="display:flex;flex-wrap:wrap;gap:8px">' + ["Zutaten fehlen", "Zutaten falsch", "Schritte fehlen", "Schritte falsch", "Titel falsch", "Fremder Text im Rezept"].map(function (x) { return '<button class="chip" data-a="melden-toggle" data-mg="' + esc(x) + '" aria-pressed="false">' + esc(x) + '</button>'; }).join("") + '</div>' +
+      '<div class="field"><label for="meldetext">Kurz beschreiben (freiwillig)</label><textarea class="input" id="meldetext" maxlength="200" style="min-height:80px"></textarea></div>' +
+      '<button class="btn accent" data-a="melden-send" data-id="' + esc(id) + '">' + ic("share") + 'An Jakob schicken</button><button class="btn soft" data-a="close-sheet">Abbrechen</button>');
+  }
   // ------------------------------------------------------------------ Nährwerte ergänzen (Datenbank oder eigene Angabe)
   var NW_FORM = [["kcal", "Energie", "kcal"], ["fat", "Fett", "g"], ["satFat", "davon gesättigte Fettsäuren", "g"], ["carbs", "Kohlenhydrate", "g"], ["sugar", "davon Zucker", "g"], ["fiber", "Ballaststoffe", "g"], ["protein", "Eiweiß", "g"], ["salt", "Salz", "g"]];
   var STUECK_UNITS = { "": 1, Stk: 1, Stange: 1, Scheibe: 1, Pck: 1, "Würfel": 1 };
@@ -4169,20 +4209,20 @@ a { color: var(--accent); }
     } else if (f.tab === "db") {
       var sug = BLS_SUCHE ? K.zuordnungsVorschlaege(f.such || f.name, BLS_SUCHE, 8) : [];
       UI.sug = sug;
-      body = '<p class="small muted">Bundeslebensmittelschlüssel 4.0 (Max Rubner-Institut), Werte je 100 g. Wähle das Lebensmittel, das am besten passt.</p>' + stkFeld +
+      body = '<p class="small muted">Bundeslebensmittelschlüssel 4.0 (Max Rubner-Institut), Werte je 100 g. Tipp: mit dem Oberbegriff suchen (z. B. „Riegel“ statt Markenname).</p>' + stkFeld +
         '<div class="field"><label for="nw-such">Suchen</label><input class="input" id="nw-such" value="' + esc(f.such || f.name) + '" autocomplete="off"></div>' +
         (BLS_SUCHE ? (sug.length ? '<div class="group">' + sug.map(function (x, k) {
           return '<button class="row" data-a="nw-pick" data-n="' + k + '"><span class="main"><span>' + esc(x.name) + '</span><span class="sub num">' + Math.round(x.kcal || 0) + ' kcal · ' + r1(x.entry.n.protein) + ' g Eiweiß · ' + r1(x.entry.n.carbs) + ' g Kohlenh. · ' + r1(x.entry.n.fat) + ' g Fett</span></span>' + ic("chev", "chev") + '</button>';
         }).join("") + '</div>' : '<div class="note">Nichts gefunden. Versuche ein allgemeineres Wort (z. B. „Joghurt“ statt Markenname) oder trage die Werte selbst ein.</div>') : '<p class="small muted">Datenbank wird geladen …</p>');
     } else {
       var P = f.pruefung;
-      body = '<p class="small">Werte <b>je 100 g</b> aus der Nährwerttabelle auf der Verpackung (Pflichtangabe nach EU-Recht) oder von der Website des Herstellers.</p>' + stkFeld +
+      body = '<p class="small">Werte <b>je 100 g</b>. Es muss nicht genau dein Produkt sein: typische Werte für das Lebensmittel reichen (z. B. von irgendeiner Packung „Proteinriegel“).</p>' +
+        '<div class="field"><label for="nw-notiz">Oberbegriff des Lebensmittels</label><input class="input" id="nw-notiz" value="' + esc(f.notiz || "") + '" maxlength="60" placeholder="z. B. Proteinriegel, Haferdrink, Skyr"></div>' + stkFeld +
         '<div class="group" style="padding:10px 12px;display:grid;gap:8px">' + NW_FORM.map(function (r) {
           var sub = /^davon/.test(r[1]);
           return '<div class="field" style="grid-template-columns:1fr 110px;align-items:center' + (sub ? ';padding-left:14px' : '') + '"><label for="nw-' + r[0] + '">' + r[1] + (r[0] === "kcal" ? " *" : "") + '</label><input class="input num" id="nw-' + r[0] + '" inputmode="decimal" placeholder="' + r[2] + '" value="' + esc(f.werte[r[0]] == null ? "" : f.werte[r[0]]) + '"></div>';
         }).join("") + '</div>' +
-        '<div class="field"><label for="nw-quelle">Woher stammen die Werte?</label><select class="input" id="nw-quelle">' + ["Verpackung", "Website des Herstellers", "Andere Quelle"].map(function (q) { return '<option' + (f.quelle === q ? " selected" : "") + '>' + q + '</option>'; }).join("") + '</select></div>' +
-        '<div class="field"><label for="nw-notiz">Produkt oder Marke (freiwillig)</label><input class="input" id="nw-notiz" value="' + esc(f.notiz || "") + '" maxlength="80"></div>' +
+        '<div class="field"><label for="nw-quelle">Woher stammen die Werte?</label><select class="input" id="nw-quelle">' + ["Typische Werte (Oberbegriff)", "Verpackung", "Website des Herstellers", "Andere Quelle"].map(function (q) { return '<option' + (f.quelle === q ? " selected" : "") + '>' + q + '</option>'; }).join("") + '</select></div>' +
         (P && P.fehler.length ? '<div class="note" style="border-left:4px solid var(--danger)"><b>Bitte korrigieren</b>' + P.fehler.map(function (x) { return '<span>' + esc(x) + '</span>'; }).join("") + '</div>' : '') +
         (P && P.hinweise.length ? '<div class="note"><b>Bitte kurz prüfen</b>' + P.hinweise.map(function (x) { return '<span>' + esc(x) + '</span>'; }).join("") + '</div>' : '') +
         (P && P.kcalAusKj ? '<button class="btn soft" data-a="nw-kj">In kcal umrechnen (' + P.kcalAusKj + ' kcal)</button>' : '') +
@@ -4193,7 +4233,7 @@ a { color: var(--accent); }
       '<button class="btn soft" data-a="close-sheet">Abbrechen</button>');
   }
   function nwStart(d) {
-    UI.nw = { key: d.key, name: d.name, unit: d.unit || "", grund: d.grund || "unbekannt", rid: d.id || "", tab: "db", werte: {}, quelle: "Verpackung", such: "" };
+    UI.nw = { key: d.key, name: d.name, unit: d.unit || "", grund: d.grund || "unbekannt", rid: d.id || "", tab: "db", werte: {}, quelle: "Typische Werte (Oberbegriff)", such: "" };
     if (UI.nw.grund === "stueck") { var e = Z()[d.key] || (K.findNutrientEntry(d.key, NW.zutaten || NW) || {}).entry; UI.nw.entry = e; UI.nw.bls = e && e.name; }
     nwSheet();
     if (!BLS_SUCHE) fetch("bls-suche.json").then(function (r) { return r.json(); }).then(function (j) { BLS_SUCHE = j; if (UI.nw && UI.nw.tab === "db" && $("#layer .sheet")) { nwLesen(); nwSheet(); } }, function () { /* offline: selbst eintragen geht */ });
@@ -4237,19 +4277,26 @@ a { color: var(--accent); }
         return '<div class="row"><span class="main"><span class="title">' + esc(x.t) + '</span><span class="sub">' + esc(x.d.slice(0, 120)) + '</span></span><button class="iconbtn" data-a="lern-del" data-n="' + n + '" aria-label="Regel löschen">' + ic("trash") + '</button></div>';
       }).join("") : '<div class="row"><span class="main"><span class="sub">Noch keine Regeln. Ab dem dritten Rezept eines Creators und nach deinen ersten Korrekturen erscheinen sie hier.</span></span></div>') + '</div>' +
       (unb.length ? '<p class="small muted" style="padding-inline:4px">Noch unbekannte Zutaten (' + unb.length + ') – tippe, um Nährwerte zu ergänzen:</p><div class="tags" style="padding-inline:4px">' + unb.slice(0, 30).map(function (u) { return '<button class="tag" data-a="nw-add" data-key="' + esc(K.normName(u)) + '" data-name="' + esc(u) + '" data-unit="?" data-grund="unbekannt">' + esc(u) + ' ＋</button>'; }).join("") + '</div>' : '') +
+      ((L.fehler || []).length ? '<p class="small muted" style="padding-inline:4px">Probleme beim Teilen (' + L.fehler.length + '):</p><div class="group">' + L.fehler.slice().reverse().slice(0, 15).map(function (f) {
+        var n = L.fehler.indexOf(f);
+        return '<div class="row"><span class="main"><span class="title">' + esc(FEHLER_TEXT[f.grund] || f.grund) + (f.anzahl > 1 ? " (" + f.anzahl + "×)" : "") + '</span><span class="sub" style="overflow-wrap:anywhere">' + esc(f.datum.replace("T", " ") + " · " + (f.link || "ohne Link").replace(/^https:\/\/(www\.)?/, "") + (f.gesendet ? " · gesendet" : "")) + '</span></span>' +
+          (f.gesendet ? '' : '<button class="iconbtn" data-a="fehler-send" data-n="' + n + '" aria-label="Dieses Problem schicken">' + ic("share") + '</button>') + '<button class="iconbtn" data-a="fehler-del" data-n="' + n + '" aria-label="Problem löschen">' + ic("trash") + '</button></div>';
+      }).join("") + '</div>' : '') +
       '<p class="small muted" style="padding-inline:4px">' + (L.rezepte || 0) + ' Rezepte ausgewertet · seit dem letzten Senden ' + (L.rezepteSeitSenden || 0) + (L.gesendetAm ? ' · zuletzt gesendet ' + esc(dateDe(L.gesendetAm)) : '') + '</p>' +
       '<button class="btn accent" data-a="lern-send">' + ic("share") + 'An Jakob schicken</button>' +
-      '<p class="small muted" style="padding-inline:4px">Geschickt wird eine kleine Datei nur mit den Regeln und den unbekannten Zutatennamen – keine Rezepte, keine Fotos, nichts über dich. Du wählst selbst, wie (z. B. WhatsApp oder Mail an Jakob).</p>' +
+      '<p class="small muted" style="padding-inline:4px">Geschickt wird eine kleine Datei mit den Regeln, deinen Nährwert-Angaben, unbekannten Zutatennamen und – bei Problemen beim Teilen – dem Instagram-Link und den ersten Zeilen der Vorschau. Keine Rezepttexte, keine Fotos, nichts über dich. Du wählst selbst, wie (z. B. WhatsApp oder Mail an Jakob).</p>' +
       '<div class="btnrow"><button class="btn soft" data-a="lern-reset">Alles zurücksetzen</button><button class="btn soft" data-a="close-sheet">Schließen</button></div>');
   }
   function lernBanner() {
-    var L = S.lernen; if (!L || (L.rezepteSeitSenden || 0) < LERN_ERINNERUNG || (S.meta.lernSnooze && (L.rezepte || 0) < S.meta.lernSnooze)) return "";
+    var L = S.lernen, of = offeneFehler();
+    if (L && of.length >= 2 && of.length > (S.meta.fehlerSnooze || 0)) return '<div class="banner">' + ic("info") + '<div class="main"><b>' + of.length + ' Probleme beim Teilen gespeichert.</b> Schick sie Jakob, dann wird das Teilen schnell besser.</div><button class="btn accent" data-a="lern-send">Senden</button><button class="btn soft" data-a="fehler-later">Später</button></div>';
+    if (!L || (L.rezepteSeitSenden || 0) < LERN_ERINNERUNG || (S.meta.lernSnooze && (L.rezepte || 0) < S.meta.lernSnooze)) return "";
     return '<div class="banner">' + ic("sparkle") + '<div class="main"><b>' + L.rezepteSeitSenden + ' neue Rezepte – danke!</b> Schick Jakob, was die App dabei gelernt hat. So wird sie für alle besser.</div><button class="btn accent" data-a="lern-send">Senden</button><button class="btn soft" data-a="lern-later">Später</button></div>';
   }
   function lernSenden() {
     var data = K.lernExport(S.lernen, { app: APP_VERSION, zuord: S.zuord });
     var text = JSON.stringify(data, null, 1), name = "Rezeptbuch-Gelerntes-" + data.datum + ".json";
-    var done = function () { S.lernen.rezepteSeitSenden = 0; S.lernen.gesendetAm = Date.now(); save("lernen"); closeSheet(); render(); toast("Danke! Gelerntes geteilt"); };
+    var done = function () { S.lernen.rezepteSeitSenden = 0; S.lernen.gesendetAm = Date.now(); (S.lernen.fehler || []).forEach(function (f) { f.gesendet = true; }); save("lernen"); closeSheet(); render(); toast("Danke! Gelerntes geteilt"); };
     try {
       var file = new File([text], name, { type: "application/json" });
       if (navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: "Rezeptbuch: Gelerntes für Jakob", text: "Gelerntes aus meinem Rezeptbuch (nur Regeln, keine Rezepte)" }).then(done, function () { /* abgebrochen */ }); return; }
@@ -4641,6 +4688,7 @@ a { color: var(--accent); }
       '<button class="row" data-a="share-recipe" data-id="' + esc(id) + '">' + ic("share") + '<span class="main"><span class="title">Rezept teilen</span><span class="sub">Als Text mit Link zum Original</span></span></button>' +
       '<button class="row" data-a="edit" data-id="' + esc(id) + '">' + ic("edit") + '<span class="main"><span class="title">Rezept bearbeiten</span><span class="sub">Zutaten und Schritte korrigieren – die App lernt daraus</span></span></button>' +
       '<button class="row" data-a="rename" data-id="' + esc(id) + '">' + ic("edit") + '<span class="main"><span class="title">Titel ändern</span></span></button>' +
+      '<button class="row" data-a="melden" data-id="' + esc(id) + '">' + ic("info") + '<span class="main"><span class="title">Problem melden</span><span class="sub">Falsch erkannt? Jakob bekommt den Link und kann es verbessern</span></span></button>' +
       (translated && showOrigAllowed() ? '<button class="row" data-a="orig" data-id="' + esc(id) + '">' + ic("lang") + '<span class="main"><span class="title">' + (UI.showOrig[id] ? "Deutsch zeigen" : "Original zeigen") + '</span><span class="sub">Das Rezept wurde übersetzt</span></span></button>' : '') +
       (e.cooked ? '<button class="row" data-a="uncook" data-id="' + esc(id) + '">' + ic("clock") + '<span class="main"><span class="title">„Gekocht“ zurücksetzen</span></span></button>' : '') +
       '</div><div class="group"><button class="row" data-a="delete" data-id="' + esc(id) + '" style="color:var(--danger)">' + ic("trash") + '<span class="main"><span class="title">Rezept löschen</span></span></button></div>' +
@@ -4885,6 +4933,7 @@ a { color: var(--accent); }
         '<ul><li><b>Floskeln:</b> Schreibt ein Creator in mindestens drei Beiträgen denselben Satz (z. B. „Folge mir für mehr Rezepte“), blendet die App ihn ab dann aus.</li>' +
         '<li><b>Deine Korrekturen:</b> Über „Mehr → Rezept bearbeiten“ löschst oder korrigierst du Zutaten und Schritte. Die App merkt sich das als Regel und wendet sie auf alle Rezepte an.</li>' +
         '<li><b>Nährwerte:</b> Fehlt einer Zutat der Nährwert, ergänzt du ihn im Rezept – aus dem BLS oder von der Verpackung. Die App prüft eigene Angaben auf Plausibilität.</li>' +
+        '<li><b>Probleme beim Teilen:</b> Klappt das Teilen aus Instagram nicht oder fehlt etwas, merkt sich die App den Instagram-Link und was ankam (ohne Rezepttext). Über „Problem an Jakob schicken“ oder „Mehr → Problem melden“ geht es direkt an Jakob, der die Erkennung für alle verbessert.</li>' +
         '<li><b>Ansehen und löschen:</b> Einstellungen → „Was die App gelernt hat“. Jede Regel lässt sich einzeln löschen oder alles zurücksetzen.</li>' +
         '<li><b>Für alle besser:</b> Nach je ' + LERN_ERINNERUNG + ' neuen Rezepten erinnert dich die App, das Gelernte an Jakob zu schicken. Die Datei enthält nur Regeln und Zutatennamen, keine Rezepte und nichts über dich. Jakob prüft sie, und mit dem nächsten Update bekommen alle die geprüften Regeln.</li></ul>') +
       (showNutri() ? sec("scale", "Woher die Nährwerte kommen",
@@ -5142,7 +5191,8 @@ a { color: var(--accent); }
       S.meta.awaitShortcut = null; UI.shareBanner = false; save("meta");
       if (!pf) {
         if (/instagram\.com\/(p|reel|reels|tv)\//.test(txt) && txt.length < 300) { toast("Nur ein Link – der Kurzbefehl holt jetzt den Text …"); runShortcut(txt.trim()); return; }
-        diagSheet("In der Zwischenablage ist kein geteiltes Rezept.", txt); render(); return;
+        var g0 = !txt.trim() ? "zwischenablage-leer" : /instagram\.com\/share\//.test(txt) ? "share-link" : "keine-daten";
+        diagSheet(g0 === "share-link" ? "Dieser Link (instagram.com/share/…) wird noch nicht unterstützt. Bitte in Instagram über „Teilen“ → „" + SC_NAME + "“ teilen." : g0 === "zwischenablage-leer" ? "Die Zwischenablage war leer. Lief der Kurzbefehl bis zum Ende?" : "In der Zwischenablage ist kein geteiltes Rezept.", txt, g0); render(); return;
       }
       var ok = handleImport(pf, true);
       render(); window.scrollTo(0, 0);
@@ -5150,13 +5200,42 @@ a { color: var(--accent); }
     };
     try { navigator.clipboard.readText().then(go, function () { pasteSheet(); }); } catch (x) { pasteSheet(); }
   }
-  // Zeigt, was angekommen ist – für die Fehlersuche (Screenshot an Claude)
-  function diagSheet(msg, txt) {
+  // Teilen-Probleme merken (die App lernt, wo es hakt; geht mit „An Jakob schicken“ mit)
+  var HARTE_FEHLER = { "zwischenablage-leer": 1, "keine-daten": 1, "keine-beschreibung": 1, "nicht-gelesen": 1, "share-link": 1, "gemeldet": 1 };
+  var FEHLER_TEXT = { "zwischenablage-leer": "Zwischenablage war leer", "keine-daten": "Kein Rezeptbuch-Text in der Zwischenablage", "keine-beschreibung": "Instagram gab keine Beschreibung heraus",
+    "nicht-gelesen": "Text kam an, Rezept nicht lesbar", "share-link": "Teilen-Link (instagram.com/share/…) nicht unterstützt", "unvollstaendig": "Gespeichert, aber unvollständig", "gemeldet": "Von dir gemeldet" };
+  function merkeFehler(grund, txt, extra) {
+    if (!S.lernen) return null;
+    try {
+      var info = Object.assign({ grund: grund, app: APP_VERSION }, extra || {});
+      if (txt != null) info.diagnose = K.teilenDiagnose(txt);
+      var f = K.lerneTeilenFehler(S.lernen, info); save("lernen"); return f;
+    } catch (x) { return null; }
+  }
+  function offeneFehler() { return ((S.lernen && S.lernen.fehler) || []).filter(function (f) { return !f.gesendet && HARTE_FEHLER[f.grund]; }); }
+  function fehlerText(f) {
+    var d = f.diagnose || {};
+    return "Rezeptbuch – Problem beim Teilen\n" + (FEHLER_TEXT[f.grund] || f.grund) + (f.notiz ? " – " + f.notiz : "") + "\nLink: " + (f.link || "(keiner)") +
+      "\nApp " + f.app + " · Kern " + f.kern + " · " + f.datum.replace("T", " ") +
+      (d.laenge != null ? "\nAngekommen: " + d.laenge + " Zeichen · Text " + d.text + " · Deutsch " + d.deutsch + " · Zeilen " + d.zeilen + (d.html ? " · HTML" : "") : "") +
+      (d.kopf && d.kopf.length ? "\nKopf: " + d.kopf.join(" | ") : "") + (d.fuss && d.fuss.length ? "\nFuß: " + d.fuss.join(" | ") : "") +
+      (f.rezept ? "\nErkannt: " + f.rezept.zutaten + " Zutaten, " + f.rezept.schritte + " Schritte" + (f.rezept.wo ? ", Rezept steht im " + f.rezept.wo : "") : "");
+  }
+  function fehlerSenden(f) {
+    var text = fehlerText(f);
+    var done = function () { f.gesendet = true; save("lernen"); toast("Danke! Problem geteilt"); closeSheet(); render(); };
+    if (navigator.share) { navigator.share({ title: "Rezeptbuch: Problem beim Teilen", text: text }).then(done, function () { /* abgebrochen */ }); return; }
+    copy(text, "Problem kopiert – bitte an Jakob schicken"); done();
+  }
+  // Zeigt, was angekommen ist, merkt sich das Problem und bietet an, es direkt an Jakob zu schicken
+  function diagSheet(msg, txt, grund, extra) {
     var li = S.meta.lastImport || {};
+    var f = merkeFehler(grund || "nicht-gelesen", txt, extra); UI.fehler = f;
     sheet('<h2>Nicht erkannt</h2><p class="small">' + esc(msg) + '</p>' +
       '<div class="note"><b>Was angekommen ist</b><span>Länge: ' + String(txt || "").length + ' Zeichen · Link ' + (li.u || 0) + ' · Text ' + (li.t || 0) + ' · Übersetzung ' + (li.d || 0) + '</span>' +
       '<span class="small" style="overflow-wrap:anywhere">Anfang: ' + esc(String(txt || "").slice(0, 160) || "(leer)") + '</span></div>' +
-      '<p class="small muted">App ' + APP_VERSION + ' · Kern ' + esc(K.VERSION) + ' – bitte davon einen Screenshot an Claude schicken.</p><button class="btn soft" data-a="close-sheet">Schließen</button>');
+      (f ? '<button class="btn accent" data-a="fehler-send">' + ic("share") + 'Problem an Jakob schicken</button><p class="small muted">Geschickt werden der Instagram-Link, was ankam (Länge, erste Zeilen der Vorschau) und die App-Version – kein Rezepttext. Das Problem ist auch unter „Was die App gelernt hat“ gespeichert.</p>' : '') +
+      '<p class="small muted">App ' + APP_VERSION + ' · Kern ' + esc(K.VERSION) + '</p><button class="btn soft" data-a="close-sheet">Schließen</button>');
   }
   function pasteSheet() {
     sheet('<h2>Geteiltes Rezept einfügen</h2><p class="small">Tippe ins Feld, halte kurz gedrückt und wähle „Einsetzen“. Dann „Übernehmen“.</p>' +
@@ -5204,7 +5283,7 @@ a { color: var(--accent); }
     var emb = looksIg ? K.parseInstagramEmbed(text) : null;
     if (looksIg && !emb) {
       // Instagram hat keine Beschreibung geliefert (privates Konto, Einbetten abgeschaltet, Anmeldeseite)
-      setTimeout(function () { diagSheet("Instagram hat für diesen Beitrag keine Beschreibung herausgegeben (z. B. privates Konto oder Einbetten abgeschaltet). Tipp: Beschreibung in Instagram kopieren und unter „Hinzufügen“ einfügen.", text); }, 300);
+      setTimeout(function () { diagSheet("Instagram hat für diesen Beitrag keine Beschreibung herausgegeben (z. B. privates Konto oder Einbetten abgeschaltet). Tipp: Beschreibung in Instagram kopieren und unter „Hinzufügen“ einfügen.", text, "keine-beschreibung", { link: url }); }, 300);
       return true;
     }
     var caption = emb ? emb.caption : text;
@@ -5224,6 +5303,7 @@ a { color: var(--accent); }
     if (UI.draft && ((UI.draft.like && UI.draft.like.recipe) || (forceSave && caption && caption.length > 40))) {
       var out = addRecipe(UI.draft.res, { input: input, typ: UI.draft.like ? UI.draft.like.typ : null });
       UI.draft = null; UI.tab = "rezepte"; UI.detail = out.id;
+      try { var rS = S.recipes[out.id].recipe; if (!out.dupe && !K.completeness(rS).enough) merkeFehler("unvollstaendig", null, { link: url, rezept: { zutaten: rS.ingredients.length, schritte: rS.steps.length, wo: (rS.elsewhere && rS.elsewhere.wo) || "" } }); } catch (x) { /* egal */ }
       setTimeout(function () { toast(out.dupe ? "Schon im Rezeptbuch" : "Im Rezeptbuch gespeichert"); }, 300);
       return true;
     }
@@ -5290,7 +5370,7 @@ a { color: var(--accent); }
       case "setup": setupSheet(); render(); break;
       case "share-paste": importFromClipboard(); break;
       case "blog-fetch": toast("Der Kurzbefehl holt die Blog-Seite …"); runShortcut(el.dataset.t); break;
-      case "share-apply": var stx = (($("#sharetext") || {}).value || ""); closeSheet(); var sf = payloadFields(stx); if (sf && handleImport(sf, true)) render(); else diagSheet("Kein geteiltes Rezept erkannt.", stx); break;
+      case "share-apply": var stx = (($("#sharetext") || {}).value || ""); closeSheet(); var sf = payloadFields(stx); if (sf && handleImport(sf, true)) render(); else diagSheet("Kein geteiltes Rezept erkannt.", stx, !stx.trim() ? "zwischenablage-leer" : sf ? "nicht-gelesen" : "keine-daten"); break;
       case "show-build": UI.showBuild = true; setupSheet(); break;
       case "sc-run-link": closeSheet(); UI.pasteText = ""; runShortcut(el.dataset.t); break;
       case "sc-test": closeSheet(); toast("Kurzbefehl wird mit einem Beispiel-Link gestartet …"); setTimeout(function () { runShortcut("https://www.instagram.com/p/C0Test/"); }, 400); break;
@@ -5331,6 +5411,15 @@ a { color: var(--accent); }
       case "rename": renameSheet(id); break;
       case "edit": editSheet(id); break;
       case "nw-add": nwStart(el.dataset); break;
+      case "fehler-send": var fs0 = el.dataset.n != null ? S.lernen.fehler[+el.dataset.n] : UI.fehler; if (fs0) fehlerSenden(fs0); break;
+      case "fehler-del": S.lernen.fehler.splice(+el.dataset.n, 1); save("lernen"); lernSheet(); break;
+      case "fehler-later": S.meta.fehlerSnooze = offeneFehler().length + 2; save("meta"); render(); break;
+      case "melden": meldenSheet(id); break;
+      case "melden-send":
+        var me = S.recipes[id], mr = me.recipe, wahl = [].map.call(document.querySelectorAll("#layer [data-mg][aria-pressed=true]"), function (b) { return b.dataset.mg; });
+        var mf = merkeFehler("gemeldet", null, { link: (mr.source && mr.source.url) || "", notiz: (wahl.join(", ") + ((($("#meldetext") || {}).value || "").trim() ? " – " + $("#meldetext").value.trim().slice(0, 200) : "")) || "ohne Angabe", rezept: { zutaten: mr.ingredients.length, schritte: mr.steps.length, wo: (mr.elsewhere && mr.elsewhere.wo) || "" } });
+        if (mf) fehlerSenden(mf); break;
+      case "melden-toggle": el.setAttribute("aria-pressed", el.getAttribute("aria-pressed") === "true" ? "false" : "true"); break;
       case "nw-tab": nwLesen(); UI.nw.tab = el.dataset.t; UI.nw.pruefung = null; nwSheet(); break;
       case "nw-pick":
         nwLesen(); var sk = nwStkPruefen(); if (!sk.ok) break;
@@ -5344,7 +5433,7 @@ a { color: var(--accent); }
       case "nw-save":
         nwLesen(); var fw = UI.nw, w = {}; K.NW_FELDER.forEach(function (k) { w[k] = nwZahl(fw.werte[k]); });
         var sk3 = nwStkPruefen(); if (!sk3.ok) break;
-        var pr = K.pruefeNaehrwerte(w, { name: fw.name, suche: BLS_SUCHE, stk: sk3.v });
+        var pr = K.pruefeNaehrwerte(w, { name: (fw.notiz || "").trim() || fw.name, suche: BLS_SUCHE, stk: sk3.v });
         if (!pr.ok || (pr.hinweise.length && !el.dataset.ok)) { fw.pruefung = pr; nwSheet(); var nt = $("#layer .note"); if (nt) nt.scrollIntoView({ block: "center" }); break; }
         nwFertig(K.eigenerNaehrwert(fw.name, w, { stk: sk3.v, quelle: fw.quelle, notiz: (fw.notiz || "").trim(), hinweise: pr.hinweise }), "Gespeichert – eigene Angabe für „" + fw.name + "“"); break;
       case "edit-save": saveEdit(id); break;

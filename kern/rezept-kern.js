@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.3.6";
+  var VERSION = "0.3.7";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -2006,7 +2006,7 @@
   function lernNorm(t) { return lower(stripEmoji(String(t || ""))).replace(/[^a-zäöüß0-9 ]+/g, " ").replace(/\s+/g, " ").trim(); }
   function neuerLernspeicher() {
     return { app: "rezeptbuch-lernen", version: LERN_VERSION, rezepte: 0, rezepteSeitSenden: 0, gesendetAm: null,
-      creator: {}, ignorieren: {}, keinSchritt: {}, istSchritt: {}, zutatAlias: {}, keineZutat: {}, keineFloskel: {}, unbekannt: {} };
+      creator: {}, ignorieren: {}, keinSchritt: {}, istSchritt: {}, zutatAlias: {}, keineZutat: {}, keineFloskel: {}, unbekannt: {}, fehler: [] };
   }
   // Regeln aus mehreren Quellen (zentral + lokal) zusammenführen
   function lernRegeln(list) {
@@ -2086,6 +2086,36 @@
     }
     return gelernt;
   }
+  // Teilen-Probleme: kurze Diagnose dessen, was aus dem Kurzbefehl ankam (ohne Rezepttext)
+  // Kopf und Fuß der Instagram-Vorschau zeigen, welche Bedienzeilen Instagram gerade schickt.
+  var FEHLER_MAX = 60;
+  function teilenDiagnose(txt) {
+    txt = String(txt || "");
+    var lines = txt.split("\n").map(function (l) { return l.trim(); }).filter(Boolean);
+    var link = (txt.match(/https?:\/\/(?:www\.)?instagram\.com\/[A-Za-z0-9_\/.-]+/) || [""])[0].slice(0, 120);
+    if (!link) link = (txt.match(/https?:\/\/[^\s#&?%]+/) || [""])[0].slice(0, 120);
+    var teil = function (a, b) { var i = txt.indexOf(a); if (i < 0) return 0; var j = b ? txt.indexOf(b, i + a.length) : -1; return (j < 0 ? txt.length : j) - i - a.length; };
+    var ui = /^(Gefällt|Liked by|Kommentieren|Comment|Teilen|Share|Speichern|Save|Sichern|Profil ansehen|View profile|Mehr auf Instagram|View more on|Instagram|Verifiziert|Verified|Original-Audio|Original audio|Alle \d+|View all|Kommentar hinzufügen|Add a comment|\d[\d.,]*\s*(Mal|likes|Beiträge|posts|Follower))/i;
+    var start = lines.indexOf("###TEXT###"), body = start >= 0 ? lines.slice(start + 1) : lines;
+    var endDe = body.indexOf("###DEUTSCH###"); if (endDe >= 0) body = body.slice(0, endDe);
+    // Kopf: Zeilen bis zur ersten langen (Rezept-)Zeile, höchstens 12; Fuß: letzte Bedienzeilen
+    var kopf = [], fuss = [];
+    for (var i = 0; i < body.length && kopf.length < 12; i++) { if (body[i].length > 60 && !ui.test(body[i])) break; kopf.push(body[i].slice(0, 50)); }
+    if (!kopf.length && body.length) kopf.push(body[0].slice(0, 160));
+    for (var k = body.length - 1; k >= 0 && fuss.length < 5; k--) { if (!ui.test(body[k]) && body[k].length > 30) break; fuss.unshift(body[k].slice(0, 50)); }
+    return { laenge: txt.length, link: link, rezeptbuch: /^\s*REZEPTBUCH/.test(txt), text: teil("###TEXT###", "###DEUTSCH###"), deutsch: teil("###DEUTSCH###"),
+      zeilen: body.length, kopf: kopf, fuss: fuss, shareLink: /instagram\.com\/share\//.test(txt), html: /<html|class="Caption"/i.test(txt) };
+  }
+  function lerneTeilenFehler(L, info) {
+    L.fehler = L.fehler || [];
+    var f = { grund: info.grund, link: info.link || (info.diagnose && info.diagnose.link) || "", datum: new Date().toISOString().slice(0, 16), app: info.app || "", kern: VERSION, anzahl: 1 };
+    ["diagnose", "rezept", "notiz", "art"].forEach(function (k) { if (info[k]) f[k] = info[k]; });
+    var alt = L.fehler.filter(function (x) { return x.link === f.link && x.grund === f.grund && !x.gesendet; })[0];
+    if (alt && f.link) { alt.anzahl++; alt.datum = f.datum; if (f.diagnose) alt.diagnose = f.diagnose; if (f.notiz) alt.notiz = f.notiz; return alt; }
+    L.fehler.push(f);
+    while (L.fehler.length > FEHLER_MAX) { var iS = L.fehler.findIndex ? L.fehler.findIndex(function (x) { return x.gesendet; }) : -1; L.fehler.splice(iS >= 0 ? iS : 0, 1); }
+    return f;
+  }
   // Datei für den Betreiber: nur Regeln, keine Rezepttexte, keine persönlichen Daten
   function lernExport(L, meta) {
     var R = lernRegeln([L]);
@@ -2093,7 +2123,8 @@
     return { app: "rezeptbuch-lernen", version: LERN_VERSION, kern: VERSION, app_version: (meta && meta.app) || "", datum: new Date().toISOString().slice(0, 10),
       rezepte: L.rezepte || 0, regeln: { floskeln: fl, ignorieren: Object.keys(L.ignorieren || {}), keinSchritt: Object.keys(L.keinSchritt || {}), istSchritt: Object.keys(L.istSchritt || {}),
       zutatAlias: L.zutatAlias || {}, keineZutat: Object.keys(L.keineZutat || {}), keineFloskel: Object.keys(L.keineFloskel || {}) }, unbekannt: L.unbekannt || {},
-      naehrwerte: naehrwertExport(meta && meta.zuord) };
+      naehrwerte: naehrwertExport(meta && meta.zuord),
+      teilenFehler: (L.fehler || []).filter(function (f) { return !f.gesendet; }) };
   }
   // Nährwert-Zuordnungen und eigene Angaben (nur Zutatenname, Werte, Quelle – keine Rezepte)
   function naehrwertExport(z) {
@@ -3122,7 +3153,9 @@
     }
     var vergleich = null;
     if (opts.name && opts.suche && v.kcal != null) {
-      var sug = zuordnungsVorschlaege(opts.name, opts.suche, 3).filter(function (x) { return x.score >= 3 && x.kcal != null; });
+      // nur echte Treffer vergleichen: jedes Wort des Namens muss im BLS-Namen vorkommen (sonst „Vanille“ → Vanilleeis)
+      var tok = suggestTokens(opts.name);
+      var sug = zuordnungsVorschlaege(opts.name, opts.suche, 5).filter(function (x) { var nm = lower(x.name); return x.score >= 3 && x.kcal != null && tok.length && tok.every(function (t) { return nm.indexOf(t) !== -1; }); }).slice(0, 3);
       if (sug.length) {
         var ks = sug.map(function (x) { return x.kcal; }), lo = Math.min.apply(null, ks), hi = Math.max.apply(null, ks);
         vergleich = { min: Math.round(lo), max: Math.round(hi), namen: sug.map(function (x) { return x.name + " (" + Math.round(x.kcal) + " kcal)"; }) };
@@ -3592,6 +3625,7 @@
     parseText: parseText, parseTranscript: parseTranscript, parseSchemaOrg: parseSchemaOrg,
     parseIngredientLine: parseIngredientLine, parseDuration: parseDuration,
     classify: classify, completeness: completeness, focusFromNutrition: focusFromNutrition,
+    teilenDiagnose: teilenDiagnose, lerneTeilenFehler: lerneTeilenFehler,
     berechneNaehrwerte: berechneNaehrwerte, pruefeNaehrwerte: pruefeNaehrwerte, eigenerNaehrwert: eigenerNaehrwert, kcalAusNaehrstoffen: kcalAusNaehrstoffen, NW_FELDER: NW_FELDER, findNutrientEntry: findNutrientEntry, NUTRIENT_KEYS: NUTRIENT_KEYS,
     normName: normName, fmtQty: fmtQty, fmtIngredient: fmtIngredient, scaleRecipe: scaleRecipe,
     shoppingList: shoppingList, shoppingText: shoppingText,

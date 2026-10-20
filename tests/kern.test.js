@@ -493,5 +493,14 @@ check("Nährwerte: eigene Angabe mit Stückgewicht fließt in die Rechnung", rP.
 const exN = K.lernExport(K.neuerLernspeicher(), { zuord: { proteinpudding: Object.assign({ zutat: "Proteinpudding" }, eigNw), x: { geprueft: true, name: "zentral" } } });
 check("Nährwerte: Export enthält eigene Angaben mit Quelle, keine zentralen", exN.naehrwerte.proteinpudding.quelle === "Verpackung" && !exN.naehrwerte.x, exN.naehrwerte);
 
+// Teilen-Probleme lernen
+const dg = K.teilenDiagnose("REZEPTBUCH\nhttps://www.instagram.com/reel/AbC123\n###TEXT###\nkoch.lisa\nProfil ansehen\nGefällt mir\nKommentieren\nTeilen\nSpeichern\nkoch.lisa\nDas ist ein sehr langer Rezepttext, der nicht in der Diagnose landen darf, weil er Inhalt ist.\n200 g Nudeln\nInstagram\n###DEUTSCH###\n");
+check("Teilen-Diagnose: Link, Kopf und Fuß ohne Rezepttext", dg.link === "https://www.instagram.com/reel/AbC123" && dg.kopf.includes("Speichern") && dg.fuss.includes("Instagram") && !JSON.stringify(dg).includes("Rezepttext"), dg);
+const LF = K.neuerLernspeicher();
+K.lerneTeilenFehler(LF, { grund: "nicht-gelesen", diagnose: dg }); K.lerneTeilenFehler(LF, { grund: "nicht-gelesen", diagnose: dg });
+check("Teilen-Probleme: gleiche Fehler werden gezählt statt doppelt gespeichert", LF.fehler.length === 1 && LF.fehler[0].anzahl === 2);
+LF.fehler[0].gesendet = true; K.lerneTeilenFehler(LF, { grund: "keine-daten", diagnose: K.teilenDiagnose("") });
+check("Teilen-Probleme: Export enthält nur noch nicht gesendete", K.lernExport(LF, {}).teilenFehler.length === 1);
+
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);
