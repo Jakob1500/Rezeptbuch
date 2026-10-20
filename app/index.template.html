@@ -285,7 +285,7 @@ a { color: var(--accent); }
   var LERN_ERINNERUNG = 20;
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.11.0";
+  var APP_VERSION = "0.11.1";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -471,6 +471,9 @@ a { color: var(--accent); }
   // Nach jedem neuen Rezept lernen; neue Creator-Floskeln gleich bei dessen anderen Rezepten anwenden
   function lerneNeu(e) {
     var neu = K.lerneAusRezept(S.lernen, e.input, e.recipe);
+    // Testphase: vollständige Beschreibung mitschicken, damit jeder Fall nachgestellt werden kann
+    var pr = S.lernen.protokoll && S.lernen.protokoll[S.lernen.protokoll.length - 1];
+    if (pr && e.input) pr.beschreibung = String(e.input.caption || "").slice(0, 6000) + (e.input.captionDe ? "\n--- Übersetzung ---\n" + String(e.input.captionDe).slice(0, 4000) : "") + (e.input.commentText ? "\n--- Blog/Ergänzung ---\n" + String(e.input.commentText).slice(0, 4000) : "");
     save("lernen");
     if (neu.length) {
       var acc = String(e.input.account || e.recipe.source.account || "").toLowerCase();
@@ -531,7 +534,6 @@ a { color: var(--accent); }
     sheet('<h2>Problem melden</h2><p class="small">Was stimmt nicht? Jakob bekommt den Instagram-Link und kann die Erkennung für alle verbessern. Selbst korrigieren kannst du über „Rezept bearbeiten“.</p>' +
       '<div class="chips" style="display:flex;flex-wrap:wrap;gap:8px">' + ["Zutaten fehlen", "Zutaten falsch", "Schritte fehlen", "Schritte falsch", "Titel falsch", "Fremder Text im Rezept"].map(function (x) { return '<button class="chip" data-a="melden-toggle" data-mg="' + esc(x) + '" aria-pressed="false">' + esc(x) + '</button>'; }).join("") + '</div>' +
       '<div class="field"><label for="meldetext">Kurz beschreiben (freiwillig)</label><textarea class="input" id="meldetext" maxlength="200" style="min-height:80px"></textarea></div>' +
-      '<label class="row" style="gap:10px"><input type="checkbox" id="mitText" checked><span class="main"><span class="sub">Beschreibung des Beitrags mitschicken (öffentlicher Instagram-Text; hilft Jakob, den Fehler nachzustellen)</span></span></label>' +
       '<button class="btn accent" data-a="melden-send" data-id="' + esc(id) + '">' + ic("share") + 'An Jakob schicken</button><button class="btn soft" data-a="close-sheet">Abbrechen</button>');
   }
   // ------------------------------------------------------------------ Nährwerte ergänzen (Datenbank oder eigene Angabe)
@@ -662,7 +664,7 @@ a { color: var(--accent); }
       (Object.keys(L.zeiten || {}).length ? '<p class="small muted" style="padding-inline:4px">Gelernte Dauer je Arbeitsschritt: ' + esc(Object.keys(L.zeiten).filter(function (a) { return L.zeiten[a].n; }).map(function (a) { return a + " ≈ " + Math.round(L.zeiten[a].summe / L.zeiten[a].n) + " Min. (" + L.zeiten[a].n + "×)"; }).join(" · ")) + '</p>' : '') +
       '<p class="small muted" style="padding-inline:4px">' + (L.rezepte || 0) + ' Rezepte ausgewertet · seit dem letzten Senden ' + (L.rezepteSeitSenden || 0) + (L.gesendetAm ? ' · zuletzt gesendet ' + esc(dateDe(L.gesendetAm)) : '') + '</p>' +
       '<button class="btn accent" data-a="lern-send">' + ic("share") + 'An Jakob schicken</button>' +
-      '<p class="small muted" style="padding-inline:4px">Geschickt wird eine kleine Datei mit den Regeln, deinen Nährwert-Angaben, unbekannten Zutatennamen, einem Protokoll je Rezept (Link, was erkannt wurde, was geschätzt ist) und Problemen beim Teilen. Rezepttexte nur, wenn du sie beim Melden ausdrücklich mitschickst. Keine Fotos, nichts über dich. Du wählst selbst, wie (z. B. WhatsApp oder Mail an Jakob).</p>' +
+      '<p class="small muted" style="padding-inline:4px">Geschickt wird eine kleine Datei mit den Regeln, deinen Nährwert-Angaben, unbekannten Zutatennamen, einem Protokoll je Rezept (Link, Beschreibung des Beitrags, was erkannt wurde) und Problemen beim Teilen. Während der Testphase gehen die öffentlichen Instagram-Texte immer mit, damit Fehler schnell behoben werden. Keine Fotos, nichts über dich. Du wählst selbst, wie (z. B. WhatsApp oder Mail an Jakob).</p>' +
       '<div class="btnrow"><button class="btn soft" data-a="lern-reset">Alles zurücksetzen</button><button class="btn soft" data-a="close-sheet">Schließen</button></div>');
   }
   function lernBanner() {
@@ -674,7 +676,7 @@ a { color: var(--accent); }
   function lernSenden() {
     var data = K.lernExport(S.lernen, { app: APP_VERSION, zuord: S.zuord });
     var text = JSON.stringify(data, null, 1), name = "Rezeptbuch-Gelerntes-" + data.datum + ".json";
-    var done = function () { S.lernen.rezepteSeitSenden = 0; S.lernen.gesendetAm = Date.now(); (S.lernen.fehler || []).forEach(function (f) { f.gesendet = true; }); (S.lernen.protokoll || []).forEach(function (x) { x.gesendet = true; }); save("lernen"); closeSheet(); render(); toast("Danke! Gelerntes geteilt"); };
+    var done = function () { S.lernen.rezepteSeitSenden = 0; S.lernen.gesendetAm = Date.now(); (S.lernen.fehler || []).forEach(function (f) { f.gesendet = true; }); (S.lernen.protokoll || []).forEach(function (x) { x.gesendet = true; delete x.beschreibung; }); (S.lernen.fehler || []).forEach(function (x) { delete x.beschreibung; }); save("lernen"); closeSheet(); render(); toast("Danke! Gelerntes geteilt"); };
     try {
       var file = new File([text], name, { type: "application/json" });
       if (navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: "Rezeptbuch: Gelerntes für Jakob", text: "Gelerntes aus meinem Rezeptbuch (nur Regeln, keine Rezepte)" }).then(done, function () { /* abgebrochen */ }); return; }
@@ -1618,7 +1620,9 @@ a { color: var(--accent); }
     try {
       var info = Object.assign({ grund: grund, app: APP_VERSION }, extra || {});
       if (txt != null) info.diagnose = K.teilenDiagnose(txt);
-      var f = K.lerneTeilenFehler(S.lernen, info); save("lernen"); return f;
+      var f = K.lerneTeilenFehler(S.lernen, info);
+      if (f && !f.beschreibung) f.beschreibung = txt != null ? String(txt).slice(0, 6000) : UI.letzteBeschreibung || "";
+      save("lernen"); return f;
     } catch (x) { return null; }
   }
   function offeneFehler() { return ((S.lernen && S.lernen.fehler) || []).filter(function (f) { return !f.gesendet && HARTE_FEHLER[f.grund]; }); }
@@ -1641,11 +1645,11 @@ a { color: var(--accent); }
   function diagSheet(msg, txt, grund, extra) {
     var li = S.meta.lastImport || {};
     var f = merkeFehler(grund || "nicht-gelesen", txt, extra); UI.fehler = f; UI.fehlerText = String(txt || "").slice(0, 6000);
+    if (f && !f.beschreibung) { f.beschreibung = UI.fehlerText; save("lernen"); }
     sheet('<h2>Nicht erkannt</h2><p class="small">' + esc(msg) + '</p>' +
       '<div class="note"><b>Was angekommen ist</b><span>Länge: ' + String(txt || "").length + ' Zeichen · Link ' + (li.u || 0) + ' · Text ' + (li.t || 0) + ' · Übersetzung ' + (li.d || 0) + '</span>' +
       '<span class="small" style="overflow-wrap:anywhere">Anfang: ' + esc(String(txt || "").slice(0, 160) || "(leer)") + '</span></div>' +
-      (f ? '<label class="row" style="gap:10px"><input type="checkbox" id="mitText" checked><span class="main"><span class="sub">Angekommenen Text mitschicken (hilft beim Beheben; öffentliche Beschreibung des Beitrags)</span></span></label>' +
-        '<button class="btn accent" data-a="fehler-send" data-txt="1">' + ic("share") + 'Problem an Jakob schicken</button><p class="small muted">Geschickt werden der Instagram-Link, was ankam und die App-Version. Das Problem ist auch unter „Was die App gelernt hat“ gespeichert.</p>' : '') +
+      (f ? '<button class="btn accent" data-a="fehler-send" data-txt="1">' + ic("share") + 'Problem an Jakob schicken</button><p class="small muted">Geschickt werden der Instagram-Link, was ankam und die App-Version. Das Problem ist auch unter „Was die App gelernt hat“ gespeichert.</p>' : '') +
       '<p class="small muted">App ' + APP_VERSION + ' · Kern ' + esc(K.VERSION) + '</p><button class="btn soft" data-a="close-sheet">Schließen</button>');
   }
   function pasteSheet() {
@@ -1709,6 +1713,7 @@ a { color: var(--accent); }
     // Testlauf aus der Einrichtung
     if (/\/p\/C0Test\/?$/.test(url)) { setTimeout(function () { toast("Der Kurzbefehl funktioniert. Jetzt in Instagram teilen."); }, 300); return false; }
     var input = { caption: caption, url: url, account: account, ocrText: p.o || "", transcript: p.s || "", captionDe: de };
+    UI.letzteBeschreibung = String(caption || "").slice(0, 6000);
     // Blog-Seite aus demselben Kurzbefehl-Lauf gleich mit auswerten
     if (p.b && p.b.length > 200) { if (/<(html|body|div|script)[\s>]/i.test(p.b)) input.blogHtml = p.b; else input.commentText = p.b; input.blogUrl = p.bu; }
     // schon gespeichert? Dann öffnen statt doppelt anlegen
@@ -1859,7 +1864,7 @@ a { color: var(--accent); }
       case "nw-add": nwStart(el.dataset); break;
       case "fehler-send":
         var fs0 = el.dataset.n != null ? S.lernen.fehler[+el.dataset.n] : UI.fehler;
-        if (fs0 && el.dataset.txt && $("#mitText") && $("#mitText").checked && UI.fehlerText) fs0.beschreibung = UI.fehlerText;
+        if (fs0 && el.dataset.txt && UI.fehlerText) fs0.beschreibung = UI.fehlerText;
         if (fs0) fehlerSenden(fs0); break;
       case "fehler-del": S.lernen.fehler.splice(+el.dataset.n, 1); save("lernen"); lernSheet(); break;
       case "fehler-later": S.meta.fehlerSnooze = offeneFehler().length + 2; save("meta"); render(); break;
@@ -1867,7 +1872,7 @@ a { color: var(--accent); }
       case "melden-send":
         var me = S.recipes[id], mr = me.recipe, wahl = [].map.call(document.querySelectorAll("#layer [data-mg][aria-pressed=true]"), function (b) { return b.dataset.mg; });
         var mf = merkeFehler("gemeldet", null, { link: (mr.source && mr.source.url) || "", notiz: (wahl.join(", ") + ((($("#meldetext") || {}).value || "").trim() ? " – " + $("#meldetext").value.trim().slice(0, 200) : "")) || "ohne Angabe", rezept: { zutaten: mr.ingredients.length, schritte: mr.steps.length, wo: (mr.elsewhere && mr.elsewhere.wo) || "" } });
-        if (mf && $("#mitText") && $("#mitText").checked && me.input) mf.beschreibung = String(me.input.caption || "").slice(0, 6000) + (me.input.captionDe ? "\n\n--- Übersetzung ---\n" + String(me.input.captionDe).slice(0, 4000) : "");
+        if (mf && me.input) mf.beschreibung = String(me.input.caption || "").slice(0, 6000) + (me.input.captionDe ? "\n\n--- Übersetzung ---\n" + String(me.input.captionDe).slice(0, 4000) : "");
         if (mf) fehlerSenden(mf); break;
       case "melden-toggle": el.setAttribute("aria-pressed", el.getAttribute("aria-pressed") === "true" ? "false" : "true"); break;
       case "off-suche": offSuche(); break;

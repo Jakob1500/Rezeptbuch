@@ -1,0 +1,19 @@
+{
+ "kern": "0.4.1",
+ "datum": "2026-10-20",
+ "rezepte": 152,
+ "zaehler": {
+  "schritt-verloren": 36,
+  "zutat-verloren": 135,
+  "zutat-ohne-schritt": 284,
+  "vage-unaufgeloest": 4,
+  "titel-satz": 0,
+  "titel-geraten": 30,
+  "vegan-widerspruch": 1,
+  "ohne-naehrwert": 66,
+  "zeit-unplausibel": 2,
+  "zutat-zusammengeklebt": 2,
+  "zutat-englisch": 7,
+  "unvollstaendig": 48
+ }
+}
