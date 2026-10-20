@@ -454,5 +454,27 @@ const embEN = "\n\nkoch.lisa\nView profile\n\nView more on Instagram\n\nLike\nCo
 [["DE", embDE], ["ohne Likes", embNoLike], ["EN", embEN]].forEach(([n, e]) => { const r = K.parseInstagramEmbed(e); check("Einbettung " + n + ": Beschreibung und Konto", r && r.caption === capX && r.account === "koch.lisa", r); });
 check("Einbettung ohne Beschreibung -> null", K.parseInstagramEmbed("\n\nDieser Beitrag ist nicht verfügbar\nMehr auf Instagram ansehen\nInstagram\n") === null);
 
+// Lernen ohne KI
+const LL = K.neuerLernspeicher();
+const capL = (n) => "Rezept " + n + "\nZutaten:\n200 g Nudeln\n1 Zwiebel\nZubereitung:\n1. Nudeln kochen.\n2. Zwiebel anbraten.\nFolge meinem Kanal für noch mehr schnelle Rezepte jeden Tag\nRezept für 2 Portionen";
+let gelernt = [];
+for (let n = 1; n <= 3; n++) { const inp = { caption: capL(n), account: "koch.lisa" }; gelernt = gelernt.concat(K.lerneAusRezept(LL, inp, K.analyse(inp, { lernen: [LL] }).recipe)); }
+check("Lernen: Creator-Floskel nach 3 Rezepten", gelernt.some(x => /folge meinem kanal/.test(x)) && !gelernt.some(x => /portionen/.test(x)), gelernt);
+const neuR = K.analyse({ caption: capL(4) + "\nFolge meinem Kanal für noch mehr schnelle Rezepte jeden Tag", account: "koch.lisa" }, { lernen: [LL] }).recipe;
+check("Lernen: Floskel wird ausgeblendet, Portionen bleiben", neuR.servings === 2 && !/folge/i.test((neuR.description || "") + neuR.steps.join(" ")), [neuR.servings, neuR.description]);
+const altR = K.analyse({ caption: "Curry\nZutaten:\n200 g Reis\nTofu-Tipp vom Bauern\nZubereitung:\n1. Reis kochen.\n2. Am Sonntag mit Zitrone darüber geben.\n3. Servieren." }).recipe;
+const neuK = JSON.parse(JSON.stringify(altR)); neuK.steps = neuK.steps.filter(s => !/Sonntag/.test(s));
+const kor = K.lerneKorrektur(LL, altR, neuK);
+check("Lernen: entfernter Schritt wird Regel", kor.length === 1 && Object.keys(LL.keinSchritt).length === 1, kor);
+check("Lernen: Regel wirkt bei neuer Auswertung", !K.analyse({ caption: "Curry\nZutaten:\n200 g Reis\nZubereitung:\n1. Reis kochen.\n2. Am Sonntag mit Zitrone darüber geben." }, { lernen: [LL] }).recipe.steps.some(s => /Sonntag/.test(s)));
+const ex = K.lernExport(LL, { app: "test" });
+check("Lernen: Export enthält Regeln, keine Rezepttexte", ex.regeln.keinSchritt.length === 1 && ex.regeln.floskeln["koch.lisa"] && !JSON.stringify(ex).includes("200 g Nudeln"), ex);
+
+const fl0 = Object.keys(K.lernRegeln([LL]).floskeln["koch.lisa"] || {});
+LL.keineFloskel = {}; fl0.forEach(x => { LL.keineFloskel[x] = 1; });
+check("Lernen: gelöschte Floskel wird nicht mehr angewendet", fl0.length > 0 && !Object.keys(K.lernRegeln([LL]).floskeln["koch.lisa"] || {}).length, fl0);
+const zentralTest = { floskeln: { "koch.lisa": fl0 } };
+check("Lernen: zentrale Regeln gelten ohne lokalen Speicher", Object.keys(K.lernRegeln([zentralTest]).floskeln["koch.lisa"] || {}).length === fl0.length);
+
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

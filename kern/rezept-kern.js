@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.3.4";
+  var VERSION = "0.3.5";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -1364,6 +1364,7 @@
       // Erzählung in der Ich-Form oder Hintergrund ("Meine Mutter hat …", "Normalerweise wird …")
       if (/^(hi|hallo|hey|normalerweise|eigentlich|ursprünglich|traditionell|es gibt|dieses rezept|this recipe|meine?|my|ich|i|wir|we)\b/i.test(t) && !/^(ich|i|wir|we)\s+(gebe|mische|brate|koche|add|mix|stir)\b/i.test(t)) { desc.push(t); return; }
       if (/\b(ich|mein\w*|wir|unser\w*|I|my|we|our)\b/.test(t) && !(STEP_VERBS.test(t.split(/\s+/).slice(0, 8).join(" ")) || DE_VERBS.test(t.split(/\s+/).slice(0, 8).join(" ")) || EN_IMP.test(t))) { desc.push(t); return; }
+      if (LERN) { var ln = lernNorm(t); if (LERN.keinSchritt[ln]) { desc.push(t); return; } if (LERN.istSchritt[ln]) { out.push(fToC(t)); return; } }
       if (NARRATIVE.test(t) && !instr) { desc.push(t); return; }
       if (!trusted && !instr) { desc.push(t); return; }
       // Nur echte Arbeitsschritte: ohne Koch-Handlung ist es Beschreibung oder Tipp (auch in nummerierten Listen)
@@ -1994,8 +1995,113 @@
    * Gibt { recipe, trace, completeness, next } zurück.
    * next sagt der Oberfläche, was als Nächstes helfen würde (sparsamster Schritt zuerst).
    */
-  function analyse(input) {
+  // ---------------------------------------------------------------------------
+  // Lernen ohne KI: nachvollziehbare Regeln, die die App pro Gerät sammelt
+  // (Creator-Floskeln, Korrekturen des Users, unbekannte Wörter) und die zentral
+  // geprüft in daten/gelernt-zentral.json für alle übernommen werden.
+  // ---------------------------------------------------------------------------
+  var LERN_VERSION = 1;
+  var FLOSKEL_MIN = 3, FLOSKEL_ANTEIL = 0.6;
+  var LERN = null; // während einer Analyse aktive Regeln
+  function lernNorm(t) { return lower(stripEmoji(String(t || ""))).replace(/[^a-zäöüß0-9 ]+/g, " ").replace(/\s+/g, " ").trim(); }
+  function neuerLernspeicher() {
+    return { app: "rezeptbuch-lernen", version: LERN_VERSION, rezepte: 0, rezepteSeitSenden: 0, gesendetAm: null,
+      creator: {}, ignorieren: {}, keinSchritt: {}, istSchritt: {}, zutatAlias: {}, keineZutat: {}, keineFloskel: {}, unbekannt: {} };
+  }
+  // Regeln aus mehreren Quellen (zentral + lokal) zusammenführen
+  function lernRegeln(list) {
+    var R = { ignorieren: {}, keinSchritt: {}, istSchritt: {}, zutatAlias: {}, keineZutat: {}, keineFloskel: {}, floskeln: {} };
+    (list || []).filter(Boolean).forEach(function (L) {
+      ["ignorieren", "keinSchritt", "istSchritt", "keineZutat", "keineFloskel"].forEach(function (k) { Object.keys(L[k] || {}).forEach(function (x) { R[k][x] = 1; }); });
+      Object.keys(L.zutatAlias || {}).forEach(function (x) { R.zutatAlias[x] = L.zutatAlias[x]; });
+      Object.keys(L.floskeln || {}).forEach(function (a) { (L.floskeln[a] || []).forEach(function (x) { (R.floskeln[a] = R.floskeln[a] || {})[x] = 1; }); });
+      Object.keys(L.creator || {}).forEach(function (a) {
+        var c = L.creator[a]; if (!c || c.n < FLOSKEL_MIN) return;
+        var anteil = c.n >= 8 ? 0.25 : FLOSKEL_ANTEIL;
+        Object.keys(c.zeilen || {}).forEach(function (x) { if (c.zeilen[x] >= FLOSKEL_MIN && c.zeilen[x] / c.n >= anteil) (R.floskeln[a] = R.floskeln[a] || {})[x] = 1; });
+      });
+    });
+    // vom Nutzer gelöschte Floskeln nie wieder anwenden
+    Object.keys(R.floskeln).forEach(function (a) { Object.keys(R.floskeln[a]).forEach(function (x) { if (R.keineFloskel[x]) delete R.floskeln[a][x]; }); });
+    return R;
+  }
+  function lernFilterText(text, account) {
+    if (!LERN || !text) return text;
+    var fl = LERN.floskeln[lower(account || "").replace(/^@/, "")] || {};
+    return String(text).split("\n").filter(function (l) { var n = lernNorm(l); return !n || !(LERN.ignorieren[n] || fl[n]); }).join("\n");
+  }
+  // Zeile, die eine Floskel sein kann (keine Zutat, kein Schritt, keine Überschrift)
+  function floskelKandidat(l) {
+    var c = clean(stripEmoji(l)), n = lernNorm(l);
+    if (n.length < 12 || n.length > 160 || n.split(" ").length < 3) return false;
+    if (HEAD_ING.test(c) || HEAD_STEP.test(c) || SUBHEAD_WORD.test(c.replace(/:\s*$/, ""))) return false;
+    if (/^\s*[-•*]?\s*\d/.test(c) || looksLikeIngredient(c) || isStepLike(c)) return false;
+    if (findServings(c) || /\b\d+\s*(min|minuten|minutes|std|stunden|portionen|personen|servings|°)/i.test(c)) return false; // Portionen/Zeit nie wegwerfen
+    var pi = parseIngredientLine(c); if (pi && pi.aisle !== "Sonstiges" && c.split(/\s+/).length <= 4) return false;
+    return true;
+  }
+  // Nach jedem neuen Rezept: Creator-Zeilen zählen, unbekannte Zutaten merken. Gibt neu gelernte Floskeln zurück.
+  function lerneAusRezept(L, input, recipe) {
+    if (!L) return [];
+    L.rezepte = (L.rezepte || 0) + 1; L.rezepteSeitSenden = (L.rezepteSeitSenden || 0) + 1;
+    var neu = [];
+    var acc = lower((input && input.account) || (recipe && recipe.source && recipe.source.account) || "").replace(/^@/, "");
+    if (acc && input && input.caption) {
+      var c = L.creator[acc] = L.creator[acc] || { n: 0, zeilen: {} };
+      var vorher = lernRegeln([{ creator: (function () { var o = {}; o[acc] = JSON.parse(JSON.stringify(c)); return o; })() }]).floskeln[acc] || {};
+      c.n++;
+      var seen = {};
+      String(input.caption).split("\n").forEach(function (l) {
+        var n = lernNorm(l); if (!n || seen[n] || !floskelKandidat(l)) return; seen[n] = 1;
+        c.zeilen[n] = (c.zeilen[n] || 0) + 1;
+      });
+      // Speicher klein halten: höchstens 150 Zeilen je Creator, seltene zuerst raus
+      var keys = Object.keys(c.zeilen);
+      if (keys.length > 150) keys.sort(function (a, b) { return c.zeilen[a] - c.zeilen[b]; }).slice(0, keys.length - 150).forEach(function (k) { delete c.zeilen[k]; });
+      var nachher = lernRegeln([{ creator: (function () { var o = {}; o[acc] = c; return o; })() }]).floskeln[acc] || {};
+      Object.keys(nachher).forEach(function (x) { if (!vorher[x]) neu.push(x); });
+    }
+    ((recipe && recipe.ingredients) || []).forEach(function (i) {
+      if (i.aisle === "Sonstiges" && !i.nameOriginal && i.name && i.name.length < 40) { var k = lower(i.name); L.unbekannt[k] = (L.unbekannt[k] || 0) + 1; }
+    });
+    var uk = Object.keys(L.unbekannt);
+    if (uk.length > 300) uk.sort(function (a, b) { return L.unbekannt[a] - L.unbekannt[b]; }).slice(0, uk.length - 300).forEach(function (k) { delete L.unbekannt[k]; });
+    return neu;
+  }
+  // Korrekturen des Users vergleichen: alt/neu je Liste -> Regeln
+  function lerneKorrektur(L, alt, neu) {
+    if (!L) return [];
+    var gelernt = [];
+    var nset = {}; (neu.steps || []).forEach(function (st) { nset[lernNorm(st)] = 1; });
+    var aset = {}; (alt.steps || []).forEach(function (st) { aset[lernNorm(st)] = 1; });
+    (alt.steps || []).forEach(function (st) { var n = lernNorm(st); if (n && !nset[n] && !/^## /.test(st) && n.length >= 8) { L.keinSchritt[n] = 1; gelernt.push("Kein Schritt: " + clean(st).slice(0, 60)); } });
+    var desc = lernNorm(alt.description || "");
+    (neu.steps || []).forEach(function (st) { var n = lernNorm(st); if (n && !aset[n] && desc.indexOf(n) !== -1) { L.istSchritt[n] = 1; delete L.keinSchritt[n]; gelernt.push("Ist ein Schritt: " + clean(st).slice(0, 60)); } });
+    var ai = alt.ingredients || [], ni = neu.ingredients || [];
+    if (ai.length === ni.length) {
+      ai.forEach(function (a, k) { var b = ni[k]; if (a && b && a.key && b.key && a.key !== b.key) { L.zutatAlias[a.key] = b.name; gelernt.push("Zutat: " + a.name + " → " + b.name); } });
+    } else {
+      var nk = {}; ni.forEach(function (i) { nk[i.key] = 1; });
+      ai.forEach(function (a) { if (a.key && !nk[a.key] && a.qty == null) { L.keineZutat[a.key] = 1; gelernt.push("Keine Zutat: " + a.name); } });
+    }
+    return gelernt;
+  }
+  // Datei für den Betreiber: nur Regeln, keine Rezepttexte, keine persönlichen Daten
+  function lernExport(L, meta) {
+    var R = lernRegeln([L]);
+    var fl = {}; Object.keys(R.floskeln).forEach(function (a) { fl[a] = Object.keys(R.floskeln[a]); });
+    return { app: "rezeptbuch-lernen", version: LERN_VERSION, kern: VERSION, app_version: (meta && meta.app) || "", datum: new Date().toISOString().slice(0, 10),
+      rezepte: L.rezepte || 0, regeln: { floskeln: fl, ignorieren: Object.keys(L.ignorieren || {}), keinSchritt: Object.keys(L.keinSchritt || {}), istSchritt: Object.keys(L.istSchritt || {}),
+      zutatAlias: L.zutatAlias || {}, keineZutat: Object.keys(L.keineZutat || {}), keineFloskel: Object.keys(L.keineFloskel || {}) }, unbekannt: L.unbekannt || {} };
+  }
+
+  function analyse(input, opts) {
     input = input || {};
+    LERN = opts && opts.lernen ? lernRegeln(opts.lernen) : null;
+    if (LERN) {
+      var accL = input.account || "";
+      input = Object.assign({}, input, { caption: lernFilterText(input.caption, accL), captionDe: lernFilterText(input.captionDe, accL), commentText: lernFilterText(input.commentText, accL) });
+    }
     var t0 = now();
     var trace = [];
     var r = emptyRecipe();
@@ -2040,7 +2146,12 @@
       trace.push({ step: "translation", label: "Übersetzung", status: de.steps.length ? "verwendet" : "nichts gefunden" });
     }
 
+    if (LERN) {
+      r.ingredients = r.ingredients.filter(function (i) { return !LERN.keineZutat[i.key]; });
+      r.ingredients.forEach(function (i) { var a = LERN.zutatAlias[i.key]; if (a) { i.nameOriginal = i.nameOriginal || i.name; i.name = a; i.key = normName(a); i.aisle = guessAisle(a); i.gelernt = true; } });
+    }
     finalize(r);
+    LERN = null;
     var c = completeness(r);
     return { recipe: r, trace: trace, completeness: c, next: suggestNext(r, c, input), ms: now() - t0, version: VERSION };
   }
@@ -3406,6 +3517,7 @@
   // ---------------------------------------------------------------------------
 
   var api = {
+    neuerLernspeicher: neuerLernspeicher, lerneAusRezept: lerneAusRezept, lerneKorrektur: lerneKorrektur, lernExport: lernExport, lernRegeln: lernRegeln, lernNorm: lernNorm,
     VERSION: VERSION, SCHEMA_VERSION: SCHEMA_VERSION,
     KATEGORIEN: KATEGORIEN, AISLES: AISLES,
     analyse: analyse, analyseWithModel: analyseWithModel,

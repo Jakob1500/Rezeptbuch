@@ -8,7 +8,8 @@ const tpl = fs.readFileSync(path.join(root, "app/index.template.html"), "utf8");
 const kern = fs.readFileSync(path.join(root, "kern/rezept-kern.js"), "utf8");
 if (/<\/script/i.test(kern)) throw new Error("Kern enthält </script>");
 const nw = fs.readFileSync(path.join(root, "daten/naehrwerte.json"), "utf8");
-const body = tpl.replace("/*KERN*/", () => kern).replace("/*NAEHRWERTE*/", () => nw);
+const zentral = fs.readFileSync(path.join(root, "daten/gelernt-zentral.json"), "utf8");
+const body = tpl.replace("/*KERN*/", () => kern).replace("/*NAEHRWERTE*/", () => nw).replace("/*ZENTRAL*/", () => zentral);
 
 const docs = path.join(root, "docs");
 fs.mkdirSync(docs, { recursive: true });

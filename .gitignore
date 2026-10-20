@@ -10,3 +10,5 @@ daten/bls-roh/
 labor/rezept-labor.html
 node_modules/
 .DS_Store
+# Eingang „Gelerntes“ von Nutzern (nur lokal prüfen)
+lernen-eingang/
