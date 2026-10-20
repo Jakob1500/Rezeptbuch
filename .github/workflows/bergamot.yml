@@ -1,0 +1,58 @@
+# Holt den Offline-Übersetzer Bergamot (Mozilla, MPL-2.0) und das Modell Englisch→Deutsch
+# einmalig in das Repository (docs/bergamot/). Die iPhones laden ihn dann von GitHub Pages,
+# also von derselben Adresse wie die App – keine fremden Server zur Laufzeit.
+name: Bergamot-Übersetzer holen
+on:
+  workflow_dispatch:
+  push:
+    paths: [".github/workflows/bergamot.yml"]
+permissions:
+  contents: write
+jobs:
+  holen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Übersetzer-Paket laden
+        run: |
+          set -x
+          mkdir -p /tmp/b docs/bergamot
+          cd /tmp/b
+          npm view @browsermt/bergamot-translator versions --json > versionen.json || true
+          npm pack @browsermt/bergamot-translator
+          tar xzf browsermt-bergamot-translator-*.tgz
+          cd package
+          find . -type f -printf "%s %p\n" | sort -k2 > "$GITHUB_WORKSPACE/docs/bergamot/_paket.txt"
+          cp ../versionen.json "$GITHUB_WORKSPACE/docs/bergamot/_versionen.json" || true
+          cp package.json LICENSE* README* "$GITHUB_WORKSPACE/docs/bergamot/" 2>/dev/null || true
+          # Laufzeitdateien (JS + WASM) übernehmen
+          find . -type f \( -name "*.wasm" -o -name "*.js" \) ! -path "*/node_modules/*" -exec cp --parents {} "$GITHUB_WORKSPACE/docs/bergamot/" \;
+      - name: Modell Englisch→Deutsch laden
+        run: |
+          set -x
+          GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 https://github.com/mozilla/firefox-translations-models /tmp/m
+          cd /tmp/m
+          find models -path "*ende*" -type f -printf "%p\n" | sort > "$GITHUB_WORKSPACE/docs/bergamot/_modelle-ende.txt"
+          git log -1 --format="%H %cs" > "$GITHUB_WORKSPACE/docs/bergamot/_modelle-stand.txt"
+          cp LICENSE* "$GITHUB_WORKSPACE/docs/bergamot/" 2>/dev/null || true
+          VAR=""
+          for v in tiny base-memory base prod; do if ls models/$v/ende >/dev/null 2>&1; then VAR=$v; break; fi; done
+          echo "Variante: $VAR" >> "$GITHUB_WORKSPACE/docs/bergamot/_modelle-stand.txt"
+          test -n "$VAR"
+          git lfs pull --include "models/$VAR/ende/*"
+          mkdir -p "$GITHUB_WORKSPACE/docs/bergamot/ende"
+          for f in models/$VAR/ende/*; do
+            case "$f" in *.gz) gunzip -c "$f" > "$GITHUB_WORKSPACE/docs/bergamot/ende/$(basename "${f%.gz}")";; *) cp "$f" "$GITHUB_WORKSPACE/docs/bergamot/ende/";; esac
+          done
+          ls -la "$GITHUB_WORKSPACE/docs/bergamot/ende" >> "$GITHUB_WORKSPACE/docs/bergamot/_modelle-stand.txt"
+      - name: Ins Repository schreiben
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898+github-actions[bot]@users.noreply.github.com"
+          git add docs/bergamot
+          git commit -m "Bergamot-Übersetzer und Modell en→de (automatisch geholt)" || echo "nichts Neues"
+          git push
