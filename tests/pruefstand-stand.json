@@ -1,11 +1,11 @@
 {
- "kern": "0.4.1",
- "datum": "2026-10-20",
+ "kern": "0.5.2",
+ "datum": "2026-10-21",
  "rezepte": 152,
  "zaehler": {
   "schritt-verloren": 36,
   "zutat-verloren": 135,
-  "zutat-ohne-schritt": 284,
+  "zutat-ohne-schritt": 285,
   "vage-unaufgeloest": 4,
   "titel-satz": 0,
   "titel-geraten": 30,

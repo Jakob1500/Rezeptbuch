@@ -314,7 +314,7 @@ a { color: var(--accent); }
 (function (root) {
   "use strict";
 
-  var VERSION = "0.5.1";
+  var VERSION = "0.5.2";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -2503,7 +2503,7 @@ a { color: var(--accent); }
   function lernNorm(t) { return lower(stripEmoji(String(t || ""))).replace(/[^a-zäöüß0-9 ]+/g, " ").replace(/\s+/g, " ").trim(); }
   function neuerLernspeicher() {
     return { app: "rezeptbuch-lernen", version: LERN_VERSION, rezepte: 0, rezepteSeitSenden: 0, gesendetAm: null,
-      creator: {}, ignorieren: {}, keinSchritt: {}, istSchritt: {}, zutatAlias: {}, keineZutat: {}, keineFloskel: {}, unbekannt: {}, fehler: [], zeiten: {}, protokoll: [] };
+      creator: {}, ignorieren: {}, keinSchritt: {}, istSchritt: {}, zutatAlias: {}, keineZutat: {}, keineFloskel: {}, unbekannt: {}, fehler: [], zeiten: {}, protokoll: [], titel: [] };
   }
   // Regeln aus mehreren Quellen (zentral + lokal) zusammenführen
   function lernRegeln(list) {
@@ -2634,6 +2634,19 @@ a { color: var(--accent); }
     while (L.fehler.length > FEHLER_MAX) { var iS = L.fehler.findIndex ? L.fehler.findIndex(function (x) { return x.gesendet; }) : -1; L.fehler.splice(iS >= 0 ? iS : 0, 1); }
     return f;
   }
+  // Geänderte Titel: was der Kern erkannt hat und was der Nutzer daraus gemacht hat (Eingang fürs Titel-Training).
+  // info: { id, konto, link, automatisch, original, neu }. Gleicher Titel wie automatisch -> Eintrag entfällt.
+  function lerneTitel(L, info) {
+    L.titel = L.titel || [];
+    var alt = L.titel.filter(function (x) { return x.id === info.id && !x.gesendet; })[0];
+    var neu = clean(info.neu || ""), auto = clean(info.automatisch || "");
+    if (!neu || lower(neu) === lower(auto)) { if (alt) L.titel.splice(L.titel.indexOf(alt), 1); return null; }
+    var e = { id: info.id || "", konto: String(info.konto || "").replace(/^@/, ""), link: info.link || "", automatisch: auto, original: clean(info.original || ""), neu: neu, datum: new Date().toISOString().slice(0, 16) };
+    if (alt) { Object.keys(e).forEach(function (k) { alt[k] = e[k]; }); return alt; }
+    L.titel.push(e);
+    while (L.titel.length > 300) { var iS = L.titel.findIndex(function (x) { return x.gesendet; }); L.titel.splice(iS >= 0 ? iS : 0, 1); }
+    return e;
+  }
   // Datei für den Betreiber: nur Regeln, keine Rezepttexte, keine persönlichen Daten
   function lernExport(L, meta) {
     var R = lernRegeln([L]);
@@ -2644,7 +2657,8 @@ a { color: var(--accent); }
       naehrwerte: naehrwertExport(meta && meta.zuord),
       teilenFehler: (L.fehler || []).filter(function (f) { return !f.gesendet; }),
       zeiten: L.zeiten || {},
-      protokoll: (L.protokoll || []).filter(function (x) { return !x.gesendet; }) };
+      protokoll: (L.protokoll || []).filter(function (x) { return !x.gesendet; }),
+      titel: (L.titel || []).filter(function (x) { return !x.gesendet; }).map(function (x) { return { konto: x.konto, link: x.link, automatisch: x.automatisch, original: x.original || undefined, neu: x.neu, datum: x.datum }; }) };
   }
   // Nährwert-Zuordnungen und eigene Angaben (nur Zutatenname, Werte, Quelle – keine Rezepte)
   function naehrwertExport(z) {
@@ -4299,7 +4313,7 @@ a { color: var(--accent); }
     parseText: parseText, parseTranscript: parseTranscript, parseSchemaOrg: parseSchemaOrg,
     parseIngredientLine: parseIngredientLine, parseDuration: parseDuration,
     classify: classify, completeness: completeness, focusFromNutrition: focusFromNutrition,
-    teilenDiagnose: teilenDiagnose, lerneTeilenFehler: lerneTeilenFehler,
+    teilenDiagnose: teilenDiagnose, lerneTeilenFehler: lerneTeilenFehler, lerneTitel: lerneTitel,
     estimateTimeFromSteps: estimateTimeFromSteps, zeitAnalyse: zeitAnalyse, schrittArbeiten: schrittArbeiten, pruefeSchrittLogik: pruefeSchrittLogik,
     berechneNaehrwerte: berechneNaehrwerte, pruefeNaehrwerte: pruefeNaehrwerte, eigenerNaehrwert: eigenerNaehrwert, kcalAusNaehrstoffen: kcalAusNaehrstoffen, NW_FELDER: NW_FELDER, findNutrientEntry: findNutrientEntry, NUTRIENT_KEYS: NUTRIENT_KEYS,
     normName: normName, fmtQty: fmtQty, rundeMenge: rundeMenge, skalierHinweis: skalierHinweis, schrittTimer: schrittTimer, enthaeltZutat: enthaeltZutat, guessAisle: guessAisle, geraete: geraete, vorheizHinweis: vorheizHinweis, fmtIngredient: fmtIngredient, scaleRecipe: scaleRecipe,
@@ -4336,7 +4350,7 @@ a { color: var(--accent); }
   var LERN_ERINNERUNG = 20;
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.16.0";
+  var APP_VERSION = "0.16.1";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -4712,6 +4726,13 @@ a { color: var(--accent); }
     return out;
   }
   function lernZahl() { try { return lernListe().length; } catch (x) { return 0; } }
+  // Geänderten Titel fürs Gelernte merken (Titel-Training: automatisch erkannt -> vom Nutzer gewählt)
+  function titelLernen(id) {
+    var e = S.recipes[id]; if (!e || !S.lernen || e.example) return;
+    var r = e.recipe || {}, src = r.source || {};
+    K.lerneTitel(S.lernen, { id: id, konto: src.account || (e.input && e.input.account) || "", link: src.url || (e.input && e.input.url) || "", automatisch: r.title || "", original: r.titleOriginal && r.titleOriginal !== r.title ? r.titleOriginal : "", neu: e.userTitle || "" });
+    save("lernen");
+  }
   function lernSheet() {
     var L = S.lernen || {}, list = lernListe(), unb = Object.keys(L.unbekannt || {}).sort(function (a, b) { return L.unbekannt[b] - L.unbekannt[a]; });
     sheet('<h2>Was die App gelernt hat</h2><p class="small">Alles bleibt auf diesem iPhone. Die App lernt aus deinen Rezepten (Floskeln, die ein Creator immer wieder schreibt) und aus deinen Korrekturen. Du kannst jede Regel löschen.</p>' +
@@ -4724,10 +4745,15 @@ a { color: var(--accent); }
         return '<div class="row"><span class="main"><span class="title">' + esc(FEHLER_TEXT[f.grund] || f.grund) + (f.anzahl > 1 ? " (" + f.anzahl + "×)" : "") + '</span><span class="sub" style="overflow-wrap:anywhere">' + esc(f.datum.replace("T", " ") + " · " + (f.link || "ohne Link").replace(/^https:\/\/(www\.)?/, "") + (f.gesendet ? " · gesendet" : "")) + '</span></span>' +
           '<button class="iconbtn" data-a="fehler-del" data-n="' + n + '" aria-label="Problem löschen">' + ic("trash") + '</button></div>';
       }).join("") + '</div>' : '') +
+      ((L.titel || []).length ? '<p class="small muted" style="padding-inline:4px">Geänderte Titel (' + L.titel.length + '):</p><div class="group">' + L.titel.slice().reverse().slice(0, 30).map(function (t) {
+        var n = L.titel.indexOf(t);
+        return '<div class="row"><span class="main"><span class="title">' + esc(t.neu) + '</span><span class="sub" style="overflow-wrap:anywhere">vorher: ' + esc(t.automatisch || "–") + (t.konto ? ' · @' + esc(t.konto) : '') + (t.gesendet ? ' · gesendet' : '') + '</span></span>' +
+          '<button class="iconbtn" data-a="titel-del" data-n="' + n + '" aria-label="Geänderten Titel aus dem Gelernten löschen">' + ic("trash") + '</button></div>';
+      }).join("") + '</div>' : '') +
       (Object.keys(L.zeiten || {}).length ? '<p class="small muted" style="padding-inline:4px">Gelernte Dauer je Arbeitsschritt: ' + esc(Object.keys(L.zeiten).filter(function (a) { return L.zeiten[a].n; }).map(function (a) { return a + " ≈ " + Math.round(L.zeiten[a].summe / L.zeiten[a].n) + " Min. (" + L.zeiten[a].n + "×)"; }).join(" · ")) + '</p>' : '') +
       '<p class="small muted" style="padding-inline:4px">' + (L.rezepte || 0) + ' Rezepte ausgewertet · seit dem letzten Senden ' + (L.rezepteSeitSenden || 0) + (L.gesendetAm ? ' · zuletzt gesendet ' + esc(dateDe(L.gesendetAm)) : '') + '</p>' +
       '<button class="btn accent" data-a="lern-send">' + ic("share") + 'An Jakob schicken</button>' +
-      '<p class="small muted" style="padding-inline:4px">Geschickt wird eine kleine Datei mit den Regeln, deinen Nährwert-Angaben, unbekannten Zutatennamen, einem Protokoll je Rezept (Link, Beschreibung des Beitrags, was erkannt wurde) und Problemen beim Teilen. Während der Testphase gehen die öffentlichen Instagram-Texte immer mit, damit Fehler schnell behoben werden. Keine Fotos, nichts über dich. Du wählst selbst, wie (z. B. WhatsApp oder Mail an Jakob).</p>' +
+      '<p class="small muted" style="padding-inline:4px">Geschickt wird eine kleine Datei mit den Regeln, deinen Nährwert-Angaben, deinen geänderten Titeln (mit Link zum Beitrag), unbekannten Zutatennamen, einem Protokoll je Rezept (Link, Beschreibung des Beitrags, was erkannt wurde) und Problemen beim Teilen. Während der Testphase gehen die öffentlichen Instagram-Texte immer mit, damit Fehler schnell behoben werden. Keine Fotos, nichts über dich. Du wählst selbst, wie (z. B. WhatsApp oder Mail an Jakob).</p>' +
       '<div class="btnrow"><button class="btn soft" data-a="lern-reset">Alles zurücksetzen</button><button class="btn soft" data-a="close-sheet">Schließen</button></div>');
   }
   function lernBanner() {
@@ -4739,7 +4765,7 @@ a { color: var(--accent); }
   function lernSenden() {
     var data = K.lernExport(S.lernen, { app: APP_VERSION, zuord: S.zuord });
     var text = JSON.stringify(data, null, 1), name = "Rezeptbuch-Gelerntes-" + data.datum + ".json";
-    var done = function () { S.lernen.rezepteSeitSenden = 0; S.lernen.gesendetAm = Date.now(); (S.lernen.fehler || []).forEach(function (f) { f.gesendet = true; }); (S.lernen.protokoll || []).forEach(function (x) { x.gesendet = true; delete x.beschreibung; }); (S.lernen.fehler || []).forEach(function (x) { delete x.beschreibung; }); save("lernen"); closeSheet(); render(); toast("Danke! Gelerntes geteilt"); };
+    var done = function () { S.lernen.rezepteSeitSenden = 0; S.lernen.gesendetAm = Date.now(); (S.lernen.fehler || []).forEach(function (f) { f.gesendet = true; }); (S.lernen.protokoll || []).forEach(function (x) { x.gesendet = true; delete x.beschreibung; }); (S.lernen.titel || []).forEach(function (x) { x.gesendet = true; }); (S.lernen.fehler || []).forEach(function (x) { delete x.beschreibung; }); save("lernen"); closeSheet(); render(); toast("Danke! Gelerntes geteilt"); };
     try {
       var file = new File([text], name, { type: "application/json" });
       if (navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: "Rezeptbuch: Gelerntes für Jakob", text: "Gelerntes aus meinem Rezeptbuch (nur Regeln, keine Rezepte)" }).then(done, function () { /* abgebrochen */ }); return; }
@@ -4938,18 +4964,19 @@ a { color: var(--accent); }
     return d <= 0 ? "heute" : d === 1 ? "gestern" : "vor " + d + " Tagen";
   }
   // ------------------------------------------------------------------ Testphase: Information und Einwilligung (DSGVO Art. 6 Abs. 1 a, Art. 13)
-  var EINWILLIGUNG_VERSION = 1;
+  var EINWILLIGUNG_VERSION = 2; // 2: geänderte Titel gehen mit
+  function einwilligungFehlt() { return !S.prefs.testEinwilligung || (S.prefs.testEinwilligung.version || 1) < EINWILLIGUNG_VERSION; }
   function einwilligungText() {
     return '<p class="small">Kombüse ist noch in der Testphase. Damit Fehler schnell behoben werden, sammelt die App, was beim Erkennen passiert, und schickt es an Jakob.</p>' +
       '<ul class="small">' +
-      '<li><b>Was:</b> Links und öffentliche Beschreibungen der Instagram-Beiträge, die du speicherst; was die App daraus erkannt hat; Probleme beim Teilen; deine Korrekturen und Nährwert-Angaben. <b>Nicht:</b> dein Name, Kontakte, Fotos, Standort oder dein Instagram-Konto.</li>' +
+      '<li><b>Was:</b> Links und öffentliche Beschreibungen der Instagram-Beiträge, die du speicherst; was die App daraus erkannt hat; Probleme beim Teilen; deine Korrekturen, geänderte Titel (mit Link zum Beitrag) und Nährwert-Angaben. <b>Nicht:</b> dein Name, Kontakte, Fotos, Standort oder dein Instagram-Konto.</li>' +
       '<li><b>Wie:</b> gesammelt über „An Jakob schicken“ (Einstellungen → Was die App gelernt hat). Die App erinnert dich daran.</li>' +
       '<li><b>Wozu:</b> nur um die Erkennung zu verbessern. Jakob wertet die Daten mit dem KI-Assistenten Claude (Anthropic) aus.</li>' +
       '<li><b>Wie lange:</b> höchstens 3 Monate nach Eingang, dann gelöscht. Auf deinem iPhone löscht die App die Texte nach dem Senden.</li>' +
       '<li><b>Deine Rechte:</b> Auskunft, Löschung und Widerruf jederzeit bei Jakob Teichmann. Ohne diese Einwilligung ist eine Teilnahme am Test nicht möglich.</li></ul>';
   }
   function einwilligungSheet() {
-    sheet('<h2>Teilnahme am Test</h2>' + einwilligungText() +
+    sheet('<h2>Teilnahme am Test</h2>' + (S.prefs.testEinwilligung ? '<p class="small"><b>Neu:</b> Auch geänderte Titel (mit Link zum Beitrag) gehen mit. Bitte einmal neu bestätigen.</p>' : '') + einwilligungText() +
       '<button class="btn accent" data-a="einwilligung-ok">Einverstanden</button>' +
       '<p class="small muted">Du kannst das jederzeit unter Info → „Teilnahme am Test“ nachlesen.</p>');
   }
@@ -6086,7 +6113,7 @@ a { color: var(--accent); }
       case "show-build": UI.showBuild = true; setupSheet(); break;
       case "sc-run-link": closeSheet(); UI.pasteText = ""; runShortcut(el.dataset.t); break;
       case "sc-test": closeSheet(); toast("Kurzbefehl wird mit einem Beispiel-Link gestartet …"); setTimeout(function () { runShortcut("https://www.instagram.com/p/C0Test/"); }, 400); break;
-      case "close-sheet": closeSheet(); if (!S.prefs.testEinwilligung) setTimeout(einwilligungSheet, 50); break;
+      case "close-sheet": closeSheet(); if (einwilligungFehlt()) setTimeout(einwilligungSheet, 50); break;
       case "guide-ok": S.meta.guides[el.dataset.k] = true; save("meta"); render(); if (UI.cook) renderCook(); if (el.dataset.k === "ohne") filterSheet();
         var gsh = el.closest && el.closest(".sheet"); if (gsh && (el.dataset.k === "woche" || el.dataset.k === "listen")) { var gx = gsh.querySelector("[data-id]"); if (gx) (el.dataset.k === "woche" ? planSheet : listenSheet)(gx.dataset.id); } break;
       case "info": infoSheet(); break;
@@ -6133,6 +6160,7 @@ a { color: var(--accent); }
       case "edit": editSheet(id); break;
       case "nw-add": nwStart(el.dataset); break;
       case "fehler-del": S.lernen.fehler.splice(+el.dataset.n, 1); save("lernen"); lernSheet(); break;
+      case "titel-del": S.lernen.titel.splice(+el.dataset.n, 1); save("lernen"); lernSheet(); break;
       case "fehler-later": S.meta.fehlerSnooze = offeneFehler().length + 2; save("meta"); render(); break;
       case "melden": meldenSheet(id); break;
       case "melden-send":
@@ -6181,7 +6209,7 @@ a { color: var(--accent); }
           save("lernen"); reanalyseAlle(); lernSheet(); render();
         }
         break;
-      case "rename-save": var nt = ($("#newtitle").value || "").trim(); if (nt) { S.recipes[id].userTitle = nt; S.recipes[id].updatedAt = Date.now(); save("recipes"); } closeSheet(); render(); break;
+      case "rename-save": var nt = ($("#newtitle").value || "").trim(); if (nt) { S.recipes[id].userTitle = nt; S.recipes[id].updatedAt = Date.now(); save("recipes"); titelLernen(id); } closeSheet(); render(); break;
       case "delete":
         if (!el.dataset.ok) { confirmSheet("Rezept löschen?", "delete", id, "Löschen"); break; }
         delete S.recipes[id]; S.shopping.list = S.shopping.list.filter(function (x) { return x.id !== id; }); save("recipes"); save("shopping");
@@ -6210,7 +6238,7 @@ a { color: var(--accent); }
         var d = UI.draft, nt2 = ($("#dtitle").value || "").trim();
         var out = addRecipe(d.res, { input: d.input });
         if (out.dupe) { toast("Das Rezept ist schon im Rezeptbuch"); UI.draft = null; UI.detail = out.id; render(); break; }
-        if (nt2 && nt2 !== d.res.recipe.title) S.recipes[out.id].userTitle = nt2;
+        if (nt2 && nt2 !== d.res.recipe.title) { S.recipes[out.id].userTitle = nt2; titelLernen(out.id); }
         save("recipes"); UI.draft = null; UI.pasteText = ""; UI.detail = out.id; render(); window.scrollTo(0, 0); toast("Gespeichert");
         var acc = d.res.recipe.source.account;
         if (acc) setTimeout(function () { folgenPruefen(acc); }, 600);
@@ -6260,12 +6288,14 @@ a { color: var(--accent); }
     return Promise.all(["recipes", "pantry", "shopping", "follow", "zuord", "meta", "prefs", "lernen", "plan", "listen"].map(function (k) { return dbGet(k).then(function (v) { if (v) S[k] = (k === "meta" || k === "prefs") ? Object.assign(S[k], v) : v; }); }));
   }).then(function () {
     if (!S.lernen || S.lernen.app !== "rezeptbuch-lernen") S.lernen = K.neuerLernspeicher();
+    // einmalig: schon früher geänderte Titel ins Gelernte übernehmen
+    if (!S.lernen.titelNachgetragen) { Object.keys(S.recipes).forEach(function (rid) { if (S.recipes[rid].userTitle) titelLernen(rid); }); S.lernen.titelNachgetragen = true; save("lernen"); }
     applyTheme();
     seedExamples();
     var upd = reanalyseAll();
     readHashImport();
     render();
-    if (!S.prefs.testEinwilligung) setTimeout(einwilligungSheet, 300);
+    if (einwilligungFehlt()) setTimeout(einwilligungSheet, 300);
     if (upd) toast(upd + (upd === 1 ? " Rezept" : " Rezepte") + " mit der verbesserten Erkennung neu ausgewertet");
     setTimeout(meldeUnbekannte, 3000);
   });

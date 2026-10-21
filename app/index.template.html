@@ -298,7 +298,7 @@ a { color: var(--accent); }
   var LERN_ERINNERUNG = 20;
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.16.0";
+  var APP_VERSION = "0.16.1";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -701,7 +701,7 @@ a { color: var(--accent); }
       (Object.keys(L.zeiten || {}).length ? '<p class="small muted" style="padding-inline:4px">Gelernte Dauer je Arbeitsschritt: ' + esc(Object.keys(L.zeiten).filter(function (a) { return L.zeiten[a].n; }).map(function (a) { return a + " ≈ " + Math.round(L.zeiten[a].summe / L.zeiten[a].n) + " Min. (" + L.zeiten[a].n + "×)"; }).join(" · ")) + '</p>' : '') +
       '<p class="small muted" style="padding-inline:4px">' + (L.rezepte || 0) + ' Rezepte ausgewertet · seit dem letzten Senden ' + (L.rezepteSeitSenden || 0) + (L.gesendetAm ? ' · zuletzt gesendet ' + esc(dateDe(L.gesendetAm)) : '') + '</p>' +
       '<button class="btn accent" data-a="lern-send">' + ic("share") + 'An Jakob schicken</button>' +
-      '<p class="small muted" style="padding-inline:4px">Geschickt wird eine kleine Datei mit den Regeln, deinen Nährwert-Angaben, unbekannten Zutatennamen, einem Protokoll je Rezept (Link, Beschreibung des Beitrags, was erkannt wurde) und Problemen beim Teilen. Während der Testphase gehen die öffentlichen Instagram-Texte immer mit, damit Fehler schnell behoben werden. Keine Fotos, nichts über dich. Du wählst selbst, wie (z. B. WhatsApp oder Mail an Jakob).</p>' +
+      '<p class="small muted" style="padding-inline:4px">Geschickt wird eine kleine Datei mit den Regeln, deinen Nährwert-Angaben, deinen geänderten Titeln (mit Link zum Beitrag), unbekannten Zutatennamen, einem Protokoll je Rezept (Link, Beschreibung des Beitrags, was erkannt wurde) und Problemen beim Teilen. Während der Testphase gehen die öffentlichen Instagram-Texte immer mit, damit Fehler schnell behoben werden. Keine Fotos, nichts über dich. Du wählst selbst, wie (z. B. WhatsApp oder Mail an Jakob).</p>' +
       '<div class="btnrow"><button class="btn soft" data-a="lern-reset">Alles zurücksetzen</button><button class="btn soft" data-a="close-sheet">Schließen</button></div>');
   }
   function lernBanner() {
@@ -912,18 +912,19 @@ a { color: var(--accent); }
     return d <= 0 ? "heute" : d === 1 ? "gestern" : "vor " + d + " Tagen";
   }
   // ------------------------------------------------------------------ Testphase: Information und Einwilligung (DSGVO Art. 6 Abs. 1 a, Art. 13)
-  var EINWILLIGUNG_VERSION = 1;
+  var EINWILLIGUNG_VERSION = 2; // 2: geänderte Titel gehen mit
+  function einwilligungFehlt() { return !S.prefs.testEinwilligung || (S.prefs.testEinwilligung.version || 1) < EINWILLIGUNG_VERSION; }
   function einwilligungText() {
     return '<p class="small">Kombüse ist noch in der Testphase. Damit Fehler schnell behoben werden, sammelt die App, was beim Erkennen passiert, und schickt es an Jakob.</p>' +
       '<ul class="small">' +
-      '<li><b>Was:</b> Links und öffentliche Beschreibungen der Instagram-Beiträge, die du speicherst; was die App daraus erkannt hat; Probleme beim Teilen; deine Korrekturen und Nährwert-Angaben. <b>Nicht:</b> dein Name, Kontakte, Fotos, Standort oder dein Instagram-Konto.</li>' +
+      '<li><b>Was:</b> Links und öffentliche Beschreibungen der Instagram-Beiträge, die du speicherst; was die App daraus erkannt hat; Probleme beim Teilen; deine Korrekturen, geänderte Titel (mit Link zum Beitrag) und Nährwert-Angaben. <b>Nicht:</b> dein Name, Kontakte, Fotos, Standort oder dein Instagram-Konto.</li>' +
       '<li><b>Wie:</b> gesammelt über „An Jakob schicken“ (Einstellungen → Was die App gelernt hat). Die App erinnert dich daran.</li>' +
       '<li><b>Wozu:</b> nur um die Erkennung zu verbessern. Jakob wertet die Daten mit dem KI-Assistenten Claude (Anthropic) aus.</li>' +
       '<li><b>Wie lange:</b> höchstens 3 Monate nach Eingang, dann gelöscht. Auf deinem iPhone löscht die App die Texte nach dem Senden.</li>' +
       '<li><b>Deine Rechte:</b> Auskunft, Löschung und Widerruf jederzeit bei Jakob Teichmann. Ohne diese Einwilligung ist eine Teilnahme am Test nicht möglich.</li></ul>';
   }
   function einwilligungSheet() {
-    sheet('<h2>Teilnahme am Test</h2>' + einwilligungText() +
+    sheet('<h2>Teilnahme am Test</h2>' + (S.prefs.testEinwilligung ? '<p class="small"><b>Neu:</b> Auch geänderte Titel (mit Link zum Beitrag) gehen mit. Bitte einmal neu bestätigen.</p>' : '') + einwilligungText() +
       '<button class="btn accent" data-a="einwilligung-ok">Einverstanden</button>' +
       '<p class="small muted">Du kannst das jederzeit unter Info → „Teilnahme am Test“ nachlesen.</p>');
   }
@@ -2060,7 +2061,7 @@ a { color: var(--accent); }
       case "show-build": UI.showBuild = true; setupSheet(); break;
       case "sc-run-link": closeSheet(); UI.pasteText = ""; runShortcut(el.dataset.t); break;
       case "sc-test": closeSheet(); toast("Kurzbefehl wird mit einem Beispiel-Link gestartet …"); setTimeout(function () { runShortcut("https://www.instagram.com/p/C0Test/"); }, 400); break;
-      case "close-sheet": closeSheet(); if (!S.prefs.testEinwilligung) setTimeout(einwilligungSheet, 50); break;
+      case "close-sheet": closeSheet(); if (einwilligungFehlt()) setTimeout(einwilligungSheet, 50); break;
       case "guide-ok": S.meta.guides[el.dataset.k] = true; save("meta"); render(); if (UI.cook) renderCook(); if (el.dataset.k === "ohne") filterSheet();
         var gsh = el.closest && el.closest(".sheet"); if (gsh && (el.dataset.k === "woche" || el.dataset.k === "listen")) { var gx = gsh.querySelector("[data-id]"); if (gx) (el.dataset.k === "woche" ? planSheet : listenSheet)(gx.dataset.id); } break;
       case "info": infoSheet(); break;
@@ -2242,7 +2243,7 @@ a { color: var(--accent); }
     var upd = reanalyseAll();
     readHashImport();
     render();
-    if (!S.prefs.testEinwilligung) setTimeout(einwilligungSheet, 300);
+    if (einwilligungFehlt()) setTimeout(einwilligungSheet, 300);
     if (upd) toast(upd + (upd === 1 ? " Rezept" : " Rezepte") + " mit der verbesserten Erkennung neu ausgewertet");
     setTimeout(meldeUnbekannte, 3000);
   });
