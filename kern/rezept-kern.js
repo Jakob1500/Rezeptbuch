@@ -1752,6 +1752,7 @@
     {
       var prose = String(text || "").split(/\n/).filter(function (l) { var c = clean(stripEmoji(l)); return c && !looksLikeIngredient(c) && !(readQuantity(c) && !readQuantity(c).fromWord) && !/^\s*\d+\s*[.)]/.test(c); }).join("\n");
       var dp = dishPhrase(prose); if (dp) { r.dishTitle = dp; }
+      r.introZeile = prose.split("\n").map(function (l) { return clean(stripEmoji(l)); }).filter(Boolean)[0] || "";
       // erste erwähnte Zutat im Text (für "Eintopf" -> "Linsen-Eintopf")
       var fw = prose.slice(0, 600).split(/[^A-Za-zÄÖÜäöüß-]+/);
       for (var fi = 0; fi < fw.length && !r.textFood; fi++) {
@@ -1770,6 +1771,7 @@
       if (fm && FOOD_LIST.indexOf(lower(ht)) === -1 && !/^(cheese|pan|cup|pot|short|fish|sponge|carrot|cheese)$/i.test(fm[1])) ht = fm[1] + "-" + fm[2].charAt(0).toUpperCase() + fm[2].slice(1);
       r.hashtagTitle = ht;
     }
+    r.titelSignal = titelSignal(text);
     r.bakingForm = findBakingForm(text);
     r.yieldInfo = findServingsInfo(text);
     if (r.yieldInfo && r.yieldInfo.stueck && r.servings === r.yieldInfo.n) r.servingsUnit = "Stück";
@@ -2157,7 +2159,7 @@
     if (!b) return a;
     var r = a;
     ["title", "servings", "timeTotal", "timePrep", "timeCook", "cuisine", "keywords", "blogCategory", "nutritionDeclared",
-      "elsewhere", "bakingForm", "yieldInfo", "servingsUnit", "ingredientsFromSteps", "hashtagTitle", "titleFromTranslation", "dishTitle", "description", "textFood"].forEach(function (f) {
+      "elsewhere", "bakingForm", "yieldInfo", "servingsUnit", "ingredientsFromSteps", "hashtagTitle", "titleFromTranslation", "dishTitle", "description", "textFood", "titelSignal", "introZeile"].forEach(function (f) {
       if ((r[f] == null || r[f] === "") && b[f] != null && b[f] !== "") { r[f] = b[f]; r.provenance[f] = src; }
     });
     if (ingredientQuality(b.ingredients) > ingredientQuality(r.ingredients) * 1.15) {
@@ -2423,6 +2425,8 @@
       trace.push({ step: "translation", label: "Übersetzung", status: de.steps.length ? "verwendet" : "nichts gefunden" });
     }
 
+    // Titel-Signal aus dem unveränderten Beitragstext (parseText vereinheitlicht englische Wörter schon)
+    if (input.caption) { var sigRoh = titelSignal(input.caption); if (sigRoh) r.titelSignal = sigRoh; }
     if (LERN) {
       r.ingredients = r.ingredients.filter(function (i) { return !LERN.keineZutat[i.key]; });
       r.ingredients.forEach(function (i) { var a = LERN.zutatAlias[i.key]; if (a) { i.nameOriginal = i.nameOriginal || i.name; i.name = a; i.key = normName(a); i.aisle = guessAisle(a); i.gelernt = true; } });
@@ -2488,7 +2492,7 @@
       "shrimp:Garnelen,egg:Ei,butter:Butter,caramel:Karamell,biscoff:Karamellkeks,date:Dattel,fig:Feigen,pomegranate:Granatapfel,lentil:Linsen",
       function (k, m) { TW[k] = TW[k] || {}; TW[k].m = TW[k].m || m; if (!TW[k].n) TW[k].onlyM = true; });
     // Adjektive (Stamm)
-    add("spicy:scharf,creamy:cremig,crispy:knusprig,crunchy:knusprig,healthy:gesund,vegan:vegan,fluffy:fluffig,sweet:süß,roasted:geröstet," +
+    add("sticky:klebrig,spicy:scharf,creamy:cremig,crispy:knusprig,crunchy:knusprig,healthy:gesund,vegan:vegan,fluffy:fluffig,sweet:süß,roasted:geröstet," +
       "baked:gebacken,fried:gebraten,grilled:gegrillt,stuffed:gefüllt,homemade:hausgemacht,green:grün,red:rot,smoky:rauchig,buttery:buttrig," +
       "warm:warm,hearty:herzhaft,fresh:frisch,thai:Thai-,korean:koreanisch,indian:indisch,mexican:mexikanisch,greek:griechisch,italian:italienisch," +
       "japanese:japanisch,chinese:chinesisch,asian:asiatisch,mediterranean:mediterran,moroccan:marokkanisch,lebanese:libanesisch,french:französisch," +
@@ -2890,6 +2894,65 @@
     });
   }
 
+  // ---------------------------------------------------------------------------
+  // Titel-Regel R1 (mit Jakob, 21.10.): Das Gericht steht oft nicht in der ersten Zeile, sondern
+  // in einem Signalsatz weiter unten oder als bekannter Gerichtsname im Text/Hashtag.
+  // ---------------------------------------------------------------------------
+  var BEKANNTE_GERICHTE = ["Lahmacun", "Massaman Curry", "Pad Thai", "Shakshuka", "Bibimbap", "Dal Makhani", "Palak Paneer", "Chana Masala", "Tikka Masala",
+    "Laksa", "Katsu Curry", "Mapo Tofu", "Tteokbokki", "Pho", "Bun Cha", "Gado Gado", "Nasi Goreng", "Mie Goreng", "Jambalaya", "Ratatouille", "Moussaka", "Pastitsio"];
+  function titelSignal(text) {
+    var t = String(text || ""), m, kand = [];
+    var gross = function (x) { return x.split(/\s+/).map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(" "); };
+    // „Jetzt aber zu dem Lahmacun“
+    m = t.match(/\bjetzt (?:aber )?(?:zu[mr]?|zu (?:dem|der|den)) ([A-ZÄÖÜ][\wäöüß-]+(?: [A-ZÄÖÜ][\wäöüß-]+)?)/); if (m) kand.push(m[1]);
+    // „aus palak paneer wird palak tofu“
+    m = t.match(/\baus ([a-zäöüß][a-zäöüß ]{2,28}?) wird ([a-zäöüß][a-zäöüß ]{2,28}?)(?=\s*(?:[.!?,;:\n]|$|[^a-zäöüß ]))/i); if (m) kand.push(gross(m[2].trim()));
+    // „Das Gericht ist vom allseits beliebten Massaman Curry inspiriert“
+    m = t.match(/(?:gericht|rezept)\w* (?:ist|wurde) (?:vom|von|von dem|von der) (?:[a-zäöüß]+ ){0,3}([A-ZÄÖÜ][\wäöüß-]+(?: [A-ZÄÖÜ][\wäöüß-]+){0,2}) inspiriert/); if (m) kand.push(m[1]);
+    // „Ich mach Fleischersatz nie wieder anders“
+    m = t.match(/\b(?:mach|koch|back)e? ([A-ZÄÖÜ][\wäöüß-]+) nie wieder anders/); if (m) kand.push(m[1]);
+    // „Wenn Snickers und Nicecream ein Kind hätten – genau so würden diese Riegel schmecken“
+    m = t.match(/\b(?:[Ww]enn|[Ww]ie) ([A-Z][a-z]{3,})\b[^.\n]{0,80}?\bdiese[nrs]? ([A-ZÄÖÜ][a-zäöüß]{3,}) schmeck/); if (m && !isFoodWord(m[1])) kand.push(m[1] + "-" + m[2]);
+    // „25 recipes in under 25 minutes: One pot peanut ramen“ (Serie: Gericht)
+    t.split("\n").slice(0, 4).forEach(function (l) {
+      var mm = clean(stripEmoji(l)).match(/(?:recipes?|rezepte?|teil|part|folge|episode|nr\.?)\b[^:]{0,40}:\s*([^:]{3,50})$/i);
+      if (mm && hasFoodWord(mm[1])) kand.push(mm[1].trim());
+    });
+    // bekannte Gerichtsnamen in den ersten Zeilen oder als Hashtag
+    var kopf = lower(t.split("\n").slice(0, 3).join(" ")), tags = lower((t.match(/#[\wäöüß]+/g) || []).join(" ")).replace(/#/g, " ");
+    BEKANNTE_GERICHTE.forEach(function (g) { var k = lower(g); if (kopf.indexOf(k) !== -1 || (" " + tags + " ").indexOf(" " + k.replace(/ /g, "") + " ") !== -1) kand.push(g); });
+    kand = kand.map(function (k) { return clean(k); }).filter(function (k) { return k && k.split(/\s+/).length <= 6 && !GENERIC_TITLE.test(k) && !/^(ich|wir|du|ihr|es|das|die|der)$/i.test(k); });
+    return kand[0] || "";
+  }
+
+  // Titel-Regel R2 (zum Ausprobieren): Hauptzutat statt Beilage, betonte Zutat aus der ersten Zeile, Geschmack bei Gebäck
+  var GEBAECK = /^(muffins?|kuchen|cookies?|kekse|riegel|waffeln|pancakes|brot|brownies?|cupcakes?|schnecken|scones|plätzchen)$/i;
+  var GESCHMACK = [["zitron", "Zitronen"], ["schoko", "Schoko"], ["kakao", "Schoko"], ["banane", "Bananen"], ["apfel", "Apfel"], ["äpfel", "Apfel"], ["karotte", "Karotten"], ["möhre", "Möhren"],
+    ["blaubeer", "Blaubeer"], ["heidelbeer", "Heidelbeer"], ["himbeer", "Himbeer"], ["erdbeer", "Erdbeer"], ["kürbis", "Kürbis"], ["erdnuss", "Erdnuss"], ["kokos", "Kokos"], ["zimt", "Zimt"], ["orange", "Orangen"]];
+  function titelHauptzutat(r) {
+    if (!r.title || !r.titleGuessed || !r.ingredients.length) return;
+    var tl = lower(r.title), beilage = r.ingredients.filter(function (i) { return /als beilage|zum servieren|for serving|to serve/i.test(i.raw || ""); })[0];
+    // a) Beilage als Titel („Basmatireis“) -> erwähnte Zutat aus dem Text mit Beilage
+    if (beilage && (lower(beilage.name) === tl || lower(beilage.raw).indexOf(tl) !== -1) && r.textFood && lower(r.textFood) !== tl) { r.title = r.textFood + " mit " + (/reis$/i.test(r.title) ? "Reis" : r.title); return; }
+    // b) Dip oder Soße als Titel, das Gericht steht im Text („Hummus“ + „Gnocchi“) -> „Gnocchi mit Hummus“
+    if (/^(hummus|pesto|dip|soße|sosse|sauce|dressing|aioli|tzatziki|guacamole)$/i.test(r.title) && r.dishTitle && lower(r.dishTitle) !== tl) {
+      r.title = (/\bofengericht/i.test(r.introZeile || "") && !/^ofen/i.test(r.dishTitle) ? "Ofen" + lower(r.dishTitle) : r.dishTitle) + " mit " + r.title; return;
+    }
+    // c) Zutat, die die erste Zeile betont („Endlich wieder Kürbis Zeit“) -> „Kürbis-Feta-Pasta“
+    var intro = lower(r.introZeile || "");
+    if (intro && r.title.split(/\s+/).length <= 2 && !/ mit /.test(r.title)) {
+      var betont = [].concat.apply([], r.ingredients.map(function (i) { return i.name.split(/[\s-]+/).filter(function (w) { return w.length >= 4 && /^[A-ZÄÖÜ]/.test(w) && !/^(gekocht|frisch|braun|rote?|grüne?|weiße?|große?|kleine?|kekse|plätzchen|vegan|pflanzlich|bio|light|tk|zarte?|feine?)/i.test(w); }); }))
+        .filter(function (w) { var lw = lower(w).replace(/(e?n|s)$/, ""); return lw.length >= 4 && intro.indexOf(lw) !== -1 && tl.indexOf(lw) === -1 && !/^(wasser|salz|pfeffer|zucker|mehl|öl)/.test(lw); })[0];
+      if (betont) { r.title = /^(soße|sosse|sauce|käsesoße|käsesauce|dip|pesto|dressing|[a-zäöüß]+(soße|sauce))$/i.test(r.title) ? betont + " mit " + r.title : betont + "-" + r.title; return; }
+    }
+    // d) Gebäck ohne Geschmack („Muffins“) -> häufigste Geschmackszutat („Zitronen-Muffins“)
+    if (GEBAECK.test(r.title)) {
+      var txt = lower(r.ingredients.map(function (i) { return i.raw || i.name; }).join(" ") + " " + (r.steps || []).join(" ")), best = null, n0 = 0;
+      GESCHMACK.forEach(function (g) { var n = txt.split(g[0]).length - 1; if (n > n0) { n0 = n; best = g[1]; } });
+      if (best && n0 >= 2) r.title = best + "-" + r.title;
+    }
+  }
+
   function finalize(r) {
     // Eine Zeit bis zum Essen (inklusive Backen, Ruhen, Kühlen). Angabe des Creators geht vor,
     // außer sie ist kürzer als die Zeiten, die in den Schritten selbst stehen.
@@ -2935,6 +2998,9 @@
       r.title = pick.join(" & ");
       r.titleGuessed = true; r.titleFromIngredients = pick;
     }
+    // R1: ausdrücklich genanntes Gericht schlägt einen geratenen Titel; R2: Hauptzutat ergänzen
+    if (r.titelSignal && (r.titleGuessed || !r.title || (lower(r.title).indexOf(lower(r.titelSignal)) !== -1 && lower(r.title) !== lower(r.titelSignal) && !hasFoodWord(r.title.replace(new RegExp(r.titelSignal.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), ""))) || !hasFoodWord(r.title))) { r.title = r.titelSignal; r.titleOriginal = null; r.titleGuessed = false; r.titelAusSignal = true; }
+    else titelHauptzutat(r);
     // doppelte Zutaten zusammenfassen
     var seen = {};
     r.ingredients = r.ingredients.filter(function (i) {

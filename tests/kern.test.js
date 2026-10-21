@@ -578,5 +578,16 @@ LT.titel.forEach(x => { x.gesendet = true; });
 check("Gelerntes: gesendete Titel gehen nicht noch einmal mit", K.lernExport(LT, {}).titel.length === 0);
 check("Gelerntes: Titel ohne Rezepttext", !JSON.stringify(exT.titel).includes("Zutaten"));
 
+// Titel-Regeln mit Jakob (21.10.): R1 Signal im Text, R2 Hauptzutat, R4 Eigenschaftswörter
+const tz = (cap) => K.analyse({ caption: cap }).recipe;
+const zut = "\nZutaten:\n200 g Mehl\n2 Zwiebeln\n100 g Spinat\nZubereitung:\nAlles mischen und backen.";
+check("R1: „Jetzt aber zu dem Lahmacun“ wird Titel", tz("Schnell gemacht 💪\nHeute gibt es was Feines.\nJetzt aber zu dem Lahmacun 😊" + zut).title === "Lahmacun");
+check("R1: „aus palak paneer wird palak tofu“", tz("Einfach zu gut, aus palak paneer wird palak tofu\n#tofu" + zut).title === "Palak Tofu", tz("Einfach zu gut, aus palak paneer wird palak tofu\n#tofu" + zut).title);
+check("R1: Serie mit Doppelpunkt, englischer Titel bleibt als Original", (function () { const r = tz("Veganuary 3/25\n25 recipes in 25 minutes: One pot peanut ramen 🍜" + zut); return r.titleOriginal === "One pot peanut ramen" && /Ramen/.test(r.title); })());
+check("R1: „vom … Massaman Curry inspiriert“", tz("Anzeige | Thai-Kochkurs. Das Gericht ist vom allseits beliebten Massaman Curry inspiriert." + zut).title === "Massaman Curry");
+check("R2: Beilage wird nicht Titel", !/^Basmatireis$/.test(tz("Durch ein Video bin ich auf Enoki Pilze gekommen.\nZutaten:\n300 g Enoki Pilze\n2 EL Öl\nBasmatireis als Beilage\nZubereitung:\nPilze anbraten.").title));
+check("R2: Gebäck bekommt den Geschmack", tz("⬇️ zum Rezept ⬇️\nZutaten (12 Muffins):\n250 g Mehl\n150 g Zucker\nSaft von 2 Zitronen\nGuss: Puderzucker mit dem Saft 1/2 Zitrone\nZubereitung:\nAlles verrühren und 20 Minuten backen.").title === "Zitronen-Muffins", tz("⬇️ zum Rezept ⬇️\nZutaten (12 Muffins):\n250 g Mehl\n150 g Zucker\nSaft von 2 Zitronen\nGuss: Puderzucker mit dem Saft 1/2 Zitrone\nZubereitung:\nAlles verrühren und 20 Minuten backen.").title);
+check("R4: „sticky“ wird übersetzt", K.translateTitle("sticky lime tofu") === "Klebriger Limetten-Tofu", K.translateTitle("sticky lime tofu"));
+
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);
