@@ -1563,6 +1563,8 @@
   function findElsewhere(text, r) {
     var t = lower(normalizeFancy(text));
     var m;
+    // Rezept nur gegen Geld (Mitgliedschaft, Abo, Patreon)
+    if (/(membership|mitgliedschaft|patreon|less than a coffee|weniger als ein kaffee|paid subscribers|bezahl-?abo)/.test(t) && /(recipe|rezept)/.test(t)) return { wo: "bezahlseite" };
     if (/(pinned comment|pinned (?:in|below|in the) comments?|(?:method|instructions|steps?) (?:are |is )?(?:in the |in )comments?|angepinnte[nm]? kommentar|recipe (?:is )?in (?:the )?comments?|recipes? (?:are )?pinned|rezept (?:steht |ist )?in den kommentaren|rezept im kommentar|first comment|ersten kommentar|comment the recipe back)/.test(t)) return { wo: "kommentar" };
     if ((m = t.match(/(?:comment|kommentier\w*|schreib\w*)\s+[„"“'‘]([^"”“'’]{2,25})["”“'’]/)) && /(dm|nachricht|message|recipe|rezept|link)/.test(t)) return { wo: "nachricht", stichwort: m[1] };
     var mRoh = normalizeFancy(text);
@@ -2427,6 +2429,9 @@
 
     // Titel-Signal aus dem unveränderten Beitragstext (parseText vereinheitlicht englische Wörter schon)
     if (input.caption) { var sigRoh = titelSignal(input.caption); if (sigRoh) r.titelSignal = sigRoh; }
+    // Teil eines Beitrags mit mehreren Rezepten: eigener Titel und eigene Kennung
+    if (input.teil) { r.teil = input.teil; r.teilVon = input.teilVon || null; if (input.teilTitel) { r.title = input.teilTitel; r.titleOriginal = null; r.titleGuessed = false; r.titelSignal = ""; } }
+    else if (input.caption) { var mr = mehrereRezepte(input.caption); if (mr) r.mehrere = { anzahl: mr.anzahl, titel: mr.teile.map(function (x) { return x.titel; }) }; }
     if (LERN) {
       r.ingredients = r.ingredients.filter(function (i) { return !LERN.keineZutat[i.key]; });
       r.ingredients.forEach(function (i) { var a = LERN.zutatAlias[i.key]; if (a) { i.nameOriginal = i.nameOriginal || i.name; i.name = a; i.key = normName(a); i.aisle = guessAisle(a); i.gelernt = true; } });
@@ -2898,6 +2903,20 @@
   // Titel-Regel R1 (mit Jakob, 21.10.): Das Gericht steht oft nicht in der ersten Zeile, sondern
   // in einem Signalsatz weiter unten oder als bekannter Gerichtsname im Text/Hashtag.
   // ---------------------------------------------------------------------------
+  // Regel R7 (mit Jakob, 21.10.): mehrere Rezepte in einem Beitrag. Steht jedes Rezept mit eigener Überschrift
+  // („Whipped tofu RECIPE (4 servings …):“) im Text, werden die Teile zurückgegeben; sonst nur die Anzahl („Top 5 Rezepte“).
+  function mehrereRezepte(text) {
+    var lines = String(text || "").split("\n"), kopf = [];
+    lines.forEach(function (l, i) {
+      var m = clean(stripEmoji(l)).match(/^(.{3,60}?)\s+(?:RECIPE|REZEPT)\b\s*\([^)]*\)\s*:?\s*$/i);
+      if (m && !/^(the|my|this|full|written|das|mein|dieses)\b/i.test(m[1])) kopf.push({ i: i, titel: m[1] });
+    });
+    if (kopf.length >= 2) return { anzahl: kopf.length, teile: kopf.map(function (h, k) { return { titel: h.titel, text: lines.slice(h.i, k + 1 < kopf.length ? kopf[k + 1].i : lines.length).join("\n") }; }) };
+    var m2 = lower(String(text || "").split("\n").slice(0, 5).join(" ")).match(/\b(?:top\s*)?(\d{1,2})\s+(?:[a-zäöü]+\s+)?(?:recipes|rezepte)\b/);
+    if (m2 && +m2[1] >= 2 && +m2[1] <= 12) return { anzahl: +m2[1], teile: [] };
+    return null;
+  }
+
   var BEKANNTE_GERICHTE = ["Lahmacun", "Massaman Curry", "Pad Thai", "Shakshuka", "Bibimbap", "Dal Makhani", "Palak Paneer", "Chana Masala", "Tikka Masala",
     "Laksa", "Katsu Curry", "Mapo Tofu", "Tteokbokki", "Pho", "Bun Cha", "Gado Gado", "Nasi Goreng", "Mie Goreng", "Jambalaya", "Ratatouille", "Moussaka", "Pastitsio"];
   function titelSignal(text) {
@@ -3001,6 +3020,9 @@
     // R1: ausdrücklich genanntes Gericht schlägt einen geratenen Titel; R2: Hauptzutat ergänzen
     if (r.titelSignal && (r.titleGuessed || !r.title || (lower(r.title).indexOf(lower(r.titelSignal)) !== -1 && lower(r.title) !== lower(r.titelSignal) && !hasFoodWord(r.title.replace(new RegExp(r.titelSignal.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), ""))) || !hasFoodWord(r.title))) { r.title = r.titelSignal; r.titleOriginal = null; r.titleGuessed = false; r.titelAusSignal = true; }
     else titelHauptzutat(r);
+    // R8: Kein Rezept im Beitrag (keine Zutaten, keine Schritte): keinen Titel raten – kommt später vom Blog
+    r.keinRezept = !r.ingredients.length && !r.steps.length;
+    if (r.keinRezept && (r.titleGuessed || GENERIC_TITLE.test(clean(r.title || "")))) { r.title = ""; r.titleOriginal = null; r.titleGuessed = false; }
     // doppelte Zutaten zusammenfassen
     var seen = {};
     r.ingredients = r.ingredients.filter(function (i) {
@@ -3778,7 +3800,8 @@
     if (/(\d+\s?(g|ml|el|tl)\b)/.test(t)) score += 1;
     // Ist überhaupt ein Gericht zu sehen?
     var dish = 0;
-    if (FOOD_HINT.test(r.titleOriginal || r.title) || FOOD_HINT.test(r.title)) dish += 2;
+    var titelKand = [r.titleOriginal, r.title, r.dishTitle, r.hashtagTitle, r.titelSignal].filter(Boolean).join(" ");
+    if (FOOD_HINT.test(titelKand)) dish += 2;
     if (RECIPE_TAGS.test(raw)) dish += 2;
     if (r.ingredients.length >= 3) dish += 2;
     if (/\b(rezept|recipe|recette)\b/.test(t)) dish += 1;
@@ -3797,9 +3820,10 @@
     }
     return out;
   }
-  var WO_TEXT = { blog: "auf dem Blog", bio: "im Bio-Link", kommentar: "im Kommentar", nachricht: "per Nachricht", kochbuch: "im Kochbuch",
+  var WO_TEXT = { bezahlseite: "nur gegen Bezahlung beim Creator", blog: "auf dem Blog", bio: "im Bio-Link", kommentar: "im Kommentar", nachricht: "per Nachricht", kochbuch: "im Kochbuch",
     newsletter: "im Newsletter", video: "im Video", caption: "in der Caption" };
   var WO_HINWEIS = {
+    bezahlseite: "Das Rezept gibt es nur gegen Bezahlung beim Creator (Mitgliedschaft). Im Beitrag selbst steht kein Rezept.",
     blog: "Das Rezept steht auf dem Blog des Creators. Link öffnen, Zutaten und Zubereitung kopieren und hier mit „Fehlenden Text einfügen“ ergänzen.",
     bio: "Das Rezept liegt hinter dem Link im Instagram-Profil. Dort kopieren und hier mit „Fehlenden Text einfügen“ ergänzen.",
     kommentar: "Das Rezept steht im angepinnten Kommentar. In Instagram kopieren und hier mit „Fehlenden Text einfügen“ ergänzen.",
@@ -3823,7 +3847,7 @@
   // Eindeutige ID eines Rezepts: Instagram-Kurzcode, sonst Blog-Adresse, sonst Titel
   function recipeId(r) {
     var sc = shortcodeOf(r.source && r.source.url);
-    if (sc) return "ig:" + sc;
+    if (sc) return "ig:" + sc + (r.teil ? "#" + r.teil : "");
     if (r.source && r.source.blogUrl) return "web:" + String(r.source.blogUrl).replace(/^https?:\/\/(www\.)?/, "").replace(/[?#].*$/, "").replace(/\/$/, "");
     return "t:" + normName(r.title || "").replace(/\s+/g, "-");
   }
@@ -3963,7 +3987,7 @@
     parseText: parseText, parseTranscript: parseTranscript, parseSchemaOrg: parseSchemaOrg,
     parseIngredientLine: parseIngredientLine, parseDuration: parseDuration,
     classify: classify, completeness: completeness, focusFromNutrition: focusFromNutrition,
-    teilenDiagnose: teilenDiagnose, lerneTeilenFehler: lerneTeilenFehler, lerneTitel: lerneTitel, zeitAnalyse: zeitAnalyse, schrittArbeiten: schrittArbeiten, pruefeSchrittLogik: pruefeSchrittLogik,
+    teilenDiagnose: teilenDiagnose, lerneTeilenFehler: lerneTeilenFehler, lerneTitel: lerneTitel, mehrereRezepte: mehrereRezepte, titelSignal: titelSignal, zeitAnalyse: zeitAnalyse, schrittArbeiten: schrittArbeiten, pruefeSchrittLogik: pruefeSchrittLogik,
     berechneNaehrwerte: berechneNaehrwerte, pruefeNaehrwerte: pruefeNaehrwerte, eigenerNaehrwert: eigenerNaehrwert, kcalAusNaehrstoffen: kcalAusNaehrstoffen, NW_FELDER: NW_FELDER, findNutrientEntry: findNutrientEntry, NUTRIENT_KEYS: NUTRIENT_KEYS,
     normName: normName, fmtQty: fmtQty, rundeMenge: rundeMenge, skalierHinweis: skalierHinweis, schrittTimer: schrittTimer, enthaeltZutat: enthaeltZutat, guessAisle: guessAisle, geraete: geraete, vorheizHinweis: vorheizHinweis, fmtIngredient: fmtIngredient,
     shoppingList: shoppingList, shoppingText: shoppingText,

@@ -589,5 +589,16 @@ check("R2: Beilage wird nicht Titel", !/^Basmatireis$/.test(tz("Durch ein Video 
 check("R2: Gebäck bekommt den Geschmack", tz("⬇️ zum Rezept ⬇️\nZutaten (12 Muffins):\n250 g Mehl\n150 g Zucker\nSaft von 2 Zitronen\nGuss: Puderzucker mit dem Saft 1/2 Zitrone\nZubereitung:\nAlles verrühren und 20 Minuten backen.").title === "Zitronen-Muffins", tz("⬇️ zum Rezept ⬇️\nZutaten (12 Muffins):\n250 g Mehl\n150 g Zucker\nSaft von 2 Zitronen\nGuss: Puderzucker mit dem Saft 1/2 Zitrone\nZubereitung:\nAlles verrühren und 20 Minuten backen.").title);
 check("R4: „sticky“ wird übersetzt", K.translateTitle("sticky lime tofu") === "Klebriger Limetten-Tofu", K.translateTitle("sticky lime tofu"));
 
+// R7/R8 (21.10.): mehrere Rezepte, kein Rezept im Beitrag
+const mehr = "My favorite recipes 👇\n\nHummus RECIPE (2 servings, 5min):\n-200g chickpeas\n-2 Tbsp tahini\nBlend until smooth.\n\nLemon cake RECIPE (8 servings, 60min):\n-200g flour\n-1 lemon\nBake for 40 minutes.";
+const mr = K.mehrereRezepte(mehr);
+check("R7: zwei Rezepte mit Überschrift erkannt", mr && mr.anzahl === 2 && mr.teile[1].titel === "Lemon cake" && /flour/.test(mr.teile[1].text), mr);
+const t2r = K.analyse({ caption: mr.teile[1].text, url: "https://www.instagram.com/reel/XYZ/", teil: 2, teilVon: 2, teilTitel: "Lemon cake" }).recipe;
+check("R7: Teil hat eigenen Titel und eigene Kennung", K.recipeId(t2r) === "ig:XYZ#2" && t2r.titleOriginal === "Lemon cake" && t2r.title !== "", [K.recipeId(t2r), t2r.title]);
+check("R7: „Top 5 Rezepte“ ohne Rezepte im Text", K.mehrereRezepte("Meine Top 5 Rezepte für den Herbst 👇\nKommentiert euren Favoriten!").anzahl === 5);
+check("R7: Serien-Zähler ist kein Sammelbeitrag", K.mehrereRezepte("Veganuary 11/25\n25 recipes in under 25 minutes: One pot ramen") === null);
+const kr = K.analyse({ caption: "Comment “RECIPE” and I’ll send you a DM to the recipe on my membership page 💚\nYou roast the tofu. You get the gnocchi properly crispy.\nThe full recipe is on my membership page. For less than a coffee per month you get 300+ recipes." }).recipe;
+check("R8: kein Rezept – kein geratener Titel, Bezahlseite erkannt", kr.keinRezept && kr.title === "" && kr.elsewhere.wo === "bezahlseite", [kr.title, kr.elsewhere]);
+
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);
