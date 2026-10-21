@@ -298,7 +298,7 @@ a { color: var(--accent); }
   var LERN_ERINNERUNG = 20;
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.15.0";
+  var APP_VERSION = "0.16.0";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -392,7 +392,7 @@ a { color: var(--accent); }
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) { /* optional */ }
 
   // ------------------------------------------------------------------ Zustand
-  var S = { recipes: {}, pantry: {}, shopping: { list: [], done: {}, extra: [] }, follow: {}, zuord: {}, lernen: null, meta: { guides: {}, lastBackup: 0, lastChange: 0, setupAsked: false, examples: false },
+  var S = { recipes: {}, pantry: {}, shopping: { list: [], done: {}, extra: [] }, follow: {}, zuord: {}, lernen: null, plan: {}, listen: {}, meta: { guides: {}, lastBackup: 0, lastChange: 0, setupAsked: false, examples: false },
     prefs: { name: "", persons: 2, diet: "alles", theme: "system", onboarded: false, nutrition: true, showOriginal: false, ohne: [] } };
   var UI = { tab: "rezepte", detail: null, q: "", filter: {}, servings: {}, showOrig: {}, draft: null, importRes: null, showHave: false, sort: "neu", cook: null, cat: null, ohne: [], timers: [] };
 
@@ -468,6 +468,8 @@ a { color: var(--accent); }
     kochen: { t: "Kochmodus", s: [["clock", "Zeiten im Schritt werden zum Timer: antippen startet ihn."], ["flame", "Braucht ein späterer Schritt den Ofen, erinnert dich die App rechtzeitig ans Vorheizen."], ["info", "Der Bildschirm bleibt an. Den Ton am Ende hörst du, solange die App offen ist."]] },
     extra: { t: "Eigene Einträge", s: [["plus", "Unter „Was noch?“ trägst du ein, was nicht aus einem Rezept kommt, zum Beispiel Spülmittel."], ["check", "Abhaken, Kopieren und Teilen funktionieren wie bei den anderen Zutaten."]] },
     ohne: { t: "Zutat ausschließen", s: [["search", "Zutat eintippen und „Ausschließen“ antippen: Rezepte damit verschwinden aus der Liste."], ["gear", "Dauerhaft geht das in den Einstellungen unter „Zutaten, die du nie willst“."]] },
+    woche: { t: "Wochenplan", s: [["clock", "Tage antippen, an denen du das Rezept kochen willst."], ["home", "Auf der Startseite steht dann „Diese Woche“."], ["bag", "Ein Tipp legt alle geplanten Rezepte auf die Einkaufsliste, ohne was du schon hast."]] },
+    listen: { t: "Eigene Listen", s: [["plus", "Lege Listen an, zum Beispiel „Weihnachten“ oder „Meal-Prep“."], ["grid", "Du findest sie unter „Kategorien“ ganz oben."]] },
     detail: { t: "Ein Rezept", s: [["scale", "Mit + und − rechnest du die Mengen auf deine Portionen um."], ["dot", "Ein grüner Punkt heißt: hast du schon zu Hause."], ["bag", "„Auf die Einkaufsliste“ legt nur das an, was dir noch fehlt."]] }
   };
   function guide(key) {
@@ -793,6 +795,58 @@ a { color: var(--accent); }
     var r = e.recipe;
     return '<button class="tile" data-a="open" data-id="' + esc(e.id) + '">' + glyph(r) + '<span class="title">' + esc(titleOf(e)) + '</span><span class="sub">' + sub + '</span></button>';
   }
+  function tagKey(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+  function naechsteTage(n) { var out = [], d = new Date(); d.setHours(12, 0, 0, 0); for (var k = 0; k < n; k++) { out.push(new Date(d)); d.setDate(d.getDate() + 1); } return out; }
+  function tagName(d, k) { return k === 0 ? "Heute" : k === 1 ? "Morgen" : d.toLocaleDateString("de-DE", { weekday: "short", day: "numeric", month: "numeric" }); }
+  function planDieseWoche() {
+    return naechsteTage(7).map(function (d, k) { var key = tagKey(d); return { key: key, name: tagName(d, k), ids: (S.plan[key] || []).filter(function (id) { return S.recipes[id]; }) }; });
+  }
+  function planAufraeumen() {
+    var heute = tagKey(new Date()), weg = false;
+    Object.keys(S.plan).forEach(function (d) { if (d < heute || !S.plan[d].length) { delete S.plan[d]; weg = true; } });
+    if (weg) save("plan");
+  }
+  function planBlock() {
+    var tage = planDieseWoche().filter(function (t) { return t.ids.length; });
+    if (!tage.length) return "";
+    return '<section class="sec"><div class="sec-head"><h2>Diese Woche</h2><button class="link" data-a="plan-einkauf">Alles auf die Einkaufsliste</button></div><div class="group">' +
+      tage.map(function (t) {
+        return t.ids.map(function (id) {
+          return '<div class="row"><button class="main" style="background:none;border:0;text-align:left;padding:0" data-a="open" data-id="' + esc(id) + '"><span class="title">' + esc(titleOf(S.recipes[id])) + '</span><span class="sub">' + esc(t.name) + '</span></button>' +
+            '<button class="ibtn" data-a="plan-weg" data-id="' + esc(id) + '" data-d="' + t.key + '" aria-label="' + esc(titleOf(S.recipes[id])) + ' am ' + esc(t.name) + ' austragen" title="Austragen">' + ic("x") + '</button></div>';
+        }).join("");
+      }).join("") + '</div></section>';
+  }
+  function planSheet(id) {
+    var tage = planDieseWoche();
+    sheet('<h2>Einplanen</h2><p class="small muted">' + esc(titleOf(S.recipes[id])) + '</p>' + guide("woche") +
+      '<div class="wrapchips">' + tage.map(function (t) { var on = t.ids.indexOf(id) !== -1; return '<button class="chip' + (on ? " on" : "") + '" data-a="plan-tag" data-id="' + esc(id) + '" data-d="' + t.key + '" aria-pressed="' + on + '">' + esc(t.name) + '</button>'; }).join("") + '</div>' +
+      '<button class="btn soft" data-a="close-sheet">Fertig</button>');
+  }
+  function listenSheet(id) {
+    var keys = Object.keys(S.listen).sort(function (a, b) { return S.listen[a].name.localeCompare(S.listen[b].name, "de"); });
+    sheet('<h2>Zu Liste hinzufügen</h2><p class="small muted">' + esc(titleOf(S.recipes[id])) + '</p>' + guide("listen") +
+      (keys.length ? '<div class="group">' + keys.map(function (k) {
+        var on = S.listen[k].ids.indexOf(id) !== -1;
+        return '<div class="row"><span class="main"><span class="title">' + esc(S.listen[k].name) + '</span><span class="sub">' + S.listen[k].ids.length + (S.listen[k].ids.length === 1 ? " Rezept" : " Rezepte") + '</span></span>' +
+          '<button class="toggle" role="switch" aria-checked="' + on + '" aria-label="In ' + esc(S.listen[k].name) + '" data-a="liste-tag" data-id="' + esc(id) + '" data-k="' + esc(k) + '"></button></div>';
+      }).join("") + '</div>' : '') +
+      '<div class="addrow"><input class="input" id="liste-neu" placeholder="Neue Liste, z. B. Weihnachten" autocomplete="off" enterkeyhint="done" maxlength="40"><button class="btn soft" data-a="liste-neu" data-id="' + esc(id) + '">Anlegen</button></div>' +
+      '<button class="btn soft" data-a="close-sheet">Fertig</button>');
+  }
+  function listeNeu(id) {
+    var el = $("#liste-neu"), name = el ? el.value.replace(/\s+/g, " ").trim().slice(0, 40) : "";
+    if (!name) return;
+    var k = "l" + Date.now().toString(36);
+    S.listen[k] = { name: name, ids: id ? [id] : [], at: Date.now() };
+    save("listen"); listenSheet(id); toast("Liste „" + name + "“ angelegt");
+  }
+  // Seltenes Wiederkochen: gekocht, „Nochmal kochen“ nicht verneint, zuletzt vor mehr als drei Wochen
+  function langeNicht(mine) {
+    var grenze = Date.now() - 21 * 864e5;
+    return mine.filter(function (e) { return e.lastCooked && e.lastCooked < grenze && e.nochmal !== false; })
+      .sort(function (a, b) { return (b.nochmal === true) - (a.nochmal === true) || a.lastCooked - b.lastCooked; }).slice(0, 8);
+  }
   function tileRow(title, items, subFn) {
     if (!items.length) return "";
     return '<section class="sec"><div class="sec-head"><h2>' + esc(title) + '</h2></div><div class="tiles">' + items.map(function (e) { return tile(e, subFn(e)); }).join("") + '</div></section>';
@@ -811,19 +865,21 @@ a { color: var(--accent); }
     // Persönliche Bereiche nur ohne Suche/Filter
     var personal = "";
     if (!searching && mine.length) {
+      planAufraeumen();
       var favs = mine.filter(function (e) { return e.fav; });
-      var withMiss = mine.map(function (e) { return { e: e, m: missingOf(e.recipe) }; }).filter(function (x) { return x.m.total >= 3 && K.completeness(x.e.recipe).enough; })
+      var withMiss = mine.map(function (e) { return { e: e, m: missingOf(e.recipe) }; }).filter(function (x) { return x.m.total >= 3 && x.e.nochmal !== false && K.completeness(x.e.recipe).enough; })
         .sort(function (a, b) { return a.m.missing - b.m.missing || (a.e.recipe.timeTotal || 999) - (b.e.recipe.timeTotal || 999); }).slice(0, 8);
       var recent = mine.filter(function (e) { return e.lastCooked || e.viewedAt; }).sort(function (a, b) { return Math.max(b.lastCooked || 0, b.viewedAt || 0) - Math.max(a.lastCooked || 0, a.viewedAt || 0); }).slice(0, 8);
       var quick = mine.filter(function (e) { return e.recipe.timeTotal && e.recipe.timeTotal <= 20 && K.completeness(e.recipe).enough; }).sort(function (a, b) { return a.recipe.timeTotal - b.recipe.timeTotal; }).slice(0, 8);
-      personal = tileRow("Mit deinem Vorrat", withMiss.map(function (x) { return x.e; }), function (e) { var m = missingOf(e.recipe); return m.missing ? '<span class="miss">' + (m.missing === 1 ? "1 Zutat fehlt" : m.missing + " Zutaten fehlen") + '</span>' : '<span class="miss">Alles da</span>'; }) +
+      personal = planBlock() + tileRow("Mit deinem Vorrat", withMiss.map(function (x) { return x.e; }), function (e) { var m = missingOf(e.recipe); return m.missing ? '<span class="miss">' + (m.missing === 1 ? "1 Zutat fehlt" : m.missing + " Zutaten fehlen") + '</span>' : '<span class="miss">Alles da</span>'; }) +
         tileRow("Favoriten", favs, function (e) { return e.recipe.timeTotal ? e.recipe.timeTotal + " Min." : esc(e.recipe.category); }) +
         tileRow("Zuletzt", recent, function (e) { return e.lastCooked ? "gekocht " + relDay(e.lastCooked) : "angesehen " + relDay(e.viewedAt); }) +
-        tileRow("Schnell, bis 20 Minuten", quick, function (e) { return e.recipe.timeTotal + " Min."; });
+        tileRow("Lange nicht gekocht", langeNicht(mine), function (e) { return "zuletzt " + relDay(e.lastCooked); }) +
+        tileRow("Schnell, bis 20 Minuten", quick.filter(function (e) { return e.nochmal !== false; }), function (e) { return e.recipe.timeTotal + " Min."; });
     }
     var sortSeg = '<div class="seg" role="group" aria-label="Sortierung">' + [["neu", "Neueste"], ["zeit", "Schnellste"], ["vorrat", "Vorrat"], ["az", "A–Z"]].map(function (x) {
       return '<button data-a="sort" data-v="' + x[0] + '" aria-pressed="' + (UI.sort === x[0]) + '">' + x[1] + '</button>'; }).join("") + '</div>';
-    var hidden = !searching && S.prefs.diet !== "alles" ? all.length - mine.length : 0;
+    var hidden = !searching && (S.prefs.diet !== "alles" || S.prefs.ohne.length) ? all.length - mine.length : 0;
     var ex = all.some(function (e) { return e.example; });
     var enN = englishEntries().length;
     var enHint = enN && !UEB.laeuft && uebersetzbar().length ? '<div class="banner">' + ic("lang") + '<div class="main"><b>' + enN + (enN === 1 ? " Rezept hat" : " Rezepte haben") + ' Schritte in einer Fremdsprache.</b> Jetzt auf Deutsch übersetzen.</div><button class="btn accent" data-a="translate">Übersetzen</button></div>' : '';
@@ -834,7 +890,7 @@ a { color: var(--accent); }
       (list.length > 1 ? sortSeg : '') +
       (list.length ? '<div class="group">' + list.map(recipeRow).join("") + '</div>' :
         '<div class="group empty">' + ic("book") + '<p><b>' + (all.length ? "Nichts gefunden." : "Noch keine Rezepte.") + '</b></p><p class="muted small">' + (all.length ? "Andere Suche oder weniger Filter probieren." : "Teile ein Rezept aus Instagram oder füge unter „Hinzufügen“ Text ein.") + '</p></div>') +
-      (hidden ? '<p class="foot">' + hidden + ' Rezepte passen nicht zu deiner Ernährung (' + esc(S.prefs.diet) + ') und sind ausgeblendet. Über die Suche findest du sie trotzdem.</p>' : '') +
+      (hidden ? '<p class="foot">' + hidden + (hidden === 1 ? ' Rezept ist' : ' Rezepte sind') + ' ausgeblendet (' + esc([S.prefs.diet !== "alles" ? S.prefs.diet : "", S.prefs.ohne.length ? "ohne " + S.prefs.ohne.join(", ") : ""].filter(Boolean).join(" · ")) + '). Ändern kannst du das in den Einstellungen.</p>' : '') +
       '</section>' +
       (ex ? '<p class="foot">Die Rezepte mit „Beispiel“ sind Muster zum Ausprobieren. <button class="btn ghost" style="width:auto;display:inline;padding:0;min-height:0" data-a="remove-examples">Beispiele entfernen</button></p>' : '');
   }
@@ -898,6 +954,13 @@ a { color: var(--accent); }
   function inCat(e, c) { var r = e.recipe; return r.category === c || (r.categoryAlso || []).indexOf(c) !== -1; }
   function viewKategorien() {
     var all = entries().filter(function (e) { return dietOk(e.recipe); });
+    if (UI.liste && S.listen[UI.liste]) {
+      var L = S.listen[UI.liste], inL = filteredList(all.filter(function (e) { return L.ids.indexOf(e.id) !== -1; }));
+      return '<header class="topbar"><button class="iconbtn" data-a="liste-zurueck" aria-label="Alle Kategorien">' + ic("back") + '</button></header>' +
+        '<section class="hero"><h1>' + esc(L.name) + '</h1><p class="small muted">' + inL.length + (inL.length === 1 ? " Rezept" : " Rezepte") + ' · eigene Liste</p></section>' +
+        (inL.length ? '<div class="group">' + inL.map(recipeRow).join("") + '</div>' : '<div class="group empty">' + ic("grid") + '<p class="muted small">Noch leer. Im Rezept unter „⋯ → Zu Liste hinzufügen“ füllst du sie.</p></div>') +
+        '<div class="btnrow"><button class="btn ghost" data-a="liste-loeschen" data-k="' + esc(UI.liste) + '">Liste löschen</button></div>';
+    }
     if (UI.cat) {
       var list = filteredList(all.filter(function (e) { return inCat(e, UI.cat); }));
       var sortSeg = '<div class="seg" role="group" aria-label="Sortierung">' + [["neu", "Neueste"], ["zeit", "Schnellste"], ["vorrat", "Vorrat"], ["az", "A–Z"]].map(function (x) {
@@ -911,6 +974,11 @@ a { color: var(--accent); }
     KAT_ORDER.forEach(function (c) { counts[c] = all.filter(function (e) { return inCat(e, c); }).length; });
     return '<header class="topbar"><h1>Kategorien</h1></header>' +
       '<p class="hello">' + all.length + ' Rezepte in ' + KAT_ORDER.filter(function (c) { return counts[c]; }).length + ' Kategorien</p>' +
+      (function () { var ks = Object.keys(S.listen).sort(function (a, b) { return S.listen[a].name.localeCompare(S.listen[b].name, "de"); });
+        return ks.length ? '<section class="sec"><div class="sec-head"><h2>Deine Listen</h2></div><div class="group">' + ks.map(function (k) {
+          var n = S.listen[k].ids.filter(function (id) { return S.recipes[id]; }).length;
+          return '<button class="row" data-a="liste-zeigen" data-k="' + esc(k) + '">' + ic("grid") + '<span class="main"><span class="title">' + esc(S.listen[k].name) + '</span><span class="sub">' + n + (n === 1 ? " Rezept" : " Rezepte") + '</span></span>' + ic("chev", "chev") + '</button>';
+        }).join("") + '</div></section>' : ''; })() +
       '<div class="catgrid">' + KAT_ORDER.map(function (c) {
         return '<button class="cat" data-a="cat" data-c="' + esc(c) + '"' + (counts[c] ? '' : ' disabled') + '><span class="glyph" aria-hidden="true">' + ic(GANG_ICON[c]) + '</span><span><b>' + esc(c) + '</b><span class="c">' + (counts[c] === 1 ? "1 Rezept" : counts[c] + " Rezepte") + '</span></span></button>';
       }).join("") + '</div>' +
@@ -1096,6 +1164,8 @@ a { color: var(--accent); }
       '<div class="fact"><b class="num">' + (m.total ? (m.total - m.missing) + "/" + m.total : "–") + '</b><span>Zutaten da</span></div></div>' +
       (function () { var g = K.geraete(r); return g.length && !hideSteps ? '<p class="have-line">Du brauchst: ' + esc(g.join(" · ")) + '</p>' : ''; })() +
       (cookList(r).length && !hideSteps ? '<button class="btn" data-a="cook" data-id="' + esc(id) + '">' + ic("play") + 'Kochen starten</button>' : '') +
+      (function () { var tage = planDieseWoche().filter(function (t) { return t.ids.indexOf(id) !== -1; }).map(function (t) { return t.name; });
+        return '<button class="btn soft" data-a="plan" data-id="' + esc(id) + '">' + ic("clock") + (tage.length ? 'Geplant: ' + esc(tage.join(", ")) : 'Einplanen') + '</button>'; })() +
       guide("detail") + missing +
       '<section class="sec"><div class="sec-head"><h2>Zutaten</h2><span class="stepper" role="group" aria-label="Portionen"><button data-a="serv" data-id="' + esc(id) + '" data-d="-1" aria-label="Weniger">−</button><output>' + serv + " " + esc(unitWord) + '</output><button data-a="serv" data-id="' + esc(id) + '" data-d="1" aria-label="Mehr">+</button></span></div>' +
       (household ? '<p class="have-line">Auf deinen Haushalt umgerechnet (' + S.prefs.persons + ' Personen, im Rezept ' + r.servings + ').</p>' : '') +
@@ -1123,6 +1193,8 @@ a { color: var(--accent); }
       '<button class="row" data-a="share-recipe" data-id="' + esc(id) + '">' + ic("share") + '<span class="main"><span class="title">Rezept teilen</span><span class="sub">Als Text mit Link zum Original</span></span></button>' +
       '<button class="row" data-a="edit" data-id="' + esc(id) + '">' + ic("edit") + '<span class="main"><span class="title">Rezept bearbeiten</span><span class="sub">Zutaten und Schritte korrigieren – die App lernt daraus</span></span></button>' +
       '<button class="row" data-a="rename" data-id="' + esc(id) + '">' + ic("edit") + '<span class="main"><span class="title">Titel ändern</span></span></button>' +
+      '<button class="row" data-a="listen" data-id="' + esc(id) + '">' + ic("grid") + '<span class="main"><span class="title">Zu Liste hinzufügen</span><span class="sub">' + esc(Object.keys(S.listen).filter(function (k) { return S.listen[k].ids.indexOf(id) !== -1; }).map(function (k) { return S.listen[k].name; }).join(", ") || "Eigene Listen, z. B. Weihnachten") + '</span></span></button>' +
+      (e.cooked ? '<button class="row" data-a="nochmal-frage" data-id="' + esc(id) + '">' + ic("heart") + '<span class="main"><span class="title">Nochmal kochen?</span><span class="sub">' + (e.nochmal === true ? "Ja" : e.nochmal === false ? "Lieber nicht" : "Noch nicht beantwortet") + '</span></span></button>' : '') +
       ((S.recipes[id].recipe.source || {}).account ? '<button class="row" data-a="follow-zeigen" data-acc="' + esc(S.recipes[id].recipe.source.account) + '">' + ic("person") + '<span class="main"><span class="title">Kanal von @' + esc(S.recipes[id].recipe.source.account) + '</span><span class="sub">Folgen und weitere Rezepte ansehen</span></span></button>' : '') +
       '<button class="row" data-a="melden" data-id="' + esc(id) + '">' + ic("info") + '<span class="main"><span class="title">Problem melden</span><span class="sub">Falsch erkannt? Wird gespeichert und gesammelt an Jakob geschickt</span></span></button>' +
       (translated && showOrigAllowed() ? '<button class="row" data-a="orig" data-id="' + esc(id) + '">' + ic("lang") + '<span class="main"><span class="title">' + (UI.showOrig[id] ? "Deutsch zeigen" : "Original zeigen") + '</span><span class="sub">Das Rezept wurde übersetzt</span></span></button>' : '') +
@@ -1202,6 +1274,11 @@ a { color: var(--accent); }
       return '<div class="timer' + (t.fertig ? " fertig" : "") + '"><span class="main"><b>' + (t.fertig ? "Fertig" : mm + ":" + String(ss).padStart(2, "0")) + '</b><span class="small"> ' + esc(t.text) + '</span></span>' +
         '<button class="btn soft" style="width:auto" data-a="timer-stop" data-id="' + t.id + '">' + (t.fertig ? "OK" : "Stopp") + '</button></div>';
     }).join("");
+  }
+  function nochmalSheet(id) {
+    sheet('<h2>Guten Appetit!</h2><p>Würdest du „' + esc(titleOf(S.recipes[id])) + '“ nochmal kochen?</p><p class="small muted">Deine Antwort steuert die Vorschläge auf der Startseite. Ändern kannst du sie im Rezept unter „⋯“.</p>' +
+      '<div class="btnrow"><button class="btn soft" data-a="nochmal" data-id="' + esc(id) + '" data-v="nein">Lieber nicht</button><button class="btn accent" data-a="nochmal" data-id="' + esc(id) + '" data-v="ja">Ja, gerne</button></div>' +
+      '<button class="btn ghost" data-a="close-sheet">Später</button>');
   }
   function startCook(id) {
     UI.cook = { id: id, step: 0 }; renderCook();
@@ -1576,7 +1653,7 @@ a { color: var(--accent); }
 
   // ------------------------------------------------------------------ Sicherung (eine Datei, wird ersetzt)
   function backupData() {
-    return JSON.stringify({ app: "rezeptbuch", version: 1, erstellt: new Date().toISOString(), recipes: S.recipes, pantry: S.pantry, shopping: S.shopping, follow: S.follow, zuord: S.zuord, lernen: S.lernen, prefs: S.prefs }, null, 0);
+    return JSON.stringify({ app: "rezeptbuch", version: 1, erstellt: new Date().toISOString(), recipes: S.recipes, pantry: S.pantry, shopping: S.shopping, follow: S.follow, zuord: S.zuord, lernen: S.lernen, prefs: S.prefs, plan: S.plan, listen: S.listen }, null, 0);
   }
   function doBackup() {
     if (/claude|claudeusercontent/.test(location.hostname)) { toast("Sichern funktioniert in der installierten App, nicht in dieser Vorschau"); return; }
@@ -1613,7 +1690,9 @@ a { color: var(--accent); }
     }
     if (j.prefs && Array.isArray(j.prefs.ohne)) { j.prefs.ohne.forEach(function (w) { if (!S.prefs.ohne.some(function (x) { return x.toLowerCase() === String(w).toLowerCase(); })) S.prefs.ohne.push(String(w)); }); save("prefs"); }
     if (j.shopping && Array.isArray(j.shopping.extra)) { S.shopping.extra = S.shopping.extra || []; j.shopping.extra.forEach(function (x) { if (x && x.t && !S.shopping.extra.some(function (y) { return y.t === x.t; })) S.shopping.extra.push(x); }); save("shopping"); }
-    ["recipes", "pantry", "zuord", "follow"].forEach(save);
+    Object.keys(j.plan || {}).forEach(function (d) { var a = S.plan[d] = S.plan[d] || []; (j.plan[d] || []).forEach(function (id) { if (a.indexOf(id) === -1) a.push(id); }); });
+    Object.keys(j.listen || {}).forEach(function (k) { var a = S.listen[k], b = j.listen[k]; if (!a) S.listen[k] = b; else (b.ids || []).forEach(function (id) { if (a.ids.indexOf(id) === -1) a.ids.push(id); }); });
+    ["recipes", "pantry", "zuord", "follow", "plan", "listen"].forEach(save);
     closeSheet(); render(); toast(added + " neu, " + newer + " aktualisiert");
   }
 
@@ -1888,7 +1967,7 @@ a { color: var(--accent); }
     if (el.dataset.a === "close-sheet" && ev.target.closest("[data-stop]") && el.classList.contains("scrim")) return;
     var a = el.dataset.a, id = el.dataset.id;
     switch (a) {
-      case "tab": UI.tab = el.dataset.t; UI.detail = null; if (UI.tab === "kategorien" && el.closest(".tabbar")) UI.cat = null; render(); window.scrollTo(0, 0); break;
+      case "tab": UI.tab = el.dataset.t; UI.detail = null; if (UI.tab === "kategorien" && el.closest(".tabbar")) { UI.cat = null; UI.liste = null; } render(); window.scrollTo(0, 0); break;
       case "cat": UI.cat = el.dataset.c; render(); window.scrollTo(0, 0); break;
       case "cat-back": UI.cat = null; render(); break;
       case "nutri-toggle":
@@ -1928,7 +2007,26 @@ a { color: var(--accent); }
       case "cook-next": UI.cook.step++; renderCook(); break;
       case "cook-prev": if (UI.cook.step > 0) { UI.cook.step--; renderCook(); } break;
       case "cook-close": endCook(); break;
-      case "cook-done": var ce = S.recipes[UI.cook.id]; ce.cooked = (ce.cooked || 0) + 1; ce.lastCooked = Date.now(); save("recipes"); endCook(); render(); toast("Guten Appetit!"); break;
+      case "cook-done": var cid = UI.cook.id, ce = S.recipes[cid]; ce.cooked = (ce.cooked || 0) + 1; ce.lastCooked = Date.now(); save("recipes"); endCook(); render();
+        if (ce.nochmal == null) nochmalSheet(cid); else toast("Guten Appetit!"); break;
+      case "nochmal-frage": nochmalSheet(id); break;
+      case "nochmal": S.recipes[id].nochmal = el.dataset.v === "ja"; save("recipes"); closeSheet(); render(); toast(el.dataset.v === "ja" ? "Gemerkt: kommt wieder in die Vorschläge" : "Gemerkt: taucht in Vorschlägen nicht mehr auf"); break;
+      case "plan": planSheet(id); break;
+      case "plan-tag": var pd = el.dataset.d, pl = S.plan[pd] = S.plan[pd] || [], pi = pl.indexOf(id); if (pi === -1) pl.push(id); else pl.splice(pi, 1); save("plan"); render(); planSheet(id); break;
+      case "plan-weg": S.plan[el.dataset.d] = (S.plan[el.dataset.d] || []).filter(function (x) { return x !== id; }); save("plan"); render(); break;
+      case "plan-einkauf":
+        var pn = 0;
+        planDieseWoche().forEach(function (t) { t.ids.forEach(function (pid) { if (!S.shopping.list.some(function (x) { return x.id === pid; })) { S.shopping.list.push({ id: pid, servings: UI.servings[pid] || defaultServings(S.recipes[pid].recipe) }); pn++; } }); });
+        save("shopping"); render(); toast(pn ? pn + (pn === 1 ? " Rezept" : " Rezepte") + " auf der Einkaufsliste, ohne was du schon hast" : "Schon alles auf der Liste"); break;
+      case "listen": listenSheet(id); break;
+      case "liste-tag": var lk = S.listen[el.dataset.k]; if (lk) { var li = lk.ids.indexOf(id); if (li === -1) lk.ids.push(id); else lk.ids.splice(li, 1); save("listen"); listenSheet(id); } break;
+      case "liste-neu": listeNeu(id); break;
+      case "liste-zeigen": UI.liste = el.dataset.k; render(); window.scrollTo(0, 0); break;
+      case "liste-zurueck": UI.liste = null; render(); break;
+      case "liste-loeschen":
+        var lname = (S.listen[el.dataset.k] || {}).name || "";
+        if (!el.dataset.ok) { el.dataset.ok = "1"; el.textContent = "Wirklich löschen? Die Rezepte bleiben."; break; }
+        delete S.listen[el.dataset.k]; save("listen"); UI.liste = null; render(); toast("Liste „" + lname + "“ gelöscht"); break;
       case "uncook": S.recipes[id].cooked = 0; S.recipes[id].lastCooked = 0; save("recipes"); closeSheet(); render(); break;
       case "back": UI.detail = null; render(); break;
       case "settings": settingsSheet(); break;
@@ -1951,7 +2049,8 @@ a { color: var(--accent); }
       case "sc-run-link": closeSheet(); UI.pasteText = ""; runShortcut(el.dataset.t); break;
       case "sc-test": closeSheet(); toast("Kurzbefehl wird mit einem Beispiel-Link gestartet …"); setTimeout(function () { runShortcut("https://www.instagram.com/p/C0Test/"); }, 400); break;
       case "close-sheet": closeSheet(); if (!S.prefs.testEinwilligung) setTimeout(einwilligungSheet, 50); break;
-      case "guide-ok": S.meta.guides[el.dataset.k] = true; save("meta"); render(); if (UI.cook) renderCook(); if (el.dataset.k === "ohne") filterSheet(); break;
+      case "guide-ok": S.meta.guides[el.dataset.k] = true; save("meta"); render(); if (UI.cook) renderCook(); if (el.dataset.k === "ohne") filterSheet();
+        var gsh = el.closest && el.closest(".sheet"); if (gsh && (el.dataset.k === "woche" || el.dataset.k === "listen")) { var gx = gsh.querySelector("[data-id]"); if (gx) (el.dataset.k === "woche" ? planSheet : listenSheet)(gx.dataset.id); } break;
       case "info": infoSheet(); break;
       case "info-detail": UI.infoDetail = el.dataset.v === "1"; infoSheet(); break;
       case "guides-reset": S.meta.guides = {}; save("meta"); closeSheet(); render(); toast("Anleitungen werden wieder gezeigt"); break;
@@ -2047,7 +2146,9 @@ a { color: var(--accent); }
       case "rename-save": var nt = ($("#newtitle").value || "").trim(); if (nt) { S.recipes[id].userTitle = nt; S.recipes[id].updatedAt = Date.now(); save("recipes"); } closeSheet(); render(); break;
       case "delete":
         if (!el.dataset.ok) { confirmSheet("Rezept löschen?", "delete", id, "Löschen"); break; }
-        delete S.recipes[id]; S.shopping.list = S.shopping.list.filter(function (x) { return x.id !== id; }); save("recipes"); save("shopping"); UI.detail = null; closeSheet(); render(); toast("Gelöscht"); break;
+        delete S.recipes[id]; S.shopping.list = S.shopping.list.filter(function (x) { return x.id !== id; }); save("recipes"); save("shopping");
+        Object.keys(S.plan).forEach(function (d) { S.plan[d] = S.plan[d].filter(function (x) { return x !== id; }); }); save("plan");
+        Object.keys(S.listen).forEach(function (k) { S.listen[k].ids = S.listen[k].ids.filter(function (x) { return x !== id; }); }); save("listen"); UI.detail = null; closeSheet(); render(); toast("Gelöscht"); break;
       case "zuordnen": zuordnenSheet(id, el.dataset.name); break;
       case "zuord-pick":
         var s = UI.sug[+el.dataset.n]; S.zuord[el.dataset.key] = s.entry; save("zuord");
@@ -2100,6 +2201,7 @@ a { color: var(--accent); }
     if (UI.cook) { if (ev.key === "Escape") endCook(); if (ev.key === "ArrowRight" && UI.cook.step < cookList(S.recipes[UI.cook.id].recipe).length - 1) { UI.cook.step++; renderCook(); } if (ev.key === "ArrowLeft" && UI.cook.step > 0) { UI.cook.step--; renderCook(); } return; }
     if (ev.key === "Escape" && $("#layer").innerHTML) closeSheet();
     if (ev.key === "Enter" && ev.target && ev.target.id === "extra-q") { ev.preventDefault(); extraAdd(); }
+    if (ev.key === "Enter" && ev.target && ev.target.id === "liste-neu") { ev.preventDefault(); var lb = $('[data-a="liste-neu"]'); listeNeu(lb ? lb.dataset.id : ""); }
     if (ev.key === "Enter" && ev.target && ev.target.id === "ohne-q") { ev.preventDefault(); ohneAdd(UI.ohne, "#ohne-q"); render(); filterSheet(); }
     if (ev.key === "Enter" && ev.target && ev.target.id === "ohne-immer-q") { ev.preventDefault(); ohneAdd(S.prefs.ohne, "#ohne-immer-q"); save("prefs"); render(); settingsSheet(); }
   });
@@ -2117,7 +2219,7 @@ a { color: var(--accent); }
 
   // ------------------------------------------------------------------ Start
   dbOpen().then(function () {
-    return Promise.all(["recipes", "pantry", "shopping", "follow", "zuord", "meta", "prefs", "lernen"].map(function (k) { return dbGet(k).then(function (v) { if (v) S[k] = (k === "meta" || k === "prefs") ? Object.assign(S[k], v) : v; }); }));
+    return Promise.all(["recipes", "pantry", "shopping", "follow", "zuord", "meta", "prefs", "lernen", "plan", "listen"].map(function (k) { return dbGet(k).then(function (v) { if (v) S[k] = (k === "meta" || k === "prefs") ? Object.assign(S[k], v) : v; }); }));
   }).then(function () {
     if (!S.lernen || S.lernen.app !== "rezeptbuch-lernen") S.lernen = K.neuerLernspeicher();
     applyTheme();
