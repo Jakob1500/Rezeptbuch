@@ -17,9 +17,17 @@ const args = process.argv.slice(2), zeige = args.includes("--zeige") ? args[args
 
 // ---- Quellen: Exporte (lokal, privat) + gemeldete Fälle (lokal, privat)
 const faelle = [];
+// Richtige Titel von Jakob (privat): tests/faelle/titel/titel-faelle.json – gilt für Rezepte aus den Exporten mit gleichem Link
+const titelDatei = path.join(root, "tests/faelle/titel/titel-faelle.json");
+const titelSoll = fs.existsSync(titelDatei) ? JSON.parse(fs.readFileSync(titelDatei, "utf8")).faelle : [];
 ["daten/ig-analyse.json", "daten/ig-analyse2.json"].forEach(f => {
   const p = path.join(root, f); if (!fs.existsSync(p)) return;
-  require(p).filter(x => x.recipe).forEach(x => faelle.push({ id: x.url, caption: x.caption, account: x.account, url: x.url }));
+  require(p).filter(x => x.recipe).forEach(x => { if (!faelle.some(y => y.id === x.url)) faelle.push({ id: x.url, caption: x.caption, account: x.account, url: x.url }); });
+});
+titelSoll.forEach(t => { // ohne Export: Text aus der Titel-Datei nehmen
+  let f = faelle.find(y => y.url === t.link);
+  if (!f) { f = { id: t.link, caption: t.caption, account: t.konto, url: t.link }; faelle.push(f); }
+  if (t.titel) f.titel = t.titel;
 });
 const fd = path.join(root, "tests/faelle");
 if (fs.existsSync(fd)) fs.readdirSync(fd).filter(f => f.endsWith(".txt") && f !== "beispiel.txt").forEach(f => {
@@ -81,7 +89,7 @@ faelle.forEach(f => {
   (r.logik && r.logik.vage || []).forEach(s => treffer("vage-unaufgeloest", f, s));
   if (r.title && (r.title.split(/\s+/).length > 7 || /\b(ich|wir|du|ist|sind|you|is|are|my|mein)\b/i.test(r.title))) treffer("titel-satz", f, r.title);
   if (r.titleGuessed) treffer("titel-geraten", f, r.title);
-  if (f.titel && norm(r.title) !== norm(f.titel) && norm(r.titleOriginal) !== norm(f.titel)) treffer("titel-falsch", f, `„${r.title}“ statt „${f.titel}“`);
+  if (f.titel && ![r.title, r.titleOriginal].some(x => norm(x).replace(/ /g, "") === norm(f.titel).replace(/ /g, ""))) treffer("titel-falsch", f, `„${r.title}“ statt „${f.titel}“`);
   if (/(^|[^a-z])(#?vegan|plant.?based)([^a-z]|$)/i.test(f.caption) && !/vegan\w*\s+(möglich|option)/i.test(f.caption) && r.ingredients.length >= 2 && !r.diet.includes("vegan")) treffer("vegan-widerspruch", f, JSON.stringify(r.dietEvidence));
   ((r.nutrition && r.nutrition.coverage.offen) || []).filter(o => o.grund === "unbekannt").forEach(o => treffer("ohne-naehrwert", f, o.name));
   if (r.timeEstimated && (r.timeTotal < 5 || r.timeTotal > 180)) treffer("zeit-unplausibel", f, r.timeTotal + " Min.");
