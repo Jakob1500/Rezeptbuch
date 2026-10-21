@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.4.3";
+  var VERSION = "0.5.0";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -863,9 +863,14 @@
     }
     if (/^(enjoy|etwas|außerdem|ausserdem|sonst|sonstiges|teil \d+|bereiding|voor erbij|ingrediënten|crispy|hand|beutel|saft|süße|sirup|gesalzene|helle|rote|dinkel-|holz-|agaven-|crunch\b.*)$/i.test(res.name.replace(/[!.:]+$/, "")) || /\b(rezepte|recipes)\b/i.test(res.name)) return null;
     if (res.qty == null && res.name.split(/\s+/).length >= 4 && /^(ich|du|ihr|wir|das ist|es ist|dieses?|this|it|i|we|you)\b/i.test(res.name)) return null;
+    // "1 Paprika", "2 Paprika (rot)": im Deutschen das Gemüse, nicht das Gewürz (nur mit Löffel/Gramm ist es Pulver)
+    if (/^paprika(pulver)?$/i.test(res.name) && /^paprika\b/i.test(res.nameOriginal || res.raw.replace(/^[\d\s.,½¼¾-]+/, "")) && (!res.unit || /^(Stk|Stück)$/.test(res.unit)) && res.qty != null) {
+      res.name = "Paprika"; delete res.nameOriginal;
+    }
     res.key = normName(res.name);
+    if (res.name === "Paprika" && res.key === "paprikapulver") res.key = "paprika";
     res.aisle = guessAisle(res.name + " " + res.key);
-    res.staple = isStaple(res.name);
+    res.staple = isStaple(res.name) && res.key !== "paprika";
     return res;
   }
 
@@ -927,7 +932,9 @@
   // ---------------------------------------------------------------------------
 
   var HEAD_ING = /^(?:\W*)(zutaten|ingredients|du brauchst|ihr braucht|you need|you['’]?ll need|what you['’]?ll need|what you need|was du brauchst|was ihr braucht|was brauchen wir|was wir brauchen|das brauchst du|benötigt|einkaufsliste|für (?:den|die|das) [a-zäöüß]+\s*:?$)/i;
-  var HEAD_STEP = /^(?:\W*)(zubereitung|anleitung|so geht['’`]?s|so wird['’`]?s gemacht|instructions|method|directions|steps|how to make|preparation|schritte|vorgehen)/i;
+  var HEAD_STEP = /^(?:\W*)(zubereitung|anleitung|so geht['’`]?s|so wird['’`]?s gemacht|instructions|method|directions|steps|how to make|preparation|schritte|vorgehen)(?![a-zäöüß])/i;
+  // Reine Zeitzeilen ("Zubereitungszeit: 15 Minuten") sind weder Zutat noch Schritt
+  var ZEIT_ZEILE = /^\W*(zubereitungszeit|vorbereitungszeit|arbeitszeit|gesamtzeit|kochzeit|backzeit|garzeit|ruhezeit|wartezeit|prep time|cook time|cooking time|total time|bake time|zeit|time|dauer)\s*:?\s*(ca\.?\s*|~\s*)?\d[^a-zäöüß]{0,3}\s*(min|minuten|minutes|mins?|std|stunden?|h|hours?)\b.{0,30}$/i;
   // Zeilen, die weder Zutat noch Schritt sind
   var NOISE = /^(werbung|anzeige|unbezahlt|unbeauftragt|ad\b|sponsored|in kooperation|makros|macros|nährwerte|naehrwerte|nutrition|kcal|kalorien|speichern|save this|full recipe|ganzes rezept|das ganze rezept|rezept auf meinem blog|link in (my|meiner) bio|folge mir|follow me|follow for|teile (diesen|das|den) (post|beitrag|reel|rezept)|share this|link in bio|rezept in der bio)/i;
 
@@ -1000,22 +1007,36 @@
     };
   }
 
+  // Zeitangaben des Creators. Nur Kopfzeilen zählen ("Zubereitungszeit: 20 Min.", "⏱ Prep 10 min | Cook 20 min")
+  // und die ersten Zeilen ("Linsen-Curry in 30 Minuten"). Sätze in den Schritten ("Reis in 10 Minuten garen") nicht.
   function findTimes(text) {
-    var t = String(text);
     var res = { total: null, prep: null, cook: null, explicit: false };
-    var lab = function (re) { var m = t.match(re); return m ? parseDuration(m[1]) : null; };
     // Dauer muss mit einer Zahl beginnen (sonst passt der leere String)
     var dur = "((?=\\d)(?:\\d+(?:[.,]\\d+)?\\s*(?:std\\.?|stunden?|h|hrs?|hours?)\\b\\s*(?:und|and|,)?\\s*)?(?:\\d+\\s*(?:min\\.?|minuten|mins?|minutes?)(?![a-zäöü]))?|\\d+(?:[.,]\\d+)?\\s*(?:std\\.?|stunden?|h|hours?)\\b)";
-    var pre = "(?:^|[^a-zäöüß])";
-    res.total = lab(new RegExp(pre + "(?:gesamtzeit|gesamt|total time|total|insgesamt|dauer|zeit|time|fertig in|ready in|in nur|in)\\s*:?\\s*(?:ca\\.?\\s*)?" + dur, "i"));
-    res.prep = lab(new RegExp(pre + "(?:zubereitungszeit|vorbereitung|vorbereitungszeit|arbeitszeit|prep time|prep)\\s*:?\\s*(?:ca\\.?\\s*)?" + dur, "i"));
-    res.cook = lab(new RegExp(pre + "(?:kochzeit|backzeit|garzeit|cook time|bake time|cooking time)\\s*:?\\s*(?:ca\\.?\\s*)?" + dur, "i"));
-    if (!res.total && /⏱|⏰|🕐|⌚/.test(t)) {
-      var m = t.match(/(?:⏱|⏰|🕐|⌚)️?\s*:?\s*(\d+(?:\s*(?:min|minuten|std|h)\.?))/i);
-      if (m) res.total = parseDuration(m[1]);
-    }
+    var lead = "(?:^|[|•·,;\\/]\\s*)[^a-zäöüß0-9]{0,4}";
+    var tail = "\\s*:?\\s*(?:ca\\.?\\s*|~\\s*|etwa\\s*)?" + dur;
+    var reTotal = new RegExp(lead + "(?:gesamtzeit|gesamt|total time|total|insgesamt|dauer|zeit|time|ready in|fertig in)" + tail, "i");
+    var rePrep = new RegExp(lead + "(?:zubereitungszeit|zubereitung|vorbereitungszeit|vorbereitung|arbeitszeit|aktive zeit|active time|prep time|prep)" + tail, "i");
+    var reCook = new RegExp(lead + "(?:kochzeit|backzeit|garzeit|cook time|cooking time|bake time|baking time|cook)" + tail, "i");
+    var reKopf = new RegExp("(?:^|[^a-zäöüß])(?:fertig in|ready in|in nur|in only|in just|in unter|in under|in)\\s*(?:ca\\.?\\s*)?" + dur, "i");
+    var reBinde = /(?:^|[^\d])(\d{1,3})\s*-?\s*(?:min(?:ute[ns]?|uten)?)\s*-\s*[a-zäöü]/i; // "15-Minuten-Pasta"
+    var lines = String(text).split(/\n/).map(function (l) { return l.trim(); }).filter(Boolean);
+    var hit = function (re, l) { var m = l.match(re); return m ? parseDuration(m[1]) : null; };
+    lines.forEach(function (l, n) {
+      if (l.length > 90) return;
+      if (res.total == null) res.total = hit(reTotal, l);
+      if (res.prep == null) res.prep = hit(rePrep, l);
+      if (res.cook == null) res.cook = hit(reCook, l);
+      if (res.total == null && /⏱|⏰|🕐|⌚/.test(l)) {
+        var m = l.match(/(?:⏱|⏰|🕐|⌚)️?\s*:?\s*(\d+(?:\s*(?:min|minuten|std|h)\.?))/i);
+        if (m) res.total = parseDuration(m[1]);
+      }
+      if (n < 3 && res.total == null) {
+        res.total = hit(reKopf, l);
+        if (res.total == null) { var b = l.match(reBinde); if (b) res.total = +b[1]; }
+      }
+    });
     if (!res.total && res.prep && res.cook) res.total = res.prep + res.cook;
-    if (!res.total && (res.prep || res.cook)) res.total = res.prep || res.cook;
     res.explicit = !!res.total;
     return res;
   }
@@ -1031,7 +1052,9 @@
     ["dünsten", /\b(dünst\w*|dämpf\w*|steam\w*|glasig)\b/i, 6],
     ["schneiden", /\b(schneid\w*|hack\w*|würfel\w*|schäl\w*|reib\w*|chop\w*|dice\w*|slice\w*|cut|mince\w*|peel\w*|grate\w*|hobel\w*|tear)\b/i, 3],
     ["mixen", /\b(mix\w*|pürier\w*|blend\w*|blitz\w*|zerkleiner\w*|purée|puree)\b/i, 2],
-    ["rühren", /\b(rühr\w*|verrühr\w*|vermeng\w*|vermisch\w*|misch\w*|stir\w*|combine\w*|whisk\w*|toss\w*|knet\w*|knead\w*)\b/i, 1],
+    ["rühren", /\b(rühr\w*|verrühr\w*|vermeng\w*|vermisch\w*|misch\w*|stir\w*|combine\w*|whisk\w*|toss\w*)\b/i, 1],
+    ["kneten", /\b(knet\w*|verknet\w*|knead\w*)\b/i, 5],
+    ["formen", /\b(formen|forme|ausroll\w*|roll out|belegen|bestreich\w*|füllen|einrollen|aufrollen|wickeln|shape\w*|assemble\w*)\b/i, 5],
     ["marinieren", /\b(marinier\w*|marinate\w*|einlegen)\b/i, 15],
     ["quellen", /\b(quell\w*|ziehen lassen|einweich\w*|soak\w*)\b/i, 10],
     ["ruhen", /\b(ruhen|abkühl\w*|cool\w*|rest\w*|abkühlen)\b/i, 10],
@@ -1039,32 +1062,96 @@
     ["anrichten", /\b(servier\w*|anricht\w*|garnier\w*|serve|garnish\w*|top with|toppen)\b/i, 1]
   ];
   function schrittArbeiten(s) { var o = []; ARBEIT.forEach(function (a) { if (a[1].test(s)) o.push(a[0]); }); return o; }
-  function schrittMinutenAngabe(s) {
-    s = String(s); var sum = 0;
-    var m = s.match(/(\d+)\s*(?:-|–|bis|to)?\s*(\d+)?\s*(min|minuten|minutes|mins)\b/i);
-    if (m) sum += +(m[2] || m[1]);
-    var h = s.match(/(\d+(?:[.,]\d+)?)\s*(std|stunden?|hours?|h)\b/i);
-    if (h && !/über nacht|overnight/i.test(s)) sum += parseFloat(h[1].replace(",", ".")) * 60;
-    return sum || null;
+  // Alle Zeitangaben eines Textes in Minuten ("5–6 mins", "1 Std.", "20-25 Minuten"); bei Spannen der obere Wert.
+  // Sekunden zählen nicht; "über Nacht" ist keine Zahl.
+  function zeitangaben(s) {
+    var out = [], re = /(\d+(?:[.,]\d+)?)\s*(?:-|–|bis|to)?\s*(\d+(?:[.,]\d+)?)?\s*(min\.?|minuten|minute|minutes|mins?|std\.?|stunden?|hours?|hrs?|h)(?![a-zäöü])/gi, m;
+    while ((m = re.exec(String(s)))) {
+      var v = parseFloat((m[2] || m[1]).replace(",", "."));
+      if (!isFinite(v) || v <= 0) continue;
+      out.push(/^(std|stunde|hour|hr|h)/i.test(m[3]) ? v * 60 : v);
+    }
+    return out;
   }
-  function estimateTimeFromSteps(steps, gelernt) {
-    var sum = 0, angaben = 0, n = 0;
-    steps.forEach(function (s) {
-      if (/^## /.test(s)) return;
+  function schrittMinutenAngabe(s) {
+    if (/über nacht|overnight/i.test(s)) return null;
+    var a = zeitangaben(s), sum = 0;
+    a.forEach(function (v) { sum += v; });
+    return sum ? Math.round(sum) : null;
+  }
+  // Wartezeit: das Gericht gart oder ruht, die Hände sind frei
+  var PASSIV = /\b(back\w*|bake[ds]?|baking|überback\w*|köchel\w*|simmer\w*|ruhen|rest\w*|gehen lassen|rise|prove|proof\w*|kühl\w*|kalt stellen|chill\w*|refrigerat\w*|gefrier\w*|freez\w*|marinier\w*|marinate\w*|quell\w*|einweich\w*|soak\w*|ziehen lassen|abkühl\w*|cool\w*|garen|gar ziehen|schmor\w*|braise\w*|roast\w*|im ofen|in the oven|air ?fry\w*|heißluft\w*|kochen lassen|einkochen|reduzieren|reduce)\b/i;
+  var PARALLEL = /\b(währenddessen|während(?:dessen)?|in der zwischenzeit|inzwischen|parallel|meanwhile|in the meantime|while)\b/i;
+  var SCHNEIDEN = /\b(schneid\w*|hack\w*|würfel\w*|schäl\w*|reib\w*|rasp\w*|hobel\w*|halbier\w*|viertel\w*|zupf\w*|chop\w*|dice\w*|slice\w*|cut|mince\w*|peel\w*|grate\w*|halve\w*|quarter\w*|shred\w*|tear)\b/i;
+  var ZUTAT_GESCHNITTEN = /(gewürfelt|würfel|gehackt|geschnitten|in (?:dünne |feine |grobe |kleine |große )?(?:scheiben|streifen|stücke|stücken|ringe|würfel|spalten)|gerieben|geraspelt|geschält|halbiert|geviertelt|zerkleinert|zerzupft|chopped|diced|sliced|minced|grated|peeled|halved|quartered|shredded|julienned|cubed)/i;
+  function schneidbar(i) {
+    return i && !i.staple && !isSpice(i) && !/^(ml|l|TL|EL|Prise|Msp|Tasse|cl)$/.test(i.unit || "") && !/^(salz|pfeffer|wasser|öl|olivenöl|brühe|gemüsebrühe|mehl|zucker)/.test(i.key || "");
+  }
+  function rundeZeit(t) {
+    if (!t || t < 5) return 5;
+    return t <= 120 ? Math.round(t / 5) * 5 : Math.round(t / 15) * 15;
+  }
+  // Gesamtzeit bis zum Essen aus den Schritten: jeder Satz für sich.
+  // Satz mit Zeitangabe: alle Angaben zählen. Satz ohne: typische Dauer der Arbeitsschritte (gelernte Werte gehen vor).
+  // Schneiden je Zutat. "Währenddessen …" läuft in der Wartezeit davor und verlängert nur, was übersteht.
+  function zeitAnalyse(r, gelernt) {
+    var steps = (r && r.steps) || [], ings = (r && r.ingredients) || [];
+    var map = ings.length ? stepIngredients(r) : [];
+    var sum = 0, passiv = 0, explizit = 0, ueberNacht = false, frei = 0, n = 0, inSchritt = {};
+    steps.forEach(function (st, si) {
+      if (/^## /.test(st)) return;
       n++;
-      var ang = schrittMinutenAngabe(s);
-      if (ang) { sum += ang; angaben++; return; }
-      if (/über nacht|overnight/i.test(s)) return; // Ruhezeit über Nacht zählt nicht zur Arbeitszeit
-      var arb = schrittArbeiten(s), min = 0;
-      arb.forEach(function (a) {
-        var g = gelernt && gelernt[a], def = ARBEIT.filter(function (x) { return x[0] === a; })[0][2];
-        min += g && g.n >= 3 ? g.summe / g.n : def;
+      var imSchritt = (map[si] || []).filter(function (k) { return schneidbar(ings[k]); });
+      var saetze = String(st).replace(/([.!?;])\s+(?=[A-ZÄÖÜ„"0-9])/g, "$1\u0002").split("\u0002");
+      saetze.forEach(function (s) {
+        if (/über nacht|overnight/i.test(s)) { ueberNacht = true; return; }
+        var zt = 0, warte = 0;
+        var ang = zeitangaben(s);
+        if (SCHNEIDEN.test(s)) {
+          var low = lower(s), k = imSchritt.filter(function (x) {
+            return lower(ings[x].name + " " + (ings[x].nameOriginal || "")).split(/[\s,()-]+/).some(function (w) { return w.length >= 4 && low.indexOf(w.slice(0, 5)) !== -1; });
+          });
+          if (!k.length) k = imSchritt;
+          k.forEach(function (x) { inSchritt[x] = 1; });
+          zt += Math.max(3, 2.5 * k.length);
+        }
+        if (ang.length) {
+          var a = 0; ang.forEach(function (v) { a += v; });
+          zt += a; explizit += a;
+          if (PASSIV.test(s)) warte = a;
+          // "Brötchen formen und 30 Minuten ruhen lassen": Formen kommt zur genannten Zeit dazu
+          if (schrittArbeiten(s).indexOf("formen") !== -1) zt += (gelernt && gelernt.formen && gelernt.formen.n >= 3) ? gelernt.formen.summe / gelernt.formen.n : 5;
+        } else {
+          schrittArbeiten(s).forEach(function (w) {
+            if (w === "schneiden") return;
+            var g = gelernt && gelernt[w], def = ARBEIT.filter(function (x) { return x[0] === w; })[0][2];
+            var d = g && g.n >= 3 ? g.summe / g.n : def;
+            zt += d;
+            if (PASSIV.test(s) && /^(backen|rösten|köcheln|kochen|marinieren|quellen|ruhen|kühlen)$/.test(w)) warte += d;
+          });
+          if (!zt) zt = 0.5;
+          zt = Math.min(zt, 45);
+        }
+        if (PARALLEL.test(s) && frei > 0) {
+          var rest = Math.max(0, zt - frei);
+          frei = Math.max(0, frei - zt);
+          sum += rest;
+        } else {
+          sum += zt;
+          frei = warte;
+        }
+        passiv += warte;
       });
-      sum += Math.min(arb.length ? min : 1, 45);
     });
     if (!n) return null;
+    // Zutaten mit "gewürfelt", "gehackt" … die in keinem Schneide-Schritt vorkamen
+    ings.forEach(function (i, k) { if (!inSchritt[k] && schneidbar(i) && ZUTAT_GESCHNITTEN.test((i.raw || "") + " " + (i.note || ""))) sum += 2; });
     var t = sum + 5; // Bereitlegen und Kleinkram
-    return Math.max(5, Math.round(t / 5) * 5);
+    return { total: rundeZeit(t), roh: t, passiv: Math.round(passiv), explizit: Math.round(explizit), ueberNacht: ueberNacht };
+  }
+  function estimateTimeFromSteps(steps, gelernt) {
+    var z = zeitAnalyse({ steps: steps || [], ingredients: [] }, gelernt);
+    return z ? z.total : null;
   }
 
   var TITLE_BAD = /^(https?:|www\.|\(?\s*(?:recipe|rezept)\b|comment|kommentier|i'?m curious|follow|.*\bi used\b|.*:\s*\d+$|rezept|zum rezept|das rezept|recipe|portionen|servings|perfekt (für|zum)|schnell gemacht|kann kochen|comment|kommentier|werbung|anzeige|unbezahlt|gewinnspiel|ad\b|follow|folge|save|speicher|teil \d|part \d|step by step|veganuary|must try|naja|glaubst|aufmerksam|mit den produkten|mit \w+ so |etwas |some |& so|und so|schwierigkeit|zubereitungszeit|dauer|what you need|was brauchen|[\d\s\/]+$)|\b(gewinnspiel|anzeige)\b|^[^(]*\)|^[\wäöüÄÖÜß-]+:\s/i;
@@ -1526,6 +1613,7 @@
         if (after) after.split(/\s*[,;]\s*(?=\d|[A-ZÄÖÜ])/).forEach(function (a) { if (looksLikeIngredient(a)) ingredients.push(a); });
         return;
       }
+      if (ZEIT_ZEILE.test(plain)) return;
       if (HEAD_STEP.test(plain) && (plain.length < 60 || /^\W*[a-zäöüß' ]+\s*:/i.test(plain))) {
         mode = "step"; stepHeadingSeen = true;
         var after2 = plain.replace(HEAD_STEP, "").replace(/^[\s:]+/, "");
@@ -2016,7 +2104,7 @@
   function emptyRecipe() {
     return {
       schema: SCHEMA_VERSION, title: "", servings: null, ingredients: [], steps: [],
-      timeTotal: null, timePrep: null, timeCook: null, timeEstimated: false,
+      timeTotal: null, timePrep: null, timeCook: null, timeEstimated: false, timeOvernight: false,
       category: "", diet: [], allergens: [], difficulty: "", focus: [], equipment: [],
       source: { url: "", account: "", blogUrl: "" }, links: [], linkInBio: false,
       creatorClaims: [], provenance: {}
@@ -2812,9 +2900,19 @@
   }
 
   function finalize(r) {
-    if (!r.timeTotal && r.steps.length) {
-      var est = estimateTimeFromSteps(r.steps, LERN && LERN.zeiten);
-      if (est) { r.timeTotal = est; r.timeEstimated = true; r.provenance.timeTotal = "geschätzt"; }
+    // Eine Zeit bis zum Essen (inklusive Backen, Ruhen, Kühlen). Angabe des Creators geht vor,
+    // außer sie ist kürzer als die Zeiten, die in den Schritten selbst stehen.
+    var za = r.steps.length ? zeitAnalyse(r, LERN && LERN.zeiten) : null;
+    r.timeOvernight = !!(za && za.ueberNacht);
+    if (za) {
+      if (!r.timeTotal) {
+        var est = za.total;
+        if (r.timePrep) est = Math.max(est, rundeZeit(r.timePrep + za.passiv));
+        if (r.timeCook) est = Math.max(est, rundeZeit(r.timeCook + (r.timePrep || 5)));
+        r.timeTotal = est; r.timeEstimated = true; r.provenance.timeTotal = r.timePrep || r.timeCook ? "ergänzt" : "geschätzt";
+      } else if (za.explizit > r.timeTotal * 1.25 + 5) {
+        r.timeTotal = za.total; r.timeEstimated = true; r.provenance.timeTotal = "korrigiert";
+      }
     }
     // Titel ist nur eine Zutat ("Stückige Tomaten"): Gerichtsname aus dem Text bevorzugen
     if (r.title && r.dishTitle && lower(r.dishTitle) !== lower(r.title) && r.ingredients.some(function (i) { return lower(i.name) === lower(r.title) || lower(i.raw) === lower(r.title); })) { r.title = r.dishTitle; r.titleGuessed = true; }
@@ -2930,9 +3028,77 @@
     return String(round(n, 1)).replace(".", ",");
   }
 
+  // Umgerechnete Menge sinnvoll runden: 450 g × ½ = 225 g → 230 g (wie auf Waagen und Packungen)
+  function rundeMenge(x, unit) {
+    if (x == null || !isFinite(x)) return x;
+    if (/^(g|ml)$/.test(unit || "")) {
+      if (x < 10) return Math.max(0.5, Math.round(x * 2) / 2);
+      if (x < 100) return Math.round(x / 5) * 5;
+      if (x < 1000) return Math.round(x / 10) * 10;
+      return Math.round(x / 50) * 50;
+    }
+    if (/^(kg|l)$/.test(unit || "")) return Math.round(x * 20) / 20;
+    return x;
+  }
+  // Hinweis, wenn sich beim Umrechnen mehr ändert als die Mengen
+  function skalierHinweis(r, faktor) {
+    if (!r || !faktor || Math.abs(faktor - 1) < 0.01) return null;
+    var t = lower((r.steps || []).join(" ") + " " + (r.yieldText || ""));
+    if (/(backform|springform|kastenform|tarteform|auflaufform|ofenform|muffin|blech|baking (dish|tin|sheet|tray)|loaf|cake tin|sheet pan)/.test(t))
+      return "Form und Backzeit sind für die Originalmenge gedacht. Nimm eine passende Form und mach gegen Ende eine Garprobe.";
+    if (/\b(back\w*|bake|baking|roast\w*|überback\w*)\b/.test(t))
+      return "Bei " + (faktor > 1 ? "mehr" : "weniger") + " Menge ändert sich die Backzeit. Mach gegen Ende eine Garprobe.";
+    if (faktor >= 2 && /\b(köchel\w*|simmer\w*|kochen|reduzier\w*|einkoch\w*)\b/.test(t))
+      return "Größere Mengen brauchen länger, bis sie kochen. Nimm einen größeren Topf.";
+    return null;
+  }
+  // Geräte, die das Rezept braucht (aus den Schritten), in fester Reihenfolge
+  var GERAETE = [
+    ["Heißluftfritteuse", /(heißluftfritteuse|airfryer|air fryer|air-fryer)/i],
+    ["Backofen", /\b(backofen|ofen\w*|oven|vorheiz\w*|preheat\w*|umluft|ober-?\s*\/?\s*unterhitze|backen|bake[ds]?|baking|überback\w*|roast\w*)\b/i],
+    ["Thermomix", /(\bstufe \d|varoma|mixtopf|linkslauf|thermomix|\d+\s*sek\.?\s*\/)/i],
+    ["Mixer oder Pürierstab", /\b(mixen|mixer|mixt|pürier\w*|blend(er|en)?|blitz\w*|food processor|küchenmaschine|stabmixer|zerkleiner\w*)\b/i],
+    ["Pfanne", /\b(pfanne|pan|skillet|wok|anbrat\w*|brat(en|e)\b|fry\w*|fried|sauté\w*|saute\w*|sear\w*)\b/i],
+    ["Topf", /\b(topf|pot|saucepan|köchel\w*|simmer\w*|aufkoch\w*|kochen|boil\w*)\b/i],
+    ["Backblech", /\b(backblech|blech|baking (sheet|tray)|sheet pan)\b/i],
+    ["Auflaufform", /\b(auflaufform|ofenform|baking dish|casserole)\b/i],
+    ["Springform", /\b(springform|tarteform|kuchenform|cake tin)\b/i],
+    ["Kastenform", /\b(kastenform|loaf (tin|pan))\b/i],
+    ["Muffinblech", /\b(muffin(blech|form|tin|pan)|muffinförmchen)\b/i],
+    ["Nudelholz", /\b(nudelholz|ausroll\w*|rolling pin|roll out)\b/i],
+    ["Waffeleisen", /(waffeleisen|waffle iron)/i]
+  ];
+  function geraete(r) {
+    var t = (r.steps || []).filter(function (s) { return !/^## /.test(s); }).join(" \n ");
+    var out = [];
+    GERAETE.forEach(function (g) { if (g[1].test(t)) out.push(g[0]); });
+    // Heißluftfritteuse statt Ofen, wenn kein Ofen ausdrücklich genannt ist
+    if (out.indexOf("Heißluftfritteuse") !== -1 && !/\b(backofen|ofen|oven)\b/i.test(t)) out = out.filter(function (g) { return g !== "Backofen"; });
+    // Thermomix ersetzt Mixer und Topf
+    if (out.indexOf("Thermomix") !== -1) out = out.filter(function (g) { return g !== "Mixer oder Pürierstab" && g !== "Topf"; });
+    return out.slice(0, 5);
+  }
+  // "Ofen vorheizen" rechtzeitig: zwei Schritte bevor der Ofen gebraucht wird, falls das Rezept es nicht schon früher sagt
+  function vorheizHinweis(r) {
+    var st = r.steps || [], idx = [];
+    st.forEach(function (s, k) { if (!/^## /.test(s)) idx.push(k); });
+    var ofen = -1, vor = -1;
+    idx.forEach(function (k, n) {
+      var s = st[k];
+      if (vor < 0 && /\b(vorheiz\w*|preheat\w*)\b/i.test(s)) vor = n;
+      if (ofen < 0 && /\b(backofen|ofen|oven|backen|bake[ds]?|baking|überback\w*|roast\w*)\b/i.test(s) && !/\b(vorheiz\w*|preheat\w*)\b/i.test(s) && !/(heißluftfritteuse|airfryer|air fryer)/i.test(s)) ofen = n;
+    });
+    if (ofen < 1 || (vor >= 0 && vor < ofen)) return null;
+    var all = st.join(" "), m = all.match(/(\d{2,3})\s*°\s*C|(\d{2,3})\s*grad/i);
+    var bei = Math.max(0, ofen - 2);
+    return { schritt: idx[bei], ofenSchritt: idx[ofen], temperatur: m ? +(m[1] || m[2]) : null,
+      text: "Ofen jetzt vorheizen" + (m ? " auf " + (m[1] || m[2]) + " °C" : "") + "." };
+  }
+
   function fmtIngredient(i, factor) {
     var f = factor || 1;
-    var q = i.qty != null ? fmtQty(i.qty * f) + (i.qtyMax != null ? "–" + fmtQty(i.qtyMax * f) : "") : "";
+    var rd = function (v) { return f !== 1 ? rundeMenge(v, i.unit) : v; };
+    var q = i.qty != null ? fmtQty(rd(i.qty * f)) + (i.qtyMax != null ? "–" + fmtQty(rd(i.qtyMax * f)) : "") : "";
     return clean([q, i.unit, i.name].join(" ")) + (i.note ? " (" + i.note + ")" : "");
   }
 
@@ -3824,9 +3990,9 @@
     parseIngredientLine: parseIngredientLine, parseDuration: parseDuration,
     classify: classify, completeness: completeness, focusFromNutrition: focusFromNutrition,
     teilenDiagnose: teilenDiagnose, lerneTeilenFehler: lerneTeilenFehler,
-    estimateTimeFromSteps: estimateTimeFromSteps, schrittArbeiten: schrittArbeiten, pruefeSchrittLogik: pruefeSchrittLogik,
+    estimateTimeFromSteps: estimateTimeFromSteps, zeitAnalyse: zeitAnalyse, schrittArbeiten: schrittArbeiten, pruefeSchrittLogik: pruefeSchrittLogik,
     berechneNaehrwerte: berechneNaehrwerte, pruefeNaehrwerte: pruefeNaehrwerte, eigenerNaehrwert: eigenerNaehrwert, kcalAusNaehrstoffen: kcalAusNaehrstoffen, NW_FELDER: NW_FELDER, findNutrientEntry: findNutrientEntry, NUTRIENT_KEYS: NUTRIENT_KEYS,
-    normName: normName, fmtQty: fmtQty, fmtIngredient: fmtIngredient, scaleRecipe: scaleRecipe,
+    normName: normName, fmtQty: fmtQty, rundeMenge: rundeMenge, skalierHinweis: skalierHinweis, geraete: geraete, vorheizHinweis: vorheizHinweis, fmtIngredient: fmtIngredient, scaleRecipe: scaleRecipe,
     shoppingList: shoppingList, shoppingText: shoppingText,
     toCookidoo: toCookidoo, toSchemaOrg: toSchemaOrg,
     parseInstagramExport: parseInstagramExport, shortcodeOf: shortcodeOf, extractUrls: extractUrls,

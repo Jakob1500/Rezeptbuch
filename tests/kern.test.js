@@ -525,5 +525,41 @@ const rT2 = K.analyse({ caption: "Eintopf\n\nZutaten:\n1 Zwiebel\n500 ml Brühe\
 check("Zeit: gelernte Dauer (köcheln ≈ 40 Min.) wird genutzt", LZ.zeiten["köcheln"].n === 3 && rT2.timeTotal >= 40, [LZ.zeiten, rT2.timeTotal]);
 check("Lernen: Protokoll je Rezept mit Link, ohne Rezepttext", LZ.protokoll.length === 3 && LZ.protokoll[0].link === "u0" && !JSON.stringify(LZ.protokoll).includes("Brühe"), LZ.protokoll[0]);
 
+// ---------------------------------------------------------------- Zeit (eine Angabe bis zum Essen, 21.10.)
+const zt = (cap) => K.analyse({ caption: cap, url: "https://example.org/p/1" }).recipe;
+let z = zt("Linsen-Curry\n\nZutaten\n1 Zwiebel\n2 Knoblauchzehen\n200 g rote Linsen\n400 ml Kokosmilch\n1 EL Currypaste\n200 g Reis\n\nZubereitung\nZwiebel und Knoblauch fein würfeln und in Öl glasig dünsten.\nCurrypaste dazugeben und kurz anrösten.\nLinsen und Kokosmilch dazugeben und 25 Minuten köcheln lassen.\nDen Reis in 10 Minuten garen.\nMit Koriander servieren.");
+check("Zeit A: „in 10 Minuten“ im Schritt ist nicht die Gesamtzeit", z.timeTotal >= 45 && z.timeTotal <= 60, z.timeTotal);
+z = zt("Pilz-Orzotto\n\nIngredients\n250g mushrooms\n2 leeks\n200g orzo\n750ml vegetable stock\n\nMethod\n1. Prep – Tear the mushrooms. Slice the leeks.\n2. Fry mushrooms until golden. Cook the leeks for 5–6 mins until soft. Add garlic and fry for 1 min. Add orzo and toast for 2 mins.\n3. Add stock and simmer for 10 mins, stirring regularly.\n4. Serve with chives.");
+check("Zeit B: alle Zeiten eines Schritts zählen", z.timeTotal >= 35 && z.timeTotal <= 45, z.timeTotal);
+z = zt("Ofengemüse mit Feta\n\nZubereitungszeit: 15 Minuten\n\nZutaten\n2 Paprika\n1 Zucchini\n200 g Feta\n\nZubereitung\nGemüse in Stücke schneiden und mit Öl mischen.\nFeta in die Mitte legen und 40 Minuten bei 200 °C backen.\nMit Kräutern servieren.");
+check("Zeit C: nur Arbeitszeit angegeben → Backzeit kommt dazu", z.timeTotal >= 55 && z.timeTotal <= 65 && z.timePrep === 15, z.timeTotal);
+check("Zeit C: „Zubereitungszeit: 15 Minuten“ ist kein Schritt", !z.steps.some(s => /szeit|15 Minuten/.test(s)), z.steps);
+z = zt("Over-Night-Brötchen\n\nZutaten\n500 g Mehl\n350 ml Wasser\n5 g Hefe\n10 g Salz\n\nZubereitung\nAlle Zutaten 5 Minuten verkneten.\nDen Teig über Nacht im Kühlschrank gehen lassen.\nAm nächsten Morgen 8 Brötchen formen und 30 Minuten ruhen lassen.\nBei 230 °C 20 Minuten backen.");
+check("Zeit D: „über Nacht“ als Hinweis, Rest gezählt", z.timeOvernight === true && z.timeTotal >= 50 && z.timeTotal <= 70, [z.timeTotal, z.timeOvernight]);
+z = zt("Bunter Salat\n\nZutaten\n1 Gurke\n3 Tomaten\n1 rote Zwiebel\n1 Paprika\n2 Möhren\n1 Avocado\n1 Bund Petersilie\n100 g Feta\n1 Dose Kichererbsen\n\nZubereitung\nGurke, Tomaten, Zwiebel, Paprika und Möhren klein schneiden. Avocado würfeln, Petersilie hacken.\nKichererbsen abspülen.\nAlles mit dem Dressing vermengen und Feta darüberbröseln.");
+check("Zeit E: Schneiden zählt je Zutat", z.timeTotal >= 20 && z.timeTotal <= 35, z.timeTotal);
+z = zt("Schnelle Blechpizza\n\nZutaten\n450 g Mehl\n240 g Wasser\n50 g Olivenöl\n1 TL Backpulver\n100 g passierte Tomaten\n1 Mozzarella\n\nZubereitung\nMehl, Wasser, Öl und Backpulver zu einem Teig verkneten und abgedeckt 20 Minuten ruhen lassen. Währenddessen den Ofen auf 220 °C vorheizen.\nTeig ausrollen und aufs Blech legen.\nMit Tomaten und Mozzarella belegen und 20–25 Minuten backen.");
+check("Zeit: Pizza mit Ruhe- und Backzeit ≈ 1 Std. (wie Cookidoo)", z.timeTotal >= 55 && z.timeTotal <= 70, z.timeTotal);
+z = zt("Ofenlachs\n\nGesamtzeit: 20 Minuten\n\nZutaten\n2 Lachsfilets\n1 Zitrone\n\nZubereitung\nLachs würzen und 45 Minuten bei 180 °C backen.");
+check("Zeit: Creator-Angabe kürzer als die Zeiten in den Schritten → korrigiert", z.timeTotal >= 45 && z.provenance.timeTotal === "korrigiert", [z.timeTotal, z.provenance.timeTotal]);
+z = zt("Ofenlachs\n\nGesamtzeit: 30 Minuten\n\nZutaten\n2 Lachsfilets\n\nZubereitung\nLachs würzen und 20 Minuten bei 180 °C backen.");
+check("Zeit: passende Creator-Angabe bleibt", z.timeTotal === 30 && !z.timeEstimated, z.timeTotal);
+z = zt("Quick Pasta\n⏱ Prep: 10 min | Cook: 20 min\n\nIngredients\n200 g pasta\n\nMethod\n1. Cook the pasta.\n2. Serve.");
+check("Zeit: Kopfzeile mit Prep und Cook = 30", z.timeTotal === 30 && !z.timeEstimated, [z.timeTotal, z.timePrep, z.timeCook]);
+check("Paprika: „1 Paprika“ ist Gemüse, „1 TL Paprika“ Gewürz", K.parseIngredientLine("1 Paprika").key === "paprika" && !K.parseIngredientLine("1 Paprika").staple && K.parseIngredientLine("1 TL Paprika").key === "paprikapulver", [K.parseIngredientLine("1 Paprika"), K.parseIngredientLine("1 TL Paprika").key]);
+
+// ---------------------------------------------------------------- Portionen, Geräte, Vorheizen (21.10.)
+check("Runden: 225 g → 230 g, 37,5 g → 40 g, 2,4 g → 2,5 g, 1125 ml → 1150 ml", K.rundeMenge(225, "g") === 230 && K.rundeMenge(37.5, "g") === 40 && K.rundeMenge(2.4, "g") === 2.5 && K.rundeMenge(1125, "ml") === 1150 && K.rundeMenge(3, "EL") === 3);
+check("Runden: Zutatenzeile halbiert", K.fmtIngredient(K.parseIngredientLine("450 g Mehl"), 0.5) === "230 g Mehl", K.fmtIngredient(K.parseIngredientLine("450 g Mehl"), 0.5));
+const rPz = zt("Schnelle Blechpizza\n\nZutaten\n450 g Mehl\n240 g Wasser\n50 g Olivenöl\n1 TL Backpulver\n100 g passierte Tomaten\n1 Mozzarella\n\nZubereitung\nMehl, Wasser, Öl und Backpulver zu einem Teig verkneten und abgedeckt 20 Minuten ruhen lassen.\nTeig ausrollen und aufs Blech legen.\nMit Tomaten und Mozzarella belegen und 20–25 Minuten bei 220 °C backen.");
+check("Skalier-Hinweis: Blech → Form und Backzeit", /Form und Backzeit/.test(K.skalierHinweis(rPz, 0.5) || "") && K.skalierHinweis(rPz, 1) === null, K.skalierHinweis(rPz, 0.5));
+check("Geräte: Pizza braucht Backofen, Backblech, Nudelholz", JSON.stringify(K.geraete(rPz)) === JSON.stringify(["Backofen", "Backblech", "Nudelholz"]), K.geraete(rPz));
+const vh = K.vorheizHinweis(rPz);
+check("Vorheizen: zwei Schritte vor dem Backen, mit Temperatur", vh && vh.schritt === 0 && vh.ofenSchritt === 2 && vh.temperatur === 220, vh);
+const rVh = zt("Kuchen\n\nZutaten\n200 g Mehl\n\nZubereitung\nOfen auf 180 °C vorheizen.\nTeig rühren.\nIn die Form geben.\n40 Minuten backen.");
+check("Vorheizen: kein Hinweis, wenn das Rezept es schon früh sagt", K.vorheizHinweis(rVh) === null, K.vorheizHinweis(rVh));
+const rAf = zt("Pommes\n\nZutaten\n500 g Kartoffeln\n\nZubereitung\nKartoffeln in Stifte schneiden.\nIn der Heißluftfritteuse 20 Minuten backen.");
+check("Geräte: Heißluftfritteuse statt Backofen", K.geraete(rAf).includes("Heißluftfritteuse") && !K.geraete(rAf).includes("Backofen"), K.geraete(rAf));
+
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

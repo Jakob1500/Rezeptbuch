@@ -168,6 +168,7 @@ textarea.input { min-height: 140px; resize: vertical; line-height: 1.4; }
 .scrim { position: fixed; inset: 0; background: rgba(0,0,0,.38); z-index: 30; display: grid; align-items: end; }
 .sheet { background: var(--bg); border-radius: 20px 20px 0 0; max-height: 88vh; overflow-y: auto; padding-block: 10px calc(20px + env(safe-area-inset-bottom, 0px));
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 16px; max-width: 640px; width: 100%; margin: 0 auto; }
+.sheet:focus { outline: none; }
 .sheet .grab { width: 38px; height: 5px; border-radius: 3px; background: var(--line); justify-self: center; }
 .sheet h2 { font-size: 1.25rem; }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tabbar-h) + 16px + env(safe-area-inset-bottom, 0px)); z-index: 40;
@@ -285,7 +286,7 @@ a { color: var(--accent); }
   var LERN_ERINNERUNG = 20;
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.13.4";
+  var APP_VERSION = "0.14.0";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -1067,14 +1068,16 @@ a { color: var(--accent); }
       '<section class="hero">' + '<div class="tags">' + (r.labels || []).filter(function (l) { return l.gruppe === "Gang"; }).map(function (l) { return '<span class="tag">' + esc(l.label) + '</span>'; }).join("") +
       (r.titleGuessed ? '<span class="badge warn">Titel vorgeschlagen</span>' : '') + (e.example ? '<span class="badge">Beispiel</span>' : '') + (orig ? '<span class="badge">Original</span>' : '') + '</div>' +
       '<h1>' + esc(orig && r.titleOriginal ? r.titleOriginal : titleOf(e)) + '</h1>' + (meta.length ? '<p class="small muted">' + esc(meta.join(" · ")) + '</p>' : '') + '</section>' +
-      '<div class="facts"><div class="fact"><b>' + fmtMin(r.timeTotal) + '</b><span>' + (r.timeTotal ? minUnit(r.timeTotal) + (r.timeEstimated ? ", geschätzt" : "") : "Zeit unbekannt") + '</span></div>' +
+      '<div class="facts"><div class="fact"><b>' + (r.timeTotal && r.timeEstimated ? '<span class="tiny">ca. </span>' : '') + fmtMin(r.timeTotal) + '</b><span>' + (r.timeTotal ? minUnit(r.timeTotal) + (r.timeOvernight ? " + über Nacht" : "") : (r.timeOvernight ? "über Nacht" : "Zeit unbekannt")) + '</span></div>' +
       (showNutri() ? '<div class="fact"><b>' + (n && n.reliable && n.perServing ? n.values.kcal : "–") + '</b><span>kcal pro ' + (n && n.perUnit === "Stück" ? "Stück" : "Portion") + '</span></div>' :
         '<div class="fact"><b>' + esc(r.difficulty || "–") + '</b><span>Aufwand</span></div>') +
       '<div class="fact"><b class="num">' + (m.total ? (m.total - m.missing) + "/" + m.total : "–") + '</b><span>Zutaten da</span></div></div>' +
+      (function () { var g = K.geraete(r); return g.length && !hideSteps ? '<p class="have-line">Du brauchst: ' + esc(g.join(" · ")) + '</p>' : ''; })() +
       (cookList(r).length && !hideSteps ? '<button class="btn" data-a="cook" data-id="' + esc(id) + '">' + ic("play") + 'Kochen starten</button>' : '') +
       guide("detail") + missing +
       '<section class="sec"><div class="sec-head"><h2>Zutaten</h2><span class="stepper" role="group" aria-label="Portionen"><button data-a="serv" data-id="' + esc(id) + '" data-d="-1" aria-label="Weniger">−</button><output>' + serv + " " + esc(unitWord) + '</output><button data-a="serv" data-id="' + esc(id) + '" data-d="1" aria-label="Mehr">+</button></span></div>' +
       (household ? '<p class="have-line">Auf deinen Haushalt umgerechnet (' + S.prefs.persons + ' Personen, im Rezept ' + r.servings + ').</p>' : '') +
+      (function () { var h = K.skalierHinweis(r, f); return h ? '<p class="have-line">' + esc(h) + '</p>' : ''; })() +
       (r.yieldText ? '<p class="have-line">' + esc(r.yieldText) + '</p>' : '') +
       (m.total ? '<p class="have-line"><span class="dot have"></span>' + (m.missing ? "Grün: hast du. " + m.missing + (m.missing === 1 ? " Zutat fehlt." : " Zutaten fehlen.") : "Du hast alles zu Hause.") + '</p>' : '') +
       '<div class="group">' + (ings || '<div class="row"><span class="muted">Keine Zutaten erkannt.</span></div>') + '</div>' +
@@ -1111,6 +1114,7 @@ a { color: var(--accent); }
   function sq(i, v, f) {
     var x = v * f;
     if (f !== 1 && (!i.unit || /^(Stk|Zehe|Dose|Glas|Bund|Pck|Stange|Zweig|Blatt|Scheibe|Becher|Handvoll|Prise)$/.test(i.unit))) x = Math.max(0.5, Math.round(x * 2) / 2);
+    else if (f !== 1) x = K.rundeMenge(x, i.unit);
     return K.fmtQty(x);
   }
   function stepIngredients(r, step, f) {
@@ -1257,8 +1261,9 @@ a { color: var(--accent); }
 
   // ------------------------------------------------------------------ Blätter (Dialoge)
   function sheet(html) {
-    $("#layer").innerHTML = '<div class="scrim" data-a="close-sheet"><div class="sheet" role="dialog" aria-modal="true" data-stop="1"><span class="grab" aria-hidden="true"></span>' + html + '</div></div>';
-    var first = $("#layer .sheet button, #layer .sheet input"); if (first) try { first.focus({ preventScroll: true }); } catch (e) { /* egal */ }
+    $("#layer").innerHTML = '<div class="scrim" data-a="close-sheet"><div class="sheet" role="dialog" aria-modal="true" tabindex="-1" data-stop="1"><span class="grab" aria-hidden="true"></span>' + html + '</div></div>';
+    // Fokus auf den Dialog (für VoiceOver), nicht auf ein Eingabefeld: sonst öffnet sich die Tastatur von selbst
+    var dlg = $("#layer .sheet"); if (dlg) try { dlg.focus({ preventScroll: true }); } catch (e) { /* egal */ }
   }
   function closeSheet() { $("#layer").innerHTML = ""; }
   function settingsSheet() {
