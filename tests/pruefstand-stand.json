@@ -1,5 +1,5 @@
 {
- "kern": "0.5.3",
+ "kern": "0.6.0",
  "datum": "2026-10-21",
  "rezepte": 150,
  "zaehler": {
@@ -8,7 +8,7 @@
   "zutat-ohne-schritt": 285,
   "vage-unaufgeloest": 4,
   "titel-satz": 0,
-  "titel-geraten": 23,
+  "titel-geraten": 19,
   "titel-falsch": 9,
   "vegan-widerspruch": 1,
   "ohne-naehrwert": 65,

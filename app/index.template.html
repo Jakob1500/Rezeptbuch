@@ -44,7 +44,7 @@ button { cursor: pointer; }
 h2 { margin: 0; font-size: 1.05rem; font-weight: 650; letter-spacing: -0.01em; }
 .sec { display: grid; gap: 8px; }
 .sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding-inline: 4px; }
-.sec-head .link { background: none; border: 0; color: var(--accent); font-weight: 600; font-size: 0.95rem; padding: 6px 0; }
+.sec-head .link { background: none; border: 0; color: var(--brand-text); font-weight: 600; font-size: 0.95rem; padding: 6px 0; }
 .muted { color: var(--muted); } .small { font-size: 0.875rem; } .tiny { font-size: 0.78rem; }
 .num { font-variant-numeric: tabular-nums; }
 
@@ -83,9 +83,10 @@ h2 { margin: 0; font-size: 1.05rem; font-weight: 650; letter-spacing: -0.01em; }
 /* Knöpfe */
 a.btn { text-decoration: none; }
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: var(--r-ctl); min-height: 50px; padding: 12px 18px; font-weight: 650; font-size: 1rem; background: var(--ink); color: var(--bg); width: 100%; }
-.btn.accent { background: var(--accent); color: var(--accent-ink); }
+.btn.accent { background: var(--brand); color: var(--brand-ink); }
 .btn.soft { background: var(--surface-2); color: var(--ink); }
-.btn.ghost { background: none; color: var(--accent); min-height: 44px; }
+.btn.ghost { background: none; color: var(--brand-text); min-height: 44px; }
+.checkrow { cursor: pointer; } .checkrow input { width: 22px; height: 22px; accent-color: var(--brand); flex: none; }
 .btn.danger { background: none; color: var(--danger); }
 .btn svg { width: 20px; height: 20px; }
 .btnrow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -305,7 +306,7 @@ a { color: var(--accent); }
   var LERN_ERINNERUNG = 20;
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.17.0";
+  var APP_VERSION = "0.18.0";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0 (creativecommons.org/licenses/by/4.0). Werte unverändert übernommen; Stück- und Löffelgewichte sind eigene Richtwerte der App. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -405,7 +406,39 @@ a { color: var(--accent); }
 
   function entries() { return Object.keys(S.recipes).map(function (id) { return S.recipes[id]; }).sort(function (a, b) { return (b.addedAt || 0) - (a.addedAt || 0); }); }
   function rec(e) { return e.recipe; }
-  function titleOf(e) { return e.userTitle || e.recipe.title || "Ohne Titel"; }
+  function titleOf(e) {
+    var r = e.recipe || {}, sp = e.titelSprache || S.prefs.titelSprache;
+    if (e.userTitle) return e.userTitle;
+    if (sp === "en" && r.titleOriginal && r.titleTranslated) return r.titleOriginal;
+    if (r.title) return r.title;
+    var acc = r.source && r.source.account ? " von @" + r.source.account : "";
+    if (r.mehrere && r.mehrere.anzahl) return r.mehrere.anzahl + " Rezepte" + acc;
+    return r.keinRezept && acc ? "Beitrag" + acc : "Ohne Titel";
+  }
+  // Englischer Titel: einmal fragen, ob er deutsch oder englisch heißen soll (Jakob, 21.10.)
+  function titelSpracheFragen(id) {
+    var e = S.recipes[id], r = e && e.recipe;
+    if (!r || e.userTitle || e.titelSprache || S.prefs.titelSprache || !r.titleOriginal || !r.titleTranslated || lower2(r.titleOriginal) === lower2(r.title)) return;
+    var versuche = 0;
+    (function zeigen() {
+      if (($("#layer").innerHTML || $("#coach").innerHTML) && versuche++ < 40) { setTimeout(zeigen, 1200); return; }
+      sheet('<h2>Titel auf Deutsch oder Englisch?</h2><p class="small muted">Das Rezept ist auf Englisch. Welcher Titel soll in deiner Kombüse stehen?</p>' +
+        '<div class="group"><button class="row" data-a="titel-sprache" data-s="de" data-id="' + esc(id) + '"><span class="main"><span class="sub">Deutsch</span><span class="title">' + esc(r.title) + '</span></span>' + ic("chev", "chev") + '</button>' +
+        '<button class="row" data-a="titel-sprache" data-s="en" data-id="' + esc(id) + '"><span class="main"><span class="sub">Englisch (Original)</span><span class="title">' + esc(r.titleOriginal) + '</span></span>' + ic("chev", "chev") + '</button></div>' +
+        '<label class="row checkrow"><input type="checkbox" id="ts-immer"><span class="main small">Für alle Rezepte merken. Ändern kannst du das in den Einstellungen.</span></label>');
+    })();
+  }
+  function lower2(x) { return String(x || "").toLowerCase().trim(); }
+  // Mehrere Rezepte in einem Beitrag: fragen, welche behalten werden (Jakob, 21.10.)
+  function mehrereSheet(input, mr) {
+    UI.mehrere = { input: input, mr: mr };
+    sheet('<h2>' + mr.anzahl + ' Rezepte in einem Beitrag</h2><p class="small muted">Welche willst du behalten? Jedes wird ein eigenes Rezept.</p>' +
+      '<div class="group">' + mr.teile.map(function (t, k) {
+        var de = K.translateTitle(K.polishTitle(t.titel)) || t.titel;
+        return '<label class="row checkrow"><input type="checkbox" class="mw" data-k="' + k + '" checked><span class="main"><span class="title">' + esc(de) + '</span>' + (lower2(de) !== lower2(t.titel) ? '<span class="sub">' + esc(t.titel) + '</span>' : '') + '</span></label>';
+      }).join("") + '</div>' +
+      '<button class="btn accent" data-a="mehrere-save">Auswahl speichern</button><button class="btn soft" data-a="mehrere-alle">Alle behalten</button>');
+  }
 
   // ------------------------------------------------------------------ Hilfen
   function toast(msg) {
@@ -1201,6 +1234,8 @@ a { color: var(--accent); }
       (blogLink && !r.source.blogUrl ? '<button class="btn accent" data-a="blog-fetch" data-t="' + esc(blogLink) + '">' + ic("share") + 'Rezept vom Blog holen</button>' : '') +
       (r.elsewhere && r.elsewhere.wo === "nachricht" && r.source.url ? '<button class="btn accent" data-a="kommentar" data-t="' + esc(r.elsewhere.stichwort || "") + '" data-u="' + esc(r.source.url) + '">' + ic("share") + (r.elsewhere.stichwort ? '„' + esc(r.elsewhere.stichwort) + '“ kopieren und Beitrag öffnen' : 'Beitrag öffnen') + '</button><p class="small muted">' + (r.elsewhere.stichwort ? 'In Instagram als Kommentar einfügen und senden. ' : '') + 'Der Creator schickt dir das Rezept per Nachricht. Diese kopieren, hierher zurückkommen und „Fehlenden Text einfügen“ tippen.</p>' : '') +
       (r.elsewhere && r.elsewhere.wo === "kommentar" && r.source.url ? '<a class="btn accent" href="' + esc(r.source.url) + '" target="_blank" rel="noopener">' + ic("share") + 'Kommentare in Instagram öffnen</a><p class="small muted">Den Kommentar mit dem Rezept (meist oben angepinnt) lange drücken, kopieren und hier mit „Fehlenden Text einfügen“ ergänzen.</p>' : '') +
+      (r.elsewhere && r.elsewhere.wo === "bezahlseite" ? '<p class="small muted">Das Rezept gibt es nur gegen Bezahlung beim Creator (Mitgliedschaft). Im Beitrag selbst steht kein Rezept.</p>' : '') +
+      (r.mehrere && r.mehrere.anzahl && !(r.mehrere.titel || []).length ? '<p class="small muted">In diesem Beitrag stecken ' + r.mehrere.anzahl + ' Rezepte. Sie stehen nicht in der Beschreibung, sondern meist in den Kommentaren.</p>' : '') +
       (r.elsewhere && r.elsewhere.wo === "bio" ? '<p class="small muted">Das Rezept steht im Link im Profil. Profil in Instagram öffnen → Link antippen → in Safari „Teilen“ → „' + SC_NAME + '“ → hier „Einfügen“. Die App ordnet den Blog diesem Rezept zu.</p>' : '') +
       (e.input ? '<button class="btn soft" data-a="add-text" data-id="' + esc(id) + '">' + ic("copy") + 'Fehlenden Text einfügen</button>' : '') + '</div>' : "";
     var unitWord = r.servingsUnit && r.servingsUnit !== "Portionen" && r.servingsUnit !== "Portion" ? r.servingsUnit : (serv === 1 ? "Portion" : "Portionen");
@@ -1509,6 +1544,8 @@ a { color: var(--accent); }
       '<span class="stepper" role="group" aria-label="Personen"><button data-a="pref-persons" data-d="-1" aria-label="Weniger">−</button><output>' + p.persons + '</output><button data-a="pref-persons" data-d="1" aria-label="Mehr">+</button></span></div></div>' +
       '<div class="field"><label>Ernährung</label><div class="seg" role="group" aria-label="Ernährung">' + [["alles", "Alles"], ["vegetarisch", "Vegetarisch"], ["vegan", "Vegan"]].map(function (x) {
         return '<button data-a="pref-diet" data-v="' + x[0] + '" aria-pressed="' + (p.diet === x[0]) + '">' + x[1] + '</button>'; }).join("") + '</div></div>' + nutriRow() + origRow() +
+      '<div class="field"><label>Titel englischer Rezepte</label><div class="seg" role="group" aria-label="Titel englischer Rezepte">' + [["fragen", "Fragen"], ["de", "Deutsch"], ["en", "Englisch"]].map(function (x) {
+        return '<button data-a="pref-titelsprache" data-v="' + x[0] + '" aria-pressed="' + ((p.titelSprache || "fragen") === x[0]) + '">' + x[1] + '</button>'; }).join("") + '</div></div>' +
       '<div class="field"><label>Darstellung</label><div class="seg" role="group" aria-label="Darstellung">' + [["system", "Wie iPhone"], ["hell", "Hell"], ["dunkel", "Dunkel"]].map(function (x) {
         return '<button data-a="pref-theme" data-v="' + x[0] + '" aria-pressed="' + (p.theme === x[0]) + '">' + x[1] + '</button>'; }).join("") + '</div></div></section>';
   }
@@ -1978,6 +2015,11 @@ a { color: var(--accent); }
     UI.letzteBeschreibung = String(caption || "").slice(0, 6000);
     // Blog-Seite aus demselben Kurzbefehl-Lauf gleich mit auswerten
     if (p.b && p.b.length > 200) { if (/<(html|body|div|script)[\s>]/i.test(p.b)) input.blogHtml = p.b; else input.commentText = p.b; input.blogUrl = p.bu; }
+    // Mehrere Rezepte mit eigenen Überschriften: fragen, welche behalten werden
+    var mrI = K.mehrereRezepte(caption);
+    if (mrI && mrI.teile.length >= 2 && !(url && entries().some(function (e) { return e.input && e.input.url && e.input.url.split("?")[0] === url.split("?")[0]; }))) {
+      UI.tab = "rezepte"; UI.detail = null; setTimeout(function () { mehrereSheet(input, mrI); }, 300); return true;
+    }
     // schon gespeichert? Dann öffnen statt doppelt anlegen
     var same = url ? entries().filter(function (e) { return e.input && e.input.url && e.input.url.split("?")[0].replace(/\/$/, "") === url.split("?")[0].replace(/\/$/, ""); })[0] : null;
     if (same) { UI.tab = "rezepte"; UI.detail = same.id; setTimeout(function () { toast("Schon in der Kombüse"); }, 300); var accS = (same.recipe.source && same.recipe.source.account) || account; if (accS) setTimeout(function () { folgenPruefen(accS); }, 1800); return true; }
@@ -1992,6 +2034,7 @@ a { color: var(--accent); }
         if (!out.dupe && !K.completeness(rS).enough) merkeFehler("unvollstaendig", null, { link: url, rezept: { zutaten: rS.ingredients.length, schritte: rS.steps.length, wo: (rS.elsewhere && rS.elsewhere.wo) || "" } });
         // Fremdsprachige Schritte gleich auf dem iPhone übersetzen (Bergamot)
         if (!out.dupe && UEB_SPRACHEN[foreignLang(rS, S.recipes[out.id])]) setTimeout(function () { startTranslate(out.id, true); }, 900);
+        if (!out.dupe) setTimeout(function () { titelSpracheFragen(out.id); }, 700);
       } catch (x) { /* egal */ }
       setTimeout(function () { toast(out.dupe ? "Schon in der Kombüse" : "In der Kombüse gespeichert"); }, 300);
       return true;
@@ -2105,6 +2148,25 @@ a { color: var(--accent); }
       case "sc-run-link": closeSheet(); UI.pasteText = ""; runShortcut(el.dataset.t); break;
       case "sc-test": closeSheet(); toast("Kurzbefehl wird mit einem Beispiel-Link gestartet …"); setTimeout(function () { runShortcut("https://www.instagram.com/p/C0Test/"); }, 400); break;
       case "close-sheet": closeSheet(); if (einwilligungFehlt()) setTimeout(einwilligungSheet, 50); break;
+      case "titel-sprache":
+        S.recipes[id].titelSprache = el.dataset.s; save("recipes");
+        if ($("#ts-immer") && $("#ts-immer").checked) { S.prefs.titelSprache = el.dataset.s; save("prefs"); }
+        closeSheet(); render(); break;
+      case "pref-titelsprache": if (el.dataset.v === "fragen") delete S.prefs.titelSprache; else S.prefs.titelSprache = el.dataset.v; save("prefs"); Array.prototype.forEach.call(el.parentNode.children, function (b) { b.setAttribute("aria-pressed", String(b === el)); }); render(); break;
+      case "mehrere-alle": Array.prototype.forEach.call(document.querySelectorAll(".mw"), function (c) { c.checked = true; }); /* weiter wie Speichern */
+      case "mehrere-save":
+        var mws = Array.prototype.filter.call(document.querySelectorAll(".mw"), function (c) { return c.checked; }).map(function (c) { return +c.dataset.k; });
+        if (!mws.length) { toast("Bitte mindestens ein Rezept auswählen"); break; }
+        var mm = UI.mehrere, erstes = null;
+        mws.forEach(function (k) {
+          var tl = mm.mr.teile[k], inpT = Object.assign({}, mm.input, { caption: tl.text, captionDe: "", teil: k + 1, teilVon: mm.mr.anzahl, teilTitel: tl.titel });
+          var outT = addRecipe(A(inpT), { input: inpT }); if (!erstes) erstes = outT.id;
+        });
+        UI.mehrere = null; closeSheet(); UI.tab = "rezepte"; UI.detail = erstes; render();
+        toast(mws.length === 1 ? "1 Rezept gespeichert" : mws.length + " Rezepte gespeichert");
+        if (mm.input.account) setTimeout(function () { folgenPruefen(mm.input.account); }, 1800);
+        setTimeout(function () { titelSpracheFragen(erstes); }, 700);
+        break;
       case "coach-next": if (COACH.key && COACH.i < GUIDES[COACH.key].s.length - 1) { COACH.i++; coachMalen(); } else coachFertig(); break;
       case "coach-skip": coachFertig(true); break;
         var gsh = el.closest && el.closest(".sheet"); if (gsh && (el.dataset.k === "woche" || el.dataset.k === "listen")) { var gx = gsh.querySelector("[data-id]"); if (gx) (el.dataset.k === "woche" ? planSheet : listenSheet)(gx.dataset.id); } break;

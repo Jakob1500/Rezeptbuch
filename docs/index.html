@@ -50,7 +50,7 @@ button { cursor: pointer; }
 h2 { margin: 0; font-size: 1.05rem; font-weight: 650; letter-spacing: -0.01em; }
 .sec { display: grid; gap: 8px; }
 .sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding-inline: 4px; }
-.sec-head .link { background: none; border: 0; color: var(--accent); font-weight: 600; font-size: 0.95rem; padding: 6px 0; }
+.sec-head .link { background: none; border: 0; color: var(--brand-text); font-weight: 600; font-size: 0.95rem; padding: 6px 0; }
 .muted { color: var(--muted); } .small { font-size: 0.875rem; } .tiny { font-size: 0.78rem; }
 .num { font-variant-numeric: tabular-nums; }
 
@@ -89,9 +89,10 @@ h2 { margin: 0; font-size: 1.05rem; font-weight: 650; letter-spacing: -0.01em; }
 /* Knöpfe */
 a.btn { text-decoration: none; }
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: var(--r-ctl); min-height: 50px; padding: 12px 18px; font-weight: 650; font-size: 1rem; background: var(--ink); color: var(--bg); width: 100%; }
-.btn.accent { background: var(--accent); color: var(--accent-ink); }
+.btn.accent { background: var(--brand); color: var(--brand-ink); }
 .btn.soft { background: var(--surface-2); color: var(--ink); }
-.btn.ghost { background: none; color: var(--accent); min-height: 44px; }
+.btn.ghost { background: none; color: var(--brand-text); min-height: 44px; }
+.checkrow { cursor: pointer; } .checkrow input { width: 22px; height: 22px; accent-color: var(--brand); flex: none; }
 .btn.danger { background: none; color: var(--danger); }
 .btn svg { width: 20px; height: 20px; }
 .btnrow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -299,7 +300,7 @@ a { color: var(--accent); }
 
 <script>(function (root) {
 "use strict";
-var VERSION = "0.5.3";
+var VERSION = "0.6.0";
 var SCHEMA_VERSION = 1;
 var AISLES = ["Obst & Gemüse", "Kühlregal", "Fleisch & Fisch", "Brot & Backwaren",
 "Trockenware & Konserven", "Gewürze, Öle & Saucen", "Tiefkühl", "Getränke", "Sonstiges"];
@@ -1948,6 +1949,8 @@ return String(s || "").replace(/[\u{1D400}-\u{1D7FF}]/gu, function (c) { return 
 function findElsewhere(text, r) {
 var t = lower(normalizeFancy(text));
 var m;
+if (/(membership|mitgliedschaft|patreon|less than a coffee|weniger als ein kaffee|paid subscribers|bezahl-?abo)/.test(t) && /(recipe|rezept)/.test(t))
+return { wo: "bezahlseite" };
 if (/(pinned comment|pinned (?:in|below|in the) comments?|(?:method|instructions|steps?) (?:are |is )?(?:in the |in )comments?|angepinnte[nm]? kommentar|recipe (?:is )?in (?:the )?comments?|recipes? (?:are )?pinned|rezept (?:steht |ist )?in den kommentaren|rezept im kommentar|first comment|ersten kommentar|comment the recipe back)/.test(t))
 return { wo: "kommentar" };
 if ((m = t.match(/(?:comment|kommentier\w*|schreib\w*)\s+[„"“'‘]([^"”“'’]{2,25})["”“'’]/)) && /(dm|nachricht|message|recipe|rezept|link)/.test(t))
@@ -2245,6 +2248,7 @@ var dp = dishPhrase(prose);
 if (dp) {
 r.dishTitle = dp;
 }
+r.introZeile = prose.split("\n").map(function (l) { return clean(stripEmoji(l)); }).filter(Boolean)[0] || "";
 var fw = prose.slice(0, 600).split(/[^A-Za-zÄÖÜäöüß-]+/);
 for (var fi = 0; fi < fw.length && !r.textFood; fi++) {
 if (fw[fi].length < 4 || GENERIC_TITLE.test(fw[fi]) || TITLE_STOP.test(fw[fi]))
@@ -2263,6 +2267,7 @@ if (fm && FOOD_LIST.indexOf(lower(ht)) === -1 && !/^(cheese|pan|cup|pot|short|fi
 ht = fm[1] + "-" + fm[2].charAt(0).toUpperCase() + fm[2].slice(1);
 r.hashtagTitle = ht;
 }
+r.titelSignal = titelSignal(text);
 r.bakingForm = findBakingForm(text);
 r.yieldInfo = findServingsInfo(text);
 if (r.yieldInfo && r.yieldInfo.stueck && r.servings === r.yieldInfo.n)
@@ -2697,7 +2702,7 @@ if (!b)
 return a;
 var r = a;
 ["title", "servings", "timeTotal", "timePrep", "timeCook", "cuisine", "keywords", "blogCategory", "nutritionDeclared",
-"elsewhere", "bakingForm", "yieldInfo", "servingsUnit", "ingredientsFromSteps", "hashtagTitle", "titleFromTranslation", "dishTitle", "description", "textFood"].forEach(function (f) {
+"elsewhere", "bakingForm", "yieldInfo", "servingsUnit", "ingredientsFromSteps", "hashtagTitle", "titleFromTranslation", "dishTitle", "description", "textFood", "titelSignal", "introZeile"].forEach(function (f) {
 if ((r[f] == null || r[f] === "") && b[f] != null && b[f] !== "") {
 r[f] = b[f];
 r.provenance[f] = src;
@@ -3021,6 +3026,26 @@ if (de.title)
 r.titleFromTranslation = de.title;
 trace.push({ step: "translation", label: "Übersetzung", status: de.steps.length ? "verwendet" : "nichts gefunden" });
 }
+if (input.caption) {
+var sigRoh = titelSignal(input.caption);
+if (sigRoh)
+r.titelSignal = sigRoh;
+}
+if (input.teil) {
+r.teil = input.teil;
+r.teilVon = input.teilVon || null;
+if (input.teilTitel) {
+r.title = input.teilTitel;
+r.titleOriginal = null;
+r.titleGuessed = false;
+r.titelSignal = "";
+}
+}
+else if (input.caption) {
+var mr = mehrereRezepte(input.caption);
+if (mr)
+r.mehrere = { anzahl: mr.anzahl, titel: mr.teile.map(function (x) { return x.titel; }) };
+}
 if (LERN) {
 r.ingredients = r.ingredients.filter(function (i) { return !LERN.keineZutat[i.key]; });
 r.ingredients.forEach(function (i) { var a = LERN.zutatAlias[i.key]; if (a) {
@@ -3090,7 +3115,7 @@ add("tomato:Tomaten,tomatoes:Tomaten,spinach:Spinat,lemon:Zitronen,lime:Limetten
 "orange:Orangen,cherry:Kirsch,plum:Pflaumen,pear:Birnen,rhubarb:Rhabarber,beetroot:Rote-Bete,asparagus:Spargel,salmon:Lachs,tuna:Thunfisch," +
 "shrimp:Garnelen,egg:Ei,butter:Butter,caramel:Karamell,biscoff:Karamellkeks,date:Dattel,fig:Feigen,pomegranate:Granatapfel,lentil:Linsen", function (k, m) { TW[k] = TW[k] || {}; TW[k].m = TW[k].m || m; if (!TW[k].n)
 TW[k].onlyM = true; });
-add("spicy:scharf,creamy:cremig,crispy:knusprig,crunchy:knusprig,healthy:gesund,vegan:vegan,fluffy:fluffig,sweet:süß,roasted:geröstet," +
+add("sticky:klebrig,spicy:scharf,creamy:cremig,crispy:knusprig,crunchy:knusprig,healthy:gesund,vegan:vegan,fluffy:fluffig,sweet:süß,roasted:geröstet," +
 "baked:gebacken,fried:gebraten,grilled:gegrillt,stuffed:gefüllt,homemade:hausgemacht,green:grün,red:rot,smoky:rauchig,buttery:buttrig," +
 "warm:warm,hearty:herzhaft,fresh:frisch,thai:Thai-,korean:koreanisch,indian:indisch,mexican:mexikanisch,greek:griechisch,italian:italienisch," +
 "japanese:japanisch,chinese:chinesisch,asian:asiatisch,mediterranean:mediterran,moroccan:marokkanisch,lebanese:libanesisch,french:französisch," +
@@ -3611,6 +3636,85 @@ break;
 }
 });
 }
+function mehrereRezepte(text) {
+var lines = String(text || "").split("\n"), kopf = [];
+lines.forEach(function (l, i) {
+var m = clean(stripEmoji(l)).match(/^(.{3,60}?)\s+(?:RECIPE|REZEPT)\b\s*\([^)]*\)\s*:?\s*$/i);
+if (m && !/^(the|my|this|full|written|das|mein|dieses)\b/i.test(m[1]))
+kopf.push({ i: i, titel: m[1] });
+});
+if (kopf.length >= 2)
+return { anzahl: kopf.length, teile: kopf.map(function (h, k) { return { titel: h.titel, text: lines.slice(h.i, k + 1 < kopf.length ? kopf[k + 1].i : lines.length).join("\n") }; }) };
+var m2 = lower(String(text || "").split("\n").slice(0, 5).join(" ")).match(/\b(?:top\s*)?(\d{1,2})\s+(?:[a-zäöü]+\s+)?(?:recipes|rezepte)\b/);
+if (m2 && +m2[1] >= 2 && +m2[1] <= 12)
+return { anzahl: +m2[1], teile: [] };
+return null;
+}
+var BEKANNTE_GERICHTE = ["Lahmacun", "Massaman Curry", "Pad Thai", "Shakshuka", "Bibimbap", "Dal Makhani", "Palak Paneer", "Chana Masala", "Tikka Masala",
+"Laksa", "Katsu Curry", "Mapo Tofu", "Tteokbokki", "Pho", "Bun Cha", "Gado Gado", "Nasi Goreng", "Mie Goreng", "Jambalaya", "Ratatouille", "Moussaka", "Pastitsio"];
+function titelSignal(text) {
+var t = String(text || ""), m, kand = [];
+var gross = function (x) { return x.split(/\s+/).map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(" "); };
+m = t.match(/\bjetzt (?:aber )?(?:zu[mr]?|zu (?:dem|der|den)) ([A-ZÄÖÜ][\wäöüß-]+(?: [A-ZÄÖÜ][\wäöüß-]+)?)/);
+if (m)
+kand.push(m[1]);
+m = t.match(/\baus ([a-zäöüß][a-zäöüß ]{2,28}?) wird ([a-zäöüß][a-zäöüß ]{2,28}?)(?=\s*(?:[.!?,;:\n]|$|[^a-zäöüß ]))/i);
+if (m)
+kand.push(gross(m[2].trim()));
+m = t.match(/(?:gericht|rezept)\w* (?:ist|wurde) (?:vom|von|von dem|von der) (?:[a-zäöüß]+ ){0,3}([A-ZÄÖÜ][\wäöüß-]+(?: [A-ZÄÖÜ][\wäöüß-]+){0,2}) inspiriert/);
+if (m)
+kand.push(m[1]);
+m = t.match(/\b(?:mach|koch|back)e? ([A-ZÄÖÜ][\wäöüß-]+) nie wieder anders/);
+if (m)
+kand.push(m[1]);
+m = t.match(/\b(?:[Ww]enn|[Ww]ie) ([A-Z][a-z]{3,})\b[^.\n]{0,80}?\bdiese[nrs]? ([A-ZÄÖÜ][a-zäöüß]{3,}) schmeck/);
+if (m && !isFoodWord(m[1]))
+kand.push(m[1] + "-" + m[2]);
+t.split("\n").slice(0, 4).forEach(function (l) {
+var mm = clean(stripEmoji(l)).match(/(?:recipes?|rezepte?|teil|part|folge|episode|nr\.?)\b[^:]{0,40}:\s*([^:]{3,50})$/i);
+if (mm && hasFoodWord(mm[1]))
+kand.push(mm[1].trim());
+});
+var kopf = lower(t.split("\n").slice(0, 3).join(" ")), tags = lower((t.match(/#[\wäöüß]+/g) || []).join(" ")).replace(/#/g, " ");
+BEKANNTE_GERICHTE.forEach(function (g) { var k = lower(g); if (kopf.indexOf(k) !== -1 || (" " + tags + " ").indexOf(" " + k.replace(/ /g, "") + " ") !== -1)
+kand.push(g); });
+kand = kand.map(function (k) { return clean(k); }).filter(function (k) { return k && k.split(/\s+/).length <= 6 && !GENERIC_TITLE.test(k) && !/^(ich|wir|du|ihr|es|das|die|der)$/i.test(k); });
+return kand[0] || "";
+}
+var GEBAECK = /^(muffins?|kuchen|cookies?|kekse|riegel|waffeln|pancakes|brot|brownies?|cupcakes?|schnecken|scones|plätzchen)$/i;
+var GESCHMACK = [["zitron", "Zitronen"], ["schoko", "Schoko"], ["kakao", "Schoko"], ["banane", "Bananen"], ["apfel", "Apfel"], ["äpfel", "Apfel"], ["karotte", "Karotten"], ["möhre", "Möhren"],
+["blaubeer", "Blaubeer"], ["heidelbeer", "Heidelbeer"], ["himbeer", "Himbeer"], ["erdbeer", "Erdbeer"], ["kürbis", "Kürbis"], ["erdnuss", "Erdnuss"], ["kokos", "Kokos"], ["zimt", "Zimt"], ["orange", "Orangen"]];
+function titelHauptzutat(r) {
+if (!r.title || !r.titleGuessed || !r.ingredients.length)
+return;
+var tl = lower(r.title), beilage = r.ingredients.filter(function (i) { return /als beilage|zum servieren|for serving|to serve/i.test(i.raw || ""); })[0];
+if (beilage && (lower(beilage.name) === tl || lower(beilage.raw).indexOf(tl) !== -1) && r.textFood && lower(r.textFood) !== tl) {
+r.title = r.textFood + " mit " + (/reis$/i.test(r.title) ? "Reis" : r.title);
+return;
+}
+if (/^(hummus|pesto|dip|soße|sosse|sauce|dressing|aioli|tzatziki|guacamole)$/i.test(r.title) && r.dishTitle && lower(r.dishTitle) !== tl) {
+r.title = (/\bofengericht/i.test(r.introZeile || "") && !/^ofen/i.test(r.dishTitle) ? "Ofen" + lower(r.dishTitle) : r.dishTitle) + " mit " + r.title;
+return;
+}
+var intro = lower(r.introZeile || "");
+if (intro && r.title.split(/\s+/).length <= 2 && !/ mit /.test(r.title)) {
+var betont = [].concat.apply([], r.ingredients.map(function (i) { return i.name.split(/[\s-]+/).filter(function (w) { return w.length >= 4 && /^[A-ZÄÖÜ]/.test(w) && !/^(gekocht|frisch|braun|rote?|grüne?|weiße?|große?|kleine?|kekse|plätzchen|vegan|pflanzlich|bio|light|tk|zarte?|feine?)/i.test(w); }); }))
+.filter(function (w) { var lw = lower(w).replace(/(e?n|s)$/, ""); return lw.length >= 4 && intro.indexOf(lw) !== -1 && tl.indexOf(lw) === -1 && !/^(wasser|salz|pfeffer|zucker|mehl|öl)/.test(lw); })[0];
+if (betont) {
+r.title = /^(soße|sosse|sauce|käsesoße|käsesauce|dip|pesto|dressing|[a-zäöüß]+(soße|sauce))$/i.test(r.title) ? betont + " mit " + r.title : betont + "-" + r.title;
+return;
+}
+}
+if (GEBAECK.test(r.title)) {
+var txt = lower(r.ingredients.map(function (i) { return i.raw || i.name; }).join(" ") + " " + (r.steps || []).join(" ")), best = null, n0 = 0;
+GESCHMACK.forEach(function (g) { var n = txt.split(g[0]).length - 1; if (n > n0) {
+n0 = n;
+best = g[1];
+} });
+if (best && n0 >= 2)
+r.title = best + "-" + r.title;
+}
+}
 function finalize(r) {
 var za = r.steps.length ? zeitAnalyse(r, LERN && LERN.zeiten) : null;
 r.timeOvernight = !!(za && za.ueberNacht);
@@ -3680,6 +3784,20 @@ var pick = (main.length ? main : r.ingredients).slice(0, 2).map(function (i) { r
 r.title = pick.join(" & ");
 r.titleGuessed = true;
 r.titleFromIngredients = pick;
+}
+if (r.titelSignal && (r.titleGuessed || !r.title || (lower(r.title).indexOf(lower(r.titelSignal)) !== -1 && lower(r.title) !== lower(r.titelSignal) && !hasFoodWord(r.title.replace(new RegExp(r.titelSignal.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), ""))) || !hasFoodWord(r.title))) {
+r.title = r.titelSignal;
+r.titleOriginal = null;
+r.titleGuessed = false;
+r.titelAusSignal = true;
+}
+else
+titelHauptzutat(r);
+r.keinRezept = !r.ingredients.length && !r.steps.length;
+if (r.keinRezept && (r.titleGuessed || GENERIC_TITLE.test(clean(r.title || "")))) {
+r.title = "";
+r.titleOriginal = null;
+r.titleGuessed = false;
 }
 var seen = {};
 r.ingredients = r.ingredients.filter(function (i) {
@@ -4571,7 +4689,8 @@ reasons.push("Koch-Wörter");
 if (/(\d+\s?(g|ml|el|tl)\b)/.test(t))
 score += 1;
 var dish = 0;
-if (FOOD_HINT.test(r.titleOriginal || r.title) || FOOD_HINT.test(r.title))
+var titelKand = [r.titleOriginal, r.title, r.dishTitle, r.hashtagTitle, r.titelSignal].filter(Boolean).join(" ");
+if (FOOD_HINT.test(titelKand))
 dish += 2;
 if (RECIPE_TAGS.test(raw))
 dish += 2;
@@ -4614,9 +4733,10 @@ out.hinweis = WO_HINWEIS[out.wo] || "";
 }
 return out;
 }
-var WO_TEXT = { blog: "auf dem Blog", bio: "im Bio-Link", kommentar: "im Kommentar", nachricht: "per Nachricht", kochbuch: "im Kochbuch",
+var WO_TEXT = { bezahlseite: "nur gegen Bezahlung beim Creator", blog: "auf dem Blog", bio: "im Bio-Link", kommentar: "im Kommentar", nachricht: "per Nachricht", kochbuch: "im Kochbuch",
 newsletter: "im Newsletter", video: "im Video", caption: "in der Caption" };
 var WO_HINWEIS = {
+bezahlseite: "Das Rezept gibt es nur gegen Bezahlung beim Creator (Mitgliedschaft). Im Beitrag selbst steht kein Rezept.",
 blog: "Das Rezept steht auf dem Blog des Creators. Link öffnen, Zutaten und Zubereitung kopieren und hier mit „Fehlenden Text einfügen“ ergänzen.",
 bio: "Das Rezept liegt hinter dem Link im Instagram-Profil. Dort kopieren und hier mit „Fehlenden Text einfügen“ ergänzen.",
 kommentar: "Das Rezept steht im angepinnten Kommentar. In Instagram kopieren und hier mit „Fehlenden Text einfügen“ ergänzen.",
@@ -4633,7 +4753,7 @@ return { recipe: p.rezept, score: p.score, reasons: p.reasons, typ: p.typ, wo: p
 function recipeId(r) {
 var sc = shortcodeOf(r.source && r.source.url);
 if (sc)
-return "ig:" + sc;
+return "ig:" + sc + (r.teil ? "#" + r.teil : "");
 if (r.source && r.source.blogUrl)
 return "web:" + String(r.source.blogUrl).replace(/^https?:\/\/(www\.)?/, "").replace(/[?#].*$/, "").replace(/\/$/, "");
 return "t:" + normName(r.title || "").replace(/\s+/g, "-");
@@ -4756,7 +4876,7 @@ analyse: analyse,
 parseText: parseText, parseTranscript: parseTranscript, parseSchemaOrg: parseSchemaOrg,
 parseIngredientLine: parseIngredientLine, parseDuration: parseDuration,
 classify: classify, completeness: completeness, focusFromNutrition: focusFromNutrition,
-teilenDiagnose: teilenDiagnose, lerneTeilenFehler: lerneTeilenFehler, lerneTitel: lerneTitel, zeitAnalyse: zeitAnalyse, schrittArbeiten: schrittArbeiten, pruefeSchrittLogik: pruefeSchrittLogik,
+teilenDiagnose: teilenDiagnose, lerneTeilenFehler: lerneTeilenFehler, lerneTitel: lerneTitel, mehrereRezepte: mehrereRezepte, titelSignal: titelSignal, zeitAnalyse: zeitAnalyse, schrittArbeiten: schrittArbeiten, pruefeSchrittLogik: pruefeSchrittLogik,
 berechneNaehrwerte: berechneNaehrwerte, pruefeNaehrwerte: pruefeNaehrwerte, eigenerNaehrwert: eigenerNaehrwert, kcalAusNaehrstoffen: kcalAusNaehrstoffen, NW_FELDER: NW_FELDER, findNutrientEntry: findNutrientEntry, NUTRIENT_KEYS: NUTRIENT_KEYS,
 normName: normName, fmtQty: fmtQty, rundeMenge: rundeMenge, skalierHinweis: skalierHinweis, schrittTimer: schrittTimer, enthaeltZutat: enthaeltZutat, guessAisle: guessAisle, geraete: geraete, vorheizHinweis: vorheizHinweis, fmtIngredient: fmtIngredient,
 shoppingList: shoppingList, shoppingText: shoppingText,
@@ -4791,7 +4911,7 @@ root.RezeptKern = api;
   var LERN_ERINNERUNG = 20;
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.17.0";
+  var APP_VERSION = "0.18.0";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0 (creativecommons.org/licenses/by/4.0). Werte unverändert übernommen; Stück- und Löffelgewichte sind eigene Richtwerte der App. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -4891,7 +5011,39 @@ root.RezeptKern = api;
 
   function entries() { return Object.keys(S.recipes).map(function (id) { return S.recipes[id]; }).sort(function (a, b) { return (b.addedAt || 0) - (a.addedAt || 0); }); }
   function rec(e) { return e.recipe; }
-  function titleOf(e) { return e.userTitle || e.recipe.title || "Ohne Titel"; }
+  function titleOf(e) {
+    var r = e.recipe || {}, sp = e.titelSprache || S.prefs.titelSprache;
+    if (e.userTitle) return e.userTitle;
+    if (sp === "en" && r.titleOriginal && r.titleTranslated) return r.titleOriginal;
+    if (r.title) return r.title;
+    var acc = r.source && r.source.account ? " von @" + r.source.account : "";
+    if (r.mehrere && r.mehrere.anzahl) return r.mehrere.anzahl + " Rezepte" + acc;
+    return r.keinRezept && acc ? "Beitrag" + acc : "Ohne Titel";
+  }
+  // Englischer Titel: einmal fragen, ob er deutsch oder englisch heißen soll (Jakob, 21.10.)
+  function titelSpracheFragen(id) {
+    var e = S.recipes[id], r = e && e.recipe;
+    if (!r || e.userTitle || e.titelSprache || S.prefs.titelSprache || !r.titleOriginal || !r.titleTranslated || lower2(r.titleOriginal) === lower2(r.title)) return;
+    var versuche = 0;
+    (function zeigen() {
+      if (($("#layer").innerHTML || $("#coach").innerHTML) && versuche++ < 40) { setTimeout(zeigen, 1200); return; }
+      sheet('<h2>Titel auf Deutsch oder Englisch?</h2><p class="small muted">Das Rezept ist auf Englisch. Welcher Titel soll in deiner Kombüse stehen?</p>' +
+        '<div class="group"><button class="row" data-a="titel-sprache" data-s="de" data-id="' + esc(id) + '"><span class="main"><span class="sub">Deutsch</span><span class="title">' + esc(r.title) + '</span></span>' + ic("chev", "chev") + '</button>' +
+        '<button class="row" data-a="titel-sprache" data-s="en" data-id="' + esc(id) + '"><span class="main"><span class="sub">Englisch (Original)</span><span class="title">' + esc(r.titleOriginal) + '</span></span>' + ic("chev", "chev") + '</button></div>' +
+        '<label class="row checkrow"><input type="checkbox" id="ts-immer"><span class="main small">Für alle Rezepte merken. Ändern kannst du das in den Einstellungen.</span></label>');
+    })();
+  }
+  function lower2(x) { return String(x || "").toLowerCase().trim(); }
+  // Mehrere Rezepte in einem Beitrag: fragen, welche behalten werden (Jakob, 21.10.)
+  function mehrereSheet(input, mr) {
+    UI.mehrere = { input: input, mr: mr };
+    sheet('<h2>' + mr.anzahl + ' Rezepte in einem Beitrag</h2><p class="small muted">Welche willst du behalten? Jedes wird ein eigenes Rezept.</p>' +
+      '<div class="group">' + mr.teile.map(function (t, k) {
+        var de = K.translateTitle(K.polishTitle(t.titel)) || t.titel;
+        return '<label class="row checkrow"><input type="checkbox" class="mw" data-k="' + k + '" checked><span class="main"><span class="title">' + esc(de) + '</span>' + (lower2(de) !== lower2(t.titel) ? '<span class="sub">' + esc(t.titel) + '</span>' : '') + '</span></label>';
+      }).join("") + '</div>' +
+      '<button class="btn accent" data-a="mehrere-save">Auswahl speichern</button><button class="btn soft" data-a="mehrere-alle">Alle behalten</button>');
+  }
 
   // ------------------------------------------------------------------ Hilfen
   function toast(msg) {
@@ -5687,6 +5839,8 @@ root.RezeptKern = api;
       (blogLink && !r.source.blogUrl ? '<button class="btn accent" data-a="blog-fetch" data-t="' + esc(blogLink) + '">' + ic("share") + 'Rezept vom Blog holen</button>' : '') +
       (r.elsewhere && r.elsewhere.wo === "nachricht" && r.source.url ? '<button class="btn accent" data-a="kommentar" data-t="' + esc(r.elsewhere.stichwort || "") + '" data-u="' + esc(r.source.url) + '">' + ic("share") + (r.elsewhere.stichwort ? '„' + esc(r.elsewhere.stichwort) + '“ kopieren und Beitrag öffnen' : 'Beitrag öffnen') + '</button><p class="small muted">' + (r.elsewhere.stichwort ? 'In Instagram als Kommentar einfügen und senden. ' : '') + 'Der Creator schickt dir das Rezept per Nachricht. Diese kopieren, hierher zurückkommen und „Fehlenden Text einfügen“ tippen.</p>' : '') +
       (r.elsewhere && r.elsewhere.wo === "kommentar" && r.source.url ? '<a class="btn accent" href="' + esc(r.source.url) + '" target="_blank" rel="noopener">' + ic("share") + 'Kommentare in Instagram öffnen</a><p class="small muted">Den Kommentar mit dem Rezept (meist oben angepinnt) lange drücken, kopieren und hier mit „Fehlenden Text einfügen“ ergänzen.</p>' : '') +
+      (r.elsewhere && r.elsewhere.wo === "bezahlseite" ? '<p class="small muted">Das Rezept gibt es nur gegen Bezahlung beim Creator (Mitgliedschaft). Im Beitrag selbst steht kein Rezept.</p>' : '') +
+      (r.mehrere && r.mehrere.anzahl && !(r.mehrere.titel || []).length ? '<p class="small muted">In diesem Beitrag stecken ' + r.mehrere.anzahl + ' Rezepte. Sie stehen nicht in der Beschreibung, sondern meist in den Kommentaren.</p>' : '') +
       (r.elsewhere && r.elsewhere.wo === "bio" ? '<p class="small muted">Das Rezept steht im Link im Profil. Profil in Instagram öffnen → Link antippen → in Safari „Teilen“ → „' + SC_NAME + '“ → hier „Einfügen“. Die App ordnet den Blog diesem Rezept zu.</p>' : '') +
       (e.input ? '<button class="btn soft" data-a="add-text" data-id="' + esc(id) + '">' + ic("copy") + 'Fehlenden Text einfügen</button>' : '') + '</div>' : "";
     var unitWord = r.servingsUnit && r.servingsUnit !== "Portionen" && r.servingsUnit !== "Portion" ? r.servingsUnit : (serv === 1 ? "Portion" : "Portionen");
@@ -5995,6 +6149,8 @@ root.RezeptKern = api;
       '<span class="stepper" role="group" aria-label="Personen"><button data-a="pref-persons" data-d="-1" aria-label="Weniger">−</button><output>' + p.persons + '</output><button data-a="pref-persons" data-d="1" aria-label="Mehr">+</button></span></div></div>' +
       '<div class="field"><label>Ernährung</label><div class="seg" role="group" aria-label="Ernährung">' + [["alles", "Alles"], ["vegetarisch", "Vegetarisch"], ["vegan", "Vegan"]].map(function (x) {
         return '<button data-a="pref-diet" data-v="' + x[0] + '" aria-pressed="' + (p.diet === x[0]) + '">' + x[1] + '</button>'; }).join("") + '</div></div>' + nutriRow() + origRow() +
+      '<div class="field"><label>Titel englischer Rezepte</label><div class="seg" role="group" aria-label="Titel englischer Rezepte">' + [["fragen", "Fragen"], ["de", "Deutsch"], ["en", "Englisch"]].map(function (x) {
+        return '<button data-a="pref-titelsprache" data-v="' + x[0] + '" aria-pressed="' + ((p.titelSprache || "fragen") === x[0]) + '">' + x[1] + '</button>'; }).join("") + '</div></div>' +
       '<div class="field"><label>Darstellung</label><div class="seg" role="group" aria-label="Darstellung">' + [["system", "Wie iPhone"], ["hell", "Hell"], ["dunkel", "Dunkel"]].map(function (x) {
         return '<button data-a="pref-theme" data-v="' + x[0] + '" aria-pressed="' + (p.theme === x[0]) + '">' + x[1] + '</button>'; }).join("") + '</div></div></section>';
   }
@@ -6464,6 +6620,11 @@ root.RezeptKern = api;
     UI.letzteBeschreibung = String(caption || "").slice(0, 6000);
     // Blog-Seite aus demselben Kurzbefehl-Lauf gleich mit auswerten
     if (p.b && p.b.length > 200) { if (/<(html|body|div|script)[\s>]/i.test(p.b)) input.blogHtml = p.b; else input.commentText = p.b; input.blogUrl = p.bu; }
+    // Mehrere Rezepte mit eigenen Überschriften: fragen, welche behalten werden
+    var mrI = K.mehrereRezepte(caption);
+    if (mrI && mrI.teile.length >= 2 && !(url && entries().some(function (e) { return e.input && e.input.url && e.input.url.split("?")[0] === url.split("?")[0]; }))) {
+      UI.tab = "rezepte"; UI.detail = null; setTimeout(function () { mehrereSheet(input, mrI); }, 300); return true;
+    }
     // schon gespeichert? Dann öffnen statt doppelt anlegen
     var same = url ? entries().filter(function (e) { return e.input && e.input.url && e.input.url.split("?")[0].replace(/\/$/, "") === url.split("?")[0].replace(/\/$/, ""); })[0] : null;
     if (same) { UI.tab = "rezepte"; UI.detail = same.id; setTimeout(function () { toast("Schon in der Kombüse"); }, 300); var accS = (same.recipe.source && same.recipe.source.account) || account; if (accS) setTimeout(function () { folgenPruefen(accS); }, 1800); return true; }
@@ -6478,6 +6639,7 @@ root.RezeptKern = api;
         if (!out.dupe && !K.completeness(rS).enough) merkeFehler("unvollstaendig", null, { link: url, rezept: { zutaten: rS.ingredients.length, schritte: rS.steps.length, wo: (rS.elsewhere && rS.elsewhere.wo) || "" } });
         // Fremdsprachige Schritte gleich auf dem iPhone übersetzen (Bergamot)
         if (!out.dupe && UEB_SPRACHEN[foreignLang(rS, S.recipes[out.id])]) setTimeout(function () { startTranslate(out.id, true); }, 900);
+        if (!out.dupe) setTimeout(function () { titelSpracheFragen(out.id); }, 700);
       } catch (x) { /* egal */ }
       setTimeout(function () { toast(out.dupe ? "Schon in der Kombüse" : "In der Kombüse gespeichert"); }, 300);
       return true;
@@ -6591,6 +6753,25 @@ root.RezeptKern = api;
       case "sc-run-link": closeSheet(); UI.pasteText = ""; runShortcut(el.dataset.t); break;
       case "sc-test": closeSheet(); toast("Kurzbefehl wird mit einem Beispiel-Link gestartet …"); setTimeout(function () { runShortcut("https://www.instagram.com/p/C0Test/"); }, 400); break;
       case "close-sheet": closeSheet(); if (einwilligungFehlt()) setTimeout(einwilligungSheet, 50); break;
+      case "titel-sprache":
+        S.recipes[id].titelSprache = el.dataset.s; save("recipes");
+        if ($("#ts-immer") && $("#ts-immer").checked) { S.prefs.titelSprache = el.dataset.s; save("prefs"); }
+        closeSheet(); render(); break;
+      case "pref-titelsprache": if (el.dataset.v === "fragen") delete S.prefs.titelSprache; else S.prefs.titelSprache = el.dataset.v; save("prefs"); Array.prototype.forEach.call(el.parentNode.children, function (b) { b.setAttribute("aria-pressed", String(b === el)); }); render(); break;
+      case "mehrere-alle": Array.prototype.forEach.call(document.querySelectorAll(".mw"), function (c) { c.checked = true; }); /* weiter wie Speichern */
+      case "mehrere-save":
+        var mws = Array.prototype.filter.call(document.querySelectorAll(".mw"), function (c) { return c.checked; }).map(function (c) { return +c.dataset.k; });
+        if (!mws.length) { toast("Bitte mindestens ein Rezept auswählen"); break; }
+        var mm = UI.mehrere, erstes = null;
+        mws.forEach(function (k) {
+          var tl = mm.mr.teile[k], inpT = Object.assign({}, mm.input, { caption: tl.text, captionDe: "", teil: k + 1, teilVon: mm.mr.anzahl, teilTitel: tl.titel });
+          var outT = addRecipe(A(inpT), { input: inpT }); if (!erstes) erstes = outT.id;
+        });
+        UI.mehrere = null; closeSheet(); UI.tab = "rezepte"; UI.detail = erstes; render();
+        toast(mws.length === 1 ? "1 Rezept gespeichert" : mws.length + " Rezepte gespeichert");
+        if (mm.input.account) setTimeout(function () { folgenPruefen(mm.input.account); }, 1800);
+        setTimeout(function () { titelSpracheFragen(erstes); }, 700);
+        break;
       case "coach-next": if (COACH.key && COACH.i < GUIDES[COACH.key].s.length - 1) { COACH.i++; coachMalen(); } else coachFertig(); break;
       case "coach-skip": coachFertig(true); break;
         var gsh = el.closest && el.closest(".sheet"); if (gsh && (el.dataset.k === "woche" || el.dataset.k === "listen")) { var gx = gsh.querySelector("[data-id]"); if (gx) (el.dataset.k === "woche" ? planSheet : listenSheet)(gx.dataset.id); } break;
