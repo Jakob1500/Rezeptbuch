@@ -1,0 +1,144 @@
+// Rauchtest der gebauten App im Browser (Chromium, iPhone-Größe): Zeit, Geräte, Portionen, Einstellungen,
+// Ausschluss, Kochmodus mit Timer, eigene Einkaufseinträge, Wochenplan, Listen, „Nochmal kochen?“.
+// Aufruf: node tools/app-rauchtest.js docs   (Playwright nötig; Chromium-Pfad über CHROME=…)
+let pw; try { pw = require("playwright"); } catch (e) { pw = require(require("child_process").execSync("npm root -g").toString().trim() + "/playwright"); }
+const { chromium } = pw;
+const http = require("http"), fs = require("fs"), path = require("path");
+const root = require("path").resolve(process.argv[2] || "docs");
+const types = { ".html": "text/html", ".js": "text/javascript", ".json": "application/json", ".webmanifest": "application/manifest+json", ".png": "image/png", ".svg": "image/svg+xml", ".wasm": "application/wasm" };
+const srv = http.createServer((q, s) => {
+  let p = decodeURIComponent(q.url.split("?")[0]); if (p.endsWith("/")) p += "index.html";
+  const f = path.join(root, p);
+  if (!f.startsWith(root) || !fs.existsSync(f)) { s.writeHead(404); return s.end(); }
+  s.writeHead(200, { "Content-Type": types[path.extname(f)] || "application/octet-stream" }); fs.createReadStream(f).pipe(s);
+});
+const caption = "Schnelle Blechpizza\n\nZutaten\n450 g Mehl\n240 g Wasser\n50 g Olivenöl\n1 TL Backpulver\n100 g passierte Tomaten\n1 Mozzarella\n\nZubereitung\nMehl, Wasser, Öl und Backpulver zu einem Teig verkneten und abgedeckt 20 Minuten ruhen lassen.\nTeig ausrollen und aufs Blech legen.\nMit Tomaten und Mozzarella belegen und 20–25 Minuten bei 220 °C backen.";
+let ok = 0, bad = 0;
+const check = (name, cond, info) => { if (cond) ok++; else { bad++; console.log("✗ " + name + (info !== undefined ? "  → " + JSON.stringify(info) : "")); } };
+(async () => {
+  await new Promise(r => srv.listen(8765, r));
+  const browser = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
+  const page = await browser.newPage({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
+  const errors = []; page.on("pageerror", e => errors.push(String(e)));
+  await page.goto("http://127.0.0.1:8765/index.html");
+  await page.waitForTimeout(800);
+  const klick = async (sel) => { const el = await page.$(sel); if (el) { await el.click(); await page.waitForTimeout(300); return true; } return false; };
+  await klick('[data-a="einwilligung-ok"]');
+  await klick('[data-a="onboard"]'); await klick('[data-a="onboard-save"]');
+  await klick('[data-a="close-sheet"]');
+  await page.evaluate((c) => { location.hash = "u=" + encodeURIComponent("https://www.instagram.com/p/TEST1/") + "&t=" + encodeURIComponent(c); }, caption);
+  await page.waitForTimeout(1500);
+  for (let k = 0; k < 3; k++) if (!(await klick('.sheet [data-a="close-sheet"]'))) break;
+  // Rezept öffnen, falls die App nicht schon dort ist
+  if (!(await page.$('[data-a="serv"]'))) {
+    const t = await page.$('text=Schnelle Blechpizza'); if (t) { await t.click(); await page.waitForTimeout(500); }
+  }
+  for (let k = 0; k < 3; k++) if (!(await klick('.sheet [data-a="close-sheet"]'))) break;
+  let txt = await page.innerText("body");
+  check("Rezept geöffnet", /Blechpizza/.test(txt) && !!(await page.$('[data-a="serv"]')), txt.slice(0, 300));
+  check("Zeit als eine Angabe mit „ca.“", /ca\.\s*\n?\s*1:00|ca\.\s*\d+/.test(txt), (txt.match(/.{0,20}(Minuten|Stunden).{0,20}/) || [""])[0]);
+  check("Geräte-Zeile", /Du brauchst: Backofen · Backblech · Nudelholz/.test(txt), (txt.match(/Du brauchst.*/) || [""])[0]);
+  // Portionen halbieren
+  const serv = await page.$eval('.stepper output', el => el.textContent);
+  const minus = await page.$('[data-a="serv"][data-d="-1"]');
+  const zahl = parseInt(serv, 10) || 4;
+  for (let k = 0; k < Math.round(zahl / 2); k++) { await minus.click(); await page.waitForTimeout(150); }
+  txt = await page.innerText("body");
+  check("Umrechnen rundet Gramm auf 10 g (450 g → 230 g bzw. 110 g)", /\b(230|110) g\s*\n?\s*Mehl/.test(txt), [serv, (txt.match(/\d+ g\s*\n?\s*Mehl/) || [""])[0]]);
+  check("Hinweis zu Form und Backzeit", /Form und Backzeit/.test(txt));
+  await page.evaluate(() => window.scrollTo(0, 0)); await page.screenshot({ path: path.join(require("os").tmpdir(), "rezept.png") });
+  // Einstellungen: keine Tastatur, d. h. kein Eingabefeld im Fokus
+  await klick('[data-a="back"]');
+  await klick('[data-a="settings"]');
+  await page.waitForTimeout(400);
+  const fokus = await page.evaluate(() => { const a = document.activeElement; return a ? a.tagName + (a.className ? "." + a.className : "") : ""; });
+  check("Einstellungen: kein Eingabefeld im Fokus", !/^(INPUT|TEXTAREA|SELECT)/.test(fokus), fokus);
+  const ver = await page.innerText("body");
+  check("Version 0.16.0 · Kern 0.5.1", /0\.16\.0/.test(ver) && /0\.5\.1/.test(ver), (ver.match(/.{0,20}Kern.{0,10}/) || [""])[0]);
+
+  // ---- Paket 2: Ausschluss dauerhaft in den Einstellungen
+  await page.fill("#ohne-immer-q", "Mozzarella"); await page.keyboard.press("Enter"); await page.waitForTimeout(300);
+  check("Einstellungen: Zutat dauerhaft ausgeschlossen", /Mozzarella/.test(await page.innerText(".sheet")));
+  await page.keyboard.press("Escape"); await page.waitForTimeout(300);
+  let liste = await page.innerText("body");
+  check("Rezept mit Mozzarella ist ausgeblendet", !/Blechpizza/.test(liste), (liste.match(/.{0,40}Blechpizza.{0,40}/) || [""])[0]);
+  await klick('[data-a="settings"]'); await klick('[data-a="ohne-immer-weg"]'); await page.keyboard.press("Escape"); await page.waitForTimeout(300);
+  liste = await page.innerText("body");
+  check("Wieder erlaubt: Rezept sichtbar", /Blechpizza/.test(liste));
+  // ---- Ausschluss im Filter
+  await klick('[data-a="filters"]');
+  await page.fill("#ohne-q", "Mozzarella"); await klick('[data-a="ohne-add"]');
+  check("Filter zeigt „ohne Mozzarella“", /ohne Mozzarella/.test(await page.innerText(".sheet")));
+  await page.keyboard.press("Escape"); await page.waitForTimeout(300);
+  liste = await page.innerText("body");
+  check("Filter blendet aus und zeigt Chip", !/Blechpizza/.test(liste) && /ohne Mozzarella/.test(liste));
+  await klick('[data-a="ohne-weg"]');
+  // ---- Kochmodus: Vorheizen und Timer
+  const t2 = await page.$('text=Blechpizza'); if (t2) { await t2.click(); await page.waitForTimeout(400); }
+  await klick('[data-a="cook"]');
+  let koch = await page.innerText(".cook");
+  check("Kochmodus: Anleitung und Vorheiz-Hinweis im ersten Schritt", /Kochmodus/.test(koch) && /Ofen jetzt vorheizen auf 220 °C/.test(koch), koch.slice(0, 300));
+  check("Kochmodus: Timer-Knopf „20 Min. starten“", /20 Min\. starten/.test(koch));
+  await klick('[data-a="timer-start"]');
+  await page.waitForTimeout(1200);
+  koch = await page.innerText(".cook");
+  check("Timer läuft und zählt", /19:5\d|20:00/.test(koch), (koch.match(/\d+:\d\d.*/) || [""])[0]);
+  await klick('[data-a="cook-next"]');
+  check("Timer bleibt beim nächsten Schritt sichtbar", /19:5\d/.test(await page.innerText(".cook")));
+  await klick('[data-a="timer-stop"]');
+  check("Timer gestoppt", !/19:5\d/.test(await page.innerText(".cook")));
+  await page.screenshot({ path: path.join(require("os").tmpdir(), "kochen.png") });
+  await klick('[data-a="cook-close"]');
+  // ---- Einkaufsliste: eigener Eintrag
+  await klick('[data-a="tab"][data-t="einkauf"]') || await page.click('text=Einkauf');
+  await page.waitForTimeout(300);
+  await page.fill("#extra-q", "Spülmittel"); await page.keyboard.press("Enter"); await page.waitForTimeout(300);
+  const ek = await page.innerText("body");
+  check("Eigener Eintrag steht auf der Liste", /Spülmittel/.test(ek) && /eigener Eintrag/.test(ek), ek.slice(0, 300));
+  await page.screenshot({ path: path.join(require("os").tmpdir(), "einkauf.png") });
+
+  // ---- Paket 3: Wochenplan
+  await page.click('.tabbar [data-t="rezepte"]'); await page.waitForTimeout(300);
+  const t3 = await page.$('text=Blechpizza'); if (t3) { await t3.click(); await page.waitForTimeout(400); }
+  await klick('[data-a="plan"]');
+  let sh = await page.innerText(".sheet");
+  check("Einplanen: Anleitung und Tage", /Wochenplan/.test(sh) && /Heute/.test(sh) && /Morgen/.test(sh), sh.slice(0, 200));
+  await page.click('.sheet [data-a="plan-tag"]'); await page.waitForTimeout(300);
+  check("Einplanen: Heute gewählt", (await page.getAttribute('.sheet [data-a="plan-tag"]', "aria-pressed")) === "true");
+  await page.keyboard.press("Escape"); await page.waitForTimeout(300);
+  check("Rezept zeigt „Geplant: Heute“", /Geplant: Heute/.test(await page.innerText("body")));
+  await klick('[data-a="back"]');
+  let start = await page.innerText("body");
+  check("Startseite: „Diese Woche“ mit dem Rezept", /Diese Woche/.test(start) && /Heute/.test(start), (start.match(/Diese Woche[\s\S]{0,80}/) || [""])[0]);
+  await page.screenshot({ path: path.join(require("os").tmpdir(), 'start.png'), fullPage: true });
+  await page.click('text=Alles auf die Einkaufsliste'); await page.waitForTimeout(400);
+  await page.click('.tabbar [data-t="einkauf"]'); await page.waitForTimeout(400);
+  check("Wocheneinkauf: Zutaten auf der Liste", /Mehl/.test(await page.innerText("body")));
+  // ---- Eigene Listen
+  await page.click('.tabbar [data-t="rezepte"]'); await page.waitForTimeout(300);
+  const t4 = await page.$('text=Blechpizza'); if (t4) { await t4.click(); await page.waitForTimeout(400); }
+  await klick('[data-a="more"]'); await klick('[data-a="listen"]');
+  await page.fill("#liste-neu", "Meal-Prep"); await page.keyboard.press("Enter"); await page.waitForTimeout(300);
+  check("Liste angelegt und Rezept drin", (await page.getAttribute('.sheet [data-a="liste-tag"]', "aria-checked")) === "true");
+  await page.keyboard.press("Escape"); await page.waitForTimeout(300);
+  await page.click('.tabbar [data-t="kategorien"]'); await page.waitForTimeout(300);
+  check("Kategorien: „Deine Listen“", /Deine Listen[\s\S]*Meal-Prep/.test(await page.innerText("body")));
+  await klick('[data-a="liste-zeigen"]');
+  check("Liste zeigt das Rezept", /Meal-Prep[\s\S]*Blechpizza/.test(await page.innerText("body")));
+  // ---- Nochmal kochen?
+  await page.click('text=Blechpizza'); await page.waitForTimeout(400);
+  await klick('[data-a="cook"]');
+  for (let k = 0; k < 5; k++) { if (!(await klick('[data-a="cook-next"]'))) break; }
+  await klick('[data-a="cook-done"]');
+  sh = await page.innerText(".sheet");
+  check("Nach dem Kochen: „nochmal kochen?“", /nochmal kochen/.test(sh), sh.slice(0, 120));
+  await klick('.sheet [data-v="ja"]');
+  await klick('[data-a="more"]');
+  check("Antwort im Rezept-Menü", /Nochmal kochen\?\s*Ja/.test(await page.innerText(".sheet")));
+  await page.keyboard.press("Escape");
+  check("keine JavaScript-Fehler", errors.length === 0, errors);
+  await page.screenshot({ path: path.join(require("os").tmpdir(), "einstellungen.png") });
+  await browser.close(); srv.close();
+  console.log(`${ok} bestanden, ${bad} fehlgeschlagen`);
+  process.exit(bad ? 1 : 0);
+})();
