@@ -14,7 +14,7 @@
    Monochrom; ein ruhiges Grün nur für Aktionen und "vorhanden". Systemschrift (kein Abruf bei Google). */
 :root {
   --bg: #F4F5F3; --surface: #FFFFFF; --surface-2: #ECEEEB; --ink: #121513; --muted: #646B66; --line: #E3E6E2;
-  --accent: #0B7A55; --accent-ink: #FFFFFF; --accent-soft: #E1F0E9; --warn: #9A5B00; --warn-soft: #F7EEDC; --danger: #B3261E;
+  --accent: #0B7A55; --accent-ink: #FFFFFF; --accent-soft: #E1F0E9; --brand: #FF8A1F; --brand-ink: #1A0E00; --brand-text: #A34E00; --brand-soft: #FFF0E2; --warn: #9A5B00; --warn-soft: #F7EEDC; --danger: #B3261E;
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-display: -apple-system-headline, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
   --r-group: 16px; --r-ctl: 12px;
@@ -22,10 +22,10 @@
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #000000; --surface: #121513; --surface-2: #1C201D; --ink: #F1F3F1; --muted: #8F9791; --line: #242925;
-  --accent: #3DC48F; --accent-ink: #04140D; --accent-soft: #10271D; --warn: #E3A94A; --warn-soft: #2A2113; --danger: #FF8A80; color-scheme: dark; } }
+  --accent: #3DC48F; --accent-ink: #04140D; --accent-soft: #10271D; --brand: #FF9F45; --brand-ink: #1A0E00; --brand-text: #FF9F45; --brand-soft: #2B1A0B; --warn: #E3A94A; --warn-soft: #2A2113; --danger: #FF8A80; color-scheme: dark; } }
 :root[data-theme="dark"] {
   --bg: #000000; --surface: #121513; --surface-2: #1C201D; --ink: #F1F3F1; --muted: #8F9791; --line: #242925;
-  --accent: #3DC48F; --accent-ink: #04140D; --accent-soft: #10271D; --warn: #E3A94A; --warn-soft: #2A2113; --danger: #FF8A80; color-scheme: dark; }
+  --accent: #3DC48F; --accent-ink: #04140D; --accent-soft: #10271D; --brand: #FF9F45; --brand-ink: #1A0E00; --brand-text: #FF9F45; --brand-soft: #2B1A0B; --warn: #E3A94A; --warn-soft: #2A2113; --danger: #FF8A80; color-scheme: dark; }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { min-height: 100%; overscroll-behavior-y: none; }
@@ -91,13 +91,6 @@ a.btn { text-decoration: none; }
 .btnrow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
 /* Anleitung beim ersten Gebrauch */
-.guide { background: var(--surface); border-radius: var(--r-group); padding: 16px; display: grid; gap: 12px; border: 1px solid var(--line); }
-.guide h3 { margin: 0; font-size: 1rem; }
-.guide ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
-.guide li { display: flex; gap: 12px; align-items: flex-start; font-size: 0.93rem; }
-.guide .gi { width: 32px; height: 32px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; flex: none; }
-.guide .gi svg { width: 18px; height: 18px; }
-.guide .btn { min-height: 44px; }
 
 /* Detail */
 .hero { display: grid; gap: 10px; }
@@ -162,7 +155,8 @@ textarea.input { min-height: 140px; resize: vertical; line-height: 1.4; }
 .tab { border: 0; background: none; display: grid; justify-items: center; align-content: center; gap: 3px; color: var(--muted); font-size: 0.7rem; font-weight: 600; position: relative; }
 .tab svg { width: 24px; height: 24px; }
 .tab[aria-current="page"] { color: var(--ink); }
-.tab .pill { position: absolute; top: 6px; left: calc(50% + 8px); min-width: 18px; height: 18px; border-radius: 9px; background: var(--accent); color: var(--accent-ink); font-size: 0.68rem; display: grid; place-items: center; padding: 0 5px; font-variant-numeric: tabular-nums; }
+.tab[aria-current="page"]::after { content: ""; position: absolute; top: 0; left: 50%; width: 22px; height: 3px; margin-left: -11px; border-radius: 0 0 3px 3px; background: var(--brand); }
+.tab .pill { position: absolute; top: 6px; left: calc(50% + 8px); min-width: 18px; height: 18px; border-radius: 9px; background: var(--brand); color: var(--brand-ink); font-size: 0.68rem; display: grid; place-items: center; padding: 0 5px; font-variant-numeric: tabular-nums; }
 
 /* Blatt von unten (Dialoge) */
 .scrim { position: fixed; inset: 0; background: rgba(0,0,0,.38); z-index: 30; display: grid; align-items: end; }
@@ -209,9 +203,6 @@ a { color: var(--accent); }
 .iconbtn.heart[aria-pressed="true"] svg { fill: currentColor; }
 .have-line { font-size: 0.85rem; color: var(--muted); padding-inline: 4px; display: flex; align-items: center; gap: 6px; }
 .miss { font-size: 0.78rem; font-weight: 600; color: var(--accent); }
-.guide { position: relative; }
-.guide .x { position: absolute; top: 8px; right: 8px; width: 36px; height: 36px; border-radius: 50%; border: 0; background: none; color: var(--muted); display: grid; place-items: center; }
-.guide .x svg { width: 18px; height: 18px; }
 .ibtn { width: 40px; height: 40px; border-radius: 50%; border: 0; background: none; color: var(--muted); display: grid; place-items: center; flex: none; }
 .ibtn svg { width: 20px; height: 20px; }
 .ibtn[aria-pressed="true"] { color: var(--accent); }
@@ -231,12 +222,27 @@ a { color: var(--accent); }
 .cook .timerrow .btn { width: auto; }
 .timers { display: grid; gap: 8px; }
 .timers:empty { display: none; }
-.timer { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--accent-soft); border-radius: var(--r-group); padding: 10px 14px; }
+.timer { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--brand-soft); border-left: 4px solid var(--brand); border-radius: var(--r-group); padding: 10px 14px; }
 .timer b { font-size: 1.4rem; font-variant-numeric: tabular-nums; }
 .timer.fertig { background: var(--warn-soft); animation: blink 1s steps(2) infinite; }
 @media (prefers-reduced-motion: reduce) { .timer.fertig { animation: none; } }
 @keyframes blink { 50% { opacity: .55; } }
 .addrow { display: flex; gap: 8px; align-items: center; }
+/* Einführung: Fenster in Schritten beim ersten Öffnen */
+.coach { position: fixed; inset: 0; z-index: 50; background: rgba(0, 0, 0, .45); display: grid; align-items: end; justify-items: center; padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px)); }
+.coach .card { background: var(--surface); color: var(--ink); width: 100%; max-width: 440px; border-radius: 20px; padding: 20px; display: grid; gap: 12px; box-shadow: 0 12px 32px rgba(0, 0, 0, .28); }
+.coach .card:focus { outline: none; }
+.coach .gi { width: 46px; height: 46px; border-radius: 13px; background: var(--brand-soft); color: var(--brand-text); display: grid; place-items: center; }
+.coach .gi svg { width: 24px; height: 24px; }
+.coach .kopf { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--brand-text); margin: 0; }
+.coach h2 { margin: 0; font-size: 1.25rem; line-height: 1.25; }
+.coach p { margin: 0; }
+.coach .dots { display: flex; gap: 6px; }
+.coach .dots i { flex: none; width: 8px; height: 8px; border-radius: 4px; background: var(--line); }
+.coach .dots i.on { width: 20px; background: var(--brand); }
+.coach .act { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.coach .act .btn { width: auto; }
+.coach .act .btn.accent { min-width: 132px; }
 .addrow .input { flex: 1; }
 .addrow .btn { width: auto; }
 .cook .foot2 { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; max-width: 640px; width: 100%; margin: 0 auto; }
@@ -280,6 +286,7 @@ a { color: var(--accent); }
 <div class="app" id="app" aria-live="polite"></div>
 <div class="tabbar"><nav id="tabs" aria-label="Bereiche"></nav></div>
 <div id="layer"></div>
+<div id="coach"></div>
 
 <script>/*KERN*/</script>
 <script>var NAEHRWERTE = /*NAEHRWERTE*/;</script>
@@ -298,7 +305,7 @@ a { color: var(--accent); }
   var LERN_ERINNERUNG = 20;
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.16.2";
+  var APP_VERSION = "0.17.0";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0 (creativecommons.org/licenses/by/4.0). Werte unverändert übernommen; Stück- und Löffelgewichte sind eigene Richtwerte der App. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -461,6 +468,14 @@ a { color: var(--accent); }
 
   // ------------------------------------------------------------------ Anleitungen beim ersten Gebrauch
   var GUIDES = {
+    start: { t: "Kombüse", s: [
+      ["book", "Hier sammelst du Rezepte aus Instagram. Alles bleibt auf deinem iPhone.", "Willkommen in der Kombüse"],
+      ["share", "Auf Instagram bei einem Rezept auf Teilen tippen und „Ins Rezeptbuch“ wählen. Den Kurzbefehl dafür richtest du einmal unter „Neu“ ein.", "Rezepte speichern"],
+      ["sparkle", "Zutaten, Schritte, Zeit, Nährwerte und ob es vegan ist. Englische Rezepte übersetzt die App auf Deutsch – ohne Internet.", "Den Rest erkennt die App"],
+      ["bag", "Portionen umrechnen, im Kochmodus mit Timer kochen und nur das einkaufen, was dir noch fehlt.", "Kochen und Einkaufen"],
+      ["info", "Stimmt etwas nicht, tippe im Rezept auf „Problem melden“. Gesammelt schickst du alles über „An Jakob schicken“.", "Hilf beim Testen"]] },
+    kategorien: { t: "Kategorien", s: [["grid", "Die App sortiert jedes Rezept von selbst ein, zum Beispiel in Hauptgericht, Suppe oder Backen."], ["plus", "Ganz oben stehen deine eigenen Listen."]] },
+    naehrwert: { t: "Nährwerte zuordnen", s: [["search", "Such das Lebensmittel in der amtlichen Datenbank (BLS) und tippe auf den passenden Eintrag."], ["edit", "Findest du nichts, trag die Werte von der Verpackung selbst ein. Die App prüft, ob sie stimmen können."], ["check", "Die Zuordnung gilt danach für alle deine Rezepte."]] },
     rezepte: { t: "So funktioniert dein Rezeptbuch", s: [["share", "Auf Instagram bei einem Rezept auf Teilen tippen und „Ins Rezeptbuch“ wählen."], ["sparkle", "Die App erkennt Zutaten, Schritte, Zeit und Labels von selbst."], ["search", "Hier findest du alles wieder: suchen oder nach Labels filtern."]] },
     einkauf: { t: "Einkaufsliste", s: [["tap", "Auf eine Zutat tippen kopiert sie, zum Beispiel für eine Liefer-App."], ["check", "Den Kreis antippen, wenn du sie hast. Die App merkt sich das für deinen Vorrat."], ["scale", "Gleiche Zutaten aus mehreren Rezepten werden zusammengerechnet."]] },
     vorrat: { t: "Vorrat", s: [["jar", "Was du immer zu Hause hast, steht nie auf der Einkaufsliste."], ["check", "Schalter an heißt: habe ich. Du kannst das jederzeit ändern."]] },
@@ -472,14 +487,40 @@ a { color: var(--accent); }
     listen: { t: "Eigene Listen", s: [["plus", "Lege Listen an, zum Beispiel „Weihnachten“ oder „Meal-Prep“."], ["grid", "Du findest sie unter „Kategorien“ ganz oben."]] },
     detail: { t: "Ein Rezept", s: [["scale", "Mit + und − rechnest du die Mengen auf deine Portionen um."], ["dot", "Ein grüner Punkt heißt: hast du schon zu Hause."], ["bag", "„Auf die Einkaufsliste“ legt nur das an, was dir noch fehlt."]] }
   };
-  function guide(key) {
-    if (S.meta.guides[key]) return "";
-    var g = GUIDES[key];
-    return '<section class="guide" aria-label="Anleitung"><button class="x" data-a="guide-ok" data-k="' + key + '" aria-label="Anleitung schließen">' + ic("x") + '</button><h3>' + esc(g.t) + '</h3><ol>' + g.s.map(function (x) {
-      var icon = x[0] === "dot" ? '<span class="dot have" style="width:12px;height:12px"></span>' : ic(x[0]);
-      return '<li><span class="gi">' + icon + '</span><span>' + esc(x[1]) + '</span></li>';
-    }).join("") + '</ol></section>';
+  // Einführung als Fenster in Schritten: beim ersten Öffnen der App („start“) und jeder Seite bzw. Funktion
+  var COACH = { q: [], key: null, i: 0 };
+  function guide(key) { coachMerken(key); return ""; }
+  function coachMerken(key) {
+    if (!GUIDES[key] || S.meta.guides[key] || COACH.key === key || COACH.q.indexOf(key) >= 0) return;
+    COACH.q.push(key); setTimeout(coachZeigen, 350);
   }
+  function coachZeigen() {
+    if (COACH.key || !COACH.q.length || einwilligungFehlt()) return;
+    var iS = COACH.q.indexOf("start"); if (iS > 0) COACH.q.unshift(COACH.q.splice(iS, 1)[0]); // Willkommen immer zuerst
+    COACH.key = COACH.q.shift(); COACH.i = 0;
+    if (S.meta.guides[COACH.key]) { COACH.key = null; return coachZeigen(); }
+    coachMalen();
+  }
+  function coachMalen() {
+    var g = GUIDES[COACH.key], n = g.s.length, st = g.s[COACH.i], last = COACH.i === n - 1;
+    var ende = last ? (COACH.key === "start" && !S.prefs.onboarded ? "Einrichten (3 Fragen)" : "Los geht’s") : "Weiter";
+    $("#coach").innerHTML = '<div class="coach" role="dialog" aria-modal="true" aria-labelledby="coach-t"><div class="card" tabindex="-1">' +
+      '<span class="gi">' + ic(st[0] === "dot" ? "check" : st[0]) + '</span>' +
+      (st[2] ? '<p class="kopf">' + esc(g.t) + '</p>' : '') +
+      '<h2 id="coach-t">' + esc(st[2] || g.t) + '</h2><p>' + esc(st[1]) + '</p>' +
+      (n > 1 ? '<div class="dots" role="img" aria-label="Schritt ' + (COACH.i + 1) + ' von ' + n + '">' + g.s.map(function (x, k) { return '<i' + (k === COACH.i ? ' class="on"' : '') + '></i>'; }).join("") + '</div>' : '') +
+      '<div class="act">' + (last ? '<span></span>' : '<button class="btn ghost" data-a="coach-skip">Überspringen</button>') +
+      '<button class="btn accent" data-a="coach-next">' + ende + '</button></div></div></div>';
+    var c = $("#coach .card"); if (c) try { c.focus({ preventScroll: true }); } catch (e) { /* egal */ }
+  }
+  function coachFertig(uebersprungen) {
+    var key = COACH.key; if (!key) return;
+    S.meta.guides[key] = true; if (key === "start") S.meta.guides.rezepte = true; save("meta");
+    COACH.key = null; $("#coach").innerHTML = "";
+    if (key === "start" && !S.prefs.onboarded && !uebersprungen) { onboardSheet(); return; }
+    setTimeout(coachZeigen, 250);
+  }
+
 
   // ------------------------------------------------------------------ Rezept speichern
   function addRecipe(res, extra) {
@@ -572,6 +613,7 @@ a { color: var(--accent); }
     ["stk", "quelle", "notiz", "such"].forEach(function (k) { var el = $("#nw-" + k); if (el) f[k] = el.value; });
   }
   function nwSheet() {
+    coachMerken("naehrwert");
     var f = UI.nw, stkNoetig = f.grund === "stueck" || STUECK_UNITS[f.unit] === 1;
     var stkFeld = stkNoetig ? '<div class="field"><label for="nw-stk">Gewicht pro Stück in g' + (f.grund === "stueck" ? "" : " (für Angaben in Stück)") + '</label><input class="input" id="nw-stk" inputmode="decimal" placeholder="z. B. 60" value="' + esc(f.stk || "") + '"></div>' : "";
     var tabs = f.grund === "stueck" ? "" : '<div class="seg" role="group" aria-label="Woher die Werte kommen">' + [["db", "Aus der Datenbank"], ["eigen", "Selbst eintragen"]].map(function (x) { return '<button data-a="nw-tab" data-t="' + x[0] + '" aria-pressed="' + (f.tab === x[0]) + '">' + x[1] + '</button>'; }).join("") + '</div>';
@@ -773,6 +815,7 @@ a { color: var(--accent); }
   }
   function render() {
     renderTabs();
+    if (!UI.detail && UI.tab === "kategorien") coachMerken("kategorien");
     var html = UI.detail ? viewDetail(UI.detail) : ({ rezepte: viewRezepte, kategorien: viewKategorien, einkauf: viewEinkauf, vorrat: viewVorrat, neu: viewNeu })[UI.tab]();
     $("#app").innerHTML = html;
   }
@@ -897,7 +940,7 @@ a { color: var(--accent); }
     var enHint = enN && !UEB.laeuft && uebersetzbar().length ? '<div class="banner">' + ic("lang") + '<div class="main"><b>' + enN + (enN === 1 ? " Rezept hat" : " Rezepte haben") + ' Schritte in einer Fremdsprache.</b> Jetzt auf Deutsch übersetzen.</div><button class="btn accent" data-a="translate">Übersetzen</button></div>' : '';
     // Immer nur ein Hinweis auf einmal, der wichtigste zuerst
     var banner = [shareBanner(), onboardBanner(), lernBanner(), translateBanner(), enHint, backupBanner()].filter(Boolean)[0] || "";
-    return head + banner + (S.prefs.onboarded ? guide("rezepte") : "") + tools + personal +
+    return head + banner + guide("start") + tools + personal +
       '<section class="sec"><div class="sec-head"><h2>' + (searching ? list.length + " gefunden" : "Alle Rezepte") + '</h2>' + (nf ? '<button class="link" data-a="filter-reset">Filter löschen</button>' : '') + '</div>' +
       (list.length > 1 ? sortSeg : '') +
       (list.length ? '<div class="group">' + list.map(recipeRow).join("") + '</div>' :
@@ -1991,7 +2034,7 @@ a { color: var(--accent); }
       case "translate": startTranslate(el.dataset.id); break;
       case "orig-toggle": S.prefs.showOriginal = !showOrigAllowed(); if (!S.prefs.showOriginal) UI.showOrig = {}; save("prefs"); el.setAttribute("aria-checked", String(S.prefs.showOriginal)); render(); break;
       case "translate-info": uebersetzerInfoSheet(); break;
-      case "einwilligung-ok": S.prefs.testEinwilligung = { version: EINWILLIGUNG_VERSION, am: new Date().toISOString() }; save("prefs"); closeSheet(); render(); break;
+      case "einwilligung-ok": S.prefs.testEinwilligung = { version: EINWILLIGUNG_VERSION, am: new Date().toISOString() }; save("prefs"); closeSheet(); render(); setTimeout(coachZeigen, 300); break;
       case "einwilligung-zeigen": einwilligungSheet(); break;
       case "open": closeSheet(); UI.detail = id; if (S.recipes[id]) { S.recipes[id].viewedAt = Date.now(); save("recipes"); } render(); window.scrollTo(0, 0); break;
       case "filters": filterSheet(); break;
@@ -2062,7 +2105,8 @@ a { color: var(--accent); }
       case "sc-run-link": closeSheet(); UI.pasteText = ""; runShortcut(el.dataset.t); break;
       case "sc-test": closeSheet(); toast("Kurzbefehl wird mit einem Beispiel-Link gestartet …"); setTimeout(function () { runShortcut("https://www.instagram.com/p/C0Test/"); }, 400); break;
       case "close-sheet": closeSheet(); if (einwilligungFehlt()) setTimeout(einwilligungSheet, 50); break;
-      case "guide-ok": S.meta.guides[el.dataset.k] = true; save("meta"); render(); if (UI.cook) renderCook(); if (el.dataset.k === "ohne") filterSheet();
+      case "coach-next": if (COACH.key && COACH.i < GUIDES[COACH.key].s.length - 1) { COACH.i++; coachMalen(); } else coachFertig(); break;
+      case "coach-skip": coachFertig(true); break;
         var gsh = el.closest && el.closest(".sheet"); if (gsh && (el.dataset.k === "woche" || el.dataset.k === "listen")) { var gx = gsh.querySelector("[data-id]"); if (gx) (el.dataset.k === "woche" ? planSheet : listenSheet)(gx.dataset.id); } break;
       case "info": infoSheet(); break;
       case "info-detail": UI.infoDetail = el.dataset.v === "1"; infoSheet(); break;

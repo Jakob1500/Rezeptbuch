@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.5.2";
+  var VERSION = "0.5.3";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------

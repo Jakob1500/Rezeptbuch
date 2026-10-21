@@ -22,8 +22,11 @@ const check = (name, cond, info) => { if (cond) ok++; else { bad++; console.log(
   const errors = []; page.on("pageerror", e => errors.push(String(e)));
   await page.goto("http://127.0.0.1:8765/index.html");
   await page.waitForTimeout(800);
-  const klick = async (sel) => { const el = await page.$(sel); if (el) { await el.click(); await page.waitForTimeout(300); return true; } return false; };
+  const gesehen = []; // Einführungsfenster, die der Test weggeklickt hat
+  const coachWeg = async () => { await page.waitForTimeout(400); for (let k = 0; k < 12; k++) { const c = await page.$('#coach [data-a="coach-skip"], #coach [data-a="coach-next"]'); if (!c) break; gesehen.push(await page.innerText("#coach")); await c.click(); await page.waitForTimeout(150); } };
+  const klick = async (sel) => { await coachWeg(); const el = await page.$(sel); if (el) { await el.click(); await page.waitForTimeout(300); await coachWeg(); return true; } return false; };
   await klick('[data-a="einwilligung-ok"]');
+  check("Einführung beim ersten Start", /Willkommen in der Kombüse/.test(gesehen.join("\n")), gesehen[0]);
   await klick('[data-a="onboard"]'); await klick('[data-a="onboard-save"]');
   await klick('[data-a="close-sheet"]');
   await page.evaluate((c) => { location.hash = "u=" + encodeURIComponent("https://www.instagram.com/p/TEST1/") + "&t=" + encodeURIComponent(c); }, caption);
@@ -68,7 +71,7 @@ const check = (name, cond, info) => { if (cond) ok++; else { bad++; console.log(
   check("Wieder erlaubt: Rezept sichtbar", /Blechpizza/.test(liste));
   // ---- Ausschluss im Filter
   await klick('[data-a="filters"]');
-  await page.fill("#ohne-q", "Mozzarella"); await klick('[data-a="ohne-add"]');
+  await page.fill("#ohne-q", "Mozzarella");  await klick('[data-a="ohne-add"]');
   check("Filter zeigt „ohne Mozzarella“", /ohne Mozzarella/.test(await page.innerText(".sheet")));
   await page.keyboard.press("Escape"); await page.waitForTimeout(300);
   liste = await page.innerText("body");
@@ -78,7 +81,7 @@ const check = (name, cond, info) => { if (cond) ok++; else { bad++; console.log(
   const t2 = await page.$('text=Blechpizza'); if (t2) { await t2.click(); await page.waitForTimeout(400); }
   await klick('[data-a="cook"]');
   let koch = await page.innerText(".cook");
-  check("Kochmodus: Anleitung und Vorheiz-Hinweis im ersten Schritt", /Kochmodus/.test(koch) && /Ofen jetzt vorheizen auf 220 °C/.test(koch), koch.slice(0, 300));
+  check("Kochmodus: Anleitung und Vorheiz-Hinweis im ersten Schritt", /Kochmodus/.test(gesehen.join("\n")) && /Ofen jetzt vorheizen auf 220 °C/.test(koch), koch.slice(0, 300));
   check("Kochmodus: Timer-Knopf „20 Min. starten“", /20 Min\. starten/.test(koch));
   await klick('[data-a="timer-start"]');
   await page.waitForTimeout(1200);
@@ -91,7 +94,7 @@ const check = (name, cond, info) => { if (cond) ok++; else { bad++; console.log(
   await page.screenshot({ path: path.join(require("os").tmpdir(), "kochen.png") });
   await klick('[data-a="cook-close"]');
   // ---- Einkaufsliste: eigener Eintrag
-  await klick('[data-a="tab"][data-t="einkauf"]') || await page.click('text=Einkauf');
+  await klick('[data-a="tab"][data-t="einkauf"]') || await coachWeg(); await page.click('text=Einkauf');
   await page.waitForTimeout(300);
   await page.fill("#extra-q", "Spülmittel"); await page.keyboard.press("Enter"); await page.waitForTimeout(300);
   const ek = await page.innerText("body");
@@ -99,12 +102,12 @@ const check = (name, cond, info) => { if (cond) ok++; else { bad++; console.log(
   await page.screenshot({ path: path.join(require("os").tmpdir(), "einkauf.png") });
 
   // ---- Paket 3: Wochenplan
-  await page.click('.tabbar [data-t="rezepte"]'); await page.waitForTimeout(300);
+  await coachWeg(); await page.click('.tabbar [data-t="rezepte"]'); await page.waitForTimeout(300);
   const t3 = await page.$('text=Blechpizza'); if (t3) { await t3.click(); await page.waitForTimeout(400); }
   await klick('[data-a="plan"]');
   let sh = await page.innerText(".sheet");
-  check("Einplanen: Anleitung und Tage", /Wochenplan/.test(sh) && /Heute/.test(sh) && /Morgen/.test(sh), sh.slice(0, 200));
-  await page.click('.sheet [data-a="plan-tag"]'); await page.waitForTimeout(300);
+  check("Einplanen: Anleitung und Tage", /Wochenplan/.test(gesehen.join("\n")) && /Heute/.test(sh) && /Morgen/.test(sh), sh.slice(0, 200));
+  await coachWeg(); await page.click('.sheet [data-a="plan-tag"]'); await page.waitForTimeout(300);
   check("Einplanen: Heute gewählt", (await page.getAttribute('.sheet [data-a="plan-tag"]', "aria-pressed")) === "true");
   await page.keyboard.press("Escape"); await page.waitForTimeout(300);
   check("Rezept zeigt „Geplant: Heute“", /Geplant: Heute/.test(await page.innerText("body")));
@@ -112,22 +115,22 @@ const check = (name, cond, info) => { if (cond) ok++; else { bad++; console.log(
   let start = await page.innerText("body");
   check("Startseite: „Diese Woche“ mit dem Rezept", /Diese Woche/.test(start) && /Heute/.test(start), (start.match(/Diese Woche[\s\S]{0,80}/) || [""])[0]);
   await page.screenshot({ path: path.join(require("os").tmpdir(), 'start.png'), fullPage: true });
-  await page.click('text=Alles auf die Einkaufsliste'); await page.waitForTimeout(400);
-  await page.click('.tabbar [data-t="einkauf"]'); await page.waitForTimeout(400);
+  await coachWeg(); await page.click('text=Alles auf die Einkaufsliste'); await page.waitForTimeout(400);
+  await coachWeg(); await page.click('.tabbar [data-t="einkauf"]'); await page.waitForTimeout(400);
   check("Wocheneinkauf: Zutaten auf der Liste", /Mehl/.test(await page.innerText("body")));
   // ---- Eigene Listen
-  await page.click('.tabbar [data-t="rezepte"]'); await page.waitForTimeout(300);
+  await coachWeg(); await page.click('.tabbar [data-t="rezepte"]'); await page.waitForTimeout(300);
   const t4 = await page.$('text=Blechpizza'); if (t4) { await t4.click(); await page.waitForTimeout(400); }
   await klick('[data-a="more"]'); await klick('[data-a="listen"]');
   await page.fill("#liste-neu", "Meal-Prep"); await page.keyboard.press("Enter"); await page.waitForTimeout(300);
   check("Liste angelegt und Rezept drin", (await page.getAttribute('.sheet [data-a="liste-tag"]', "aria-checked")) === "true");
   await page.keyboard.press("Escape"); await page.waitForTimeout(300);
-  await page.click('.tabbar [data-t="kategorien"]'); await page.waitForTimeout(300);
+  await coachWeg(); await page.click('.tabbar [data-t="kategorien"]'); await page.waitForTimeout(300);
   check("Kategorien: „Deine Listen“", /Deine Listen[\s\S]*Meal-Prep/.test(await page.innerText("body")));
   await klick('[data-a="liste-zeigen"]');
   check("Liste zeigt das Rezept", /Meal-Prep[\s\S]*Blechpizza/.test(await page.innerText("body")));
   // ---- Nochmal kochen?
-  await page.click('text=Blechpizza'); await page.waitForTimeout(400);
+  await coachWeg(); await page.click('text=Blechpizza'); await page.waitForTimeout(400);
   await klick('[data-a="cook"]');
   for (let k = 0; k < 5; k++) { if (!(await klick('[data-a="cook-next"]'))) break; }
   await klick('[data-a="cook-done"]');
