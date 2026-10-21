@@ -7,7 +7,7 @@
  */
 (function (root) {
   "use strict";
-  var VERSION = "0.2.0";
+  var VERSION = "0.2.1";
 
   // ------------------------------------------------------------------ Hilfen
   function lower(s) { return String(s || "").toLowerCase(); }
@@ -259,7 +259,8 @@
         laeden.forEach(function (h) {
           var t = z.besteJeHaendler[h];
           if (!t) return;
-          if (!wahl || (t.ersparnis || 0) > (wahl.ersparnis || 0) || ((t.ersparnis || 0) === (wahl.ersparnis || 0) && (t.kosten || 1e9) < (wahl.kosten || 1e9))) wahl = t;
+          // günstigstes Angebot gewinnt; bei gleichem Preis das mit mehr Ersparnis
+          if (!wahl || (t.kosten != null && wahl.kosten != null ? (t.kosten < wahl.kosten || (t.kosten === wahl.kosten && (t.ersparnis || 0) > (wahl.ersparnis || 0))) : (t.ersparnis || 0) > (wahl.ersparnis || 0))) wahl = t;
         });
         if (wahl) { anzahl++; summe += wahl.ersparnis || 0; ausgaben += wahl.kosten || 0; wo[k] = wahl.haendler; }
       });
