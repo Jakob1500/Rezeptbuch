@@ -199,8 +199,6 @@ check("Export Reel-Link", links[1].url === "https://www.instagram.com/reel/BBB22
 
 // ---------------------------------------------------------------- Ausgabe
 check("fmtQty", K.fmtQty(1.5) === "1½" && K.fmtQty(0.33) === "0,3" && K.fmtQty(125) === "125", [K.fmtQty(1.5), K.fmtQty(0.33)]);
-const so = K.toSchemaOrg(r1);
-check("schema.org Export", so["@type"] === "Recipe" && so.recipeIngredient.length === 9);
 
 // ---------------------------------------------------------------- Unordentliche Captions
 a = K.analyse({ caption: `WERBUNG 🔥 Meine Lieblings-Protein-Bowl!!! 😍😍
@@ -358,10 +356,6 @@ check("Folgen: „nie“ wird respektiert", !K.folgenVorschlag(st2, "x", 5).frag
 check("Folgen: zählt vorhandene Rezepte (Anzahl aus der App)", K.folgenVorschlag({}, "y", 5).fragen);
 // Blog-Suche
 const pr = K.analyse({ caption: "Spicy Peanut Noodles 🍜\nIngredients:\nNoodles • Peanut butter • Garlic\nFULL RECIPE ON MY BLOG Drveganblog dot com" }).recipe;
-const plan = K.blogSuchplan(pr, { caption: "#peanutnoodles" });
-check("Suchplan: neueste zuerst, dann Titel", plan[0].schritt === "neueste" && plan[1].suchbegriff === "Spicy Peanut Noodles" && plan.length <= 6, plan);
-const kand = K.besteKandidaten(K.blogKandidaten([{ link: "https://drveganblog.com/spicy-peanut-noodles/", title: { rendered: "Spicy Peanut Noodles" } }, { link: "https://drveganblog.com/lemon-pasta/", title: { rendered: "Lemon Pasta" } }]), pr);
-check("Kandidat bewertet", kand.length === 1 && /peanut/.test(kand[0].url), kand);
 const wprm = '<div class="wprm-recipe"><h2 class="wprm-recipe-name">Spicy Peanut Noodles</h2><span class="wprm-recipe-servings">2</span><ul><li class="wprm-recipe-ingredient">200 g noodles</li><li class="wprm-recipe-ingredient">2 tbsp peanut butter</li><li class="wprm-recipe-ingredient">2 cloves garlic</li></ul><div class="wprm-recipe-instruction-text">Cook the noodles.</div><div class="wprm-recipe-instruction-text">Mix the sauce.</div></div>';
 const blog = K.parseRecipeHtml(wprm, "https://drveganblog.com/spicy-peanut-noodles/");
 check("Rezeptkarte (WPRM) gelesen", blog && blog.ingredients.length === 3 && blog.steps.length === 2 && blog.servings === 2, blog);

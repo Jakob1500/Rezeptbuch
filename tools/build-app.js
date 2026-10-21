@@ -5,7 +5,26 @@
 const fs = require("fs"), path = require("path");
 const root = path.join(__dirname, "..");
 const tpl = fs.readFileSync(path.join(root, "app/index.template.html"), "utf8");
-const kern = fs.readFileSync(path.join(root, "kern/rezept-kern.js"), "utf8");
+const kernQuelle = fs.readFileSync(path.join(root, "kern/rezept-kern.js"), "utf8");
+const kern = kernSchlank(kernQuelle);
+// Schlanker Kern für die App: Kommentare und Einrückung weg (Quelle bleibt lesbar). Danach Gegenprobe:
+// Der schlanke Kern muss für alle echten Rezepte genau dasselbe Ergebnis liefern, sonst wird die Quelle genommen.
+function kernSchlank(src) {
+  let ts; try { ts = require("typescript"); } catch (e) { try { ts = require(require("child_process").execSync("npm root -g").toString().trim() + "/typescript"); } catch (e2) { console.log("Hinweis: typescript fehlt – Kern ungekürzt"); return src; } }
+  const out = ts.transpileModule(src, { compilerOptions: { allowJs: true, removeComments: true, target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.None } }).outputText
+    .replace(/^"use strict";\n/, "").split("\n").map(l => l.replace(/^\s+/, "")).filter(Boolean).join("\n") + "\n";
+  const tmp = path.join(require("os").tmpdir(), "kern-schlank-" + process.pid + ".js"); fs.writeFileSync(tmp, out);
+  const A = require(path.join(root, "kern/rezept-kern.js")), B = require(tmp);
+  const faelle = [];
+  ["daten/ig-analyse.json", "daten/ig-analyse2.json"].forEach(f => { const p = path.join(root, f); if (fs.existsSync(p)) require(p).filter(x => x.recipe).forEach(x => faelle.push(x)); });
+  faelle.push({ caption: "Linsensuppe\nZutaten\n200 g Linsen\n1 Zwiebel\nZubereitung\nZwiebel würfeln und anbraten.\nLinsen dazugeben und 20 Minuten kochen." });
+  const sig = (K, x) => { const r = K.analyse({ caption: x.caption, url: x.url || "", account: x.account || "" }).recipe; delete r.analysedAt; delete r.parsedAt; delete r.createdAt; return JSON.stringify(r); };
+  const abw = faelle.filter(x => sig(A, x) !== sig(B, x)).length;
+  fs.unlinkSync(tmp);
+  if (abw || A.VERSION !== B.VERSION) { console.log("Achtung: schlanker Kern weicht bei " + abw + " Rezepten ab – Quelle wird genommen"); return src; }
+  console.log(`Kern: ${Math.round(src.length / 1024)} KB → ${Math.round(out.length / 1024)} KB (Gegenprobe ${faelle.length} Rezepte gleich)`);
+  return out;
+}
 if (/<\/script/i.test(kern)) throw new Error("Kern enthält </script>");
 const nw = fs.readFileSync(path.join(root, "daten/naehrwerte.json"), "utf8");
 const zentral = fs.readFileSync(path.join(root, "daten/gelernt-zentral.json"), "utf8");

@@ -5,7 +5,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Kombüse">
-<meta name="description" content="Persönliches Rezeptbuch aus Instagram-Rezepten. Alles bleibt auf deinem Gerät.">
+<meta name="description" content="Kombüse – deine Rezepte aus Instagram. Alles bleibt auf deinem Gerät.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <style>
@@ -712,11 +712,11 @@ a { color: var(--accent); }
   }
   function lernSenden() {
     var data = K.lernExport(S.lernen, { app: APP_VERSION, zuord: S.zuord });
-    var text = JSON.stringify(data, null, 1), name = "Rezeptbuch-Gelerntes-" + data.datum + ".json";
+    var text = JSON.stringify(data, null, 1), name = "Kombuese-Gelerntes-" + data.datum + ".json";
     var done = function () { S.lernen.rezepteSeitSenden = 0; S.lernen.gesendetAm = Date.now(); (S.lernen.fehler || []).forEach(function (f) { f.gesendet = true; }); (S.lernen.protokoll || []).forEach(function (x) { x.gesendet = true; delete x.beschreibung; }); (S.lernen.titel || []).forEach(function (x) { x.gesendet = true; }); (S.lernen.fehler || []).forEach(function (x) { delete x.beschreibung; }); save("lernen"); closeSheet(); render(); toast("Danke! Gelerntes geteilt"); };
     try {
       var file = new File([text], name, { type: "application/json" });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: "Rezeptbuch: Gelerntes für Jakob", text: "Gelerntes aus meinem Rezeptbuch (nur Regeln, keine Rezepte)" }).then(done, function () { /* abgebrochen */ }); return; }
+      if (navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: "Kombüse: Gelerntes für Jakob", text: "Gelerntes aus meiner Kombüse (nur Regeln, keine Rezepte)" }).then(done, function () { /* abgebrochen */ }); return; }
     } catch (x) { /* weiter */ }
     copy(text, "Gelerntes kopiert – bitte in WhatsApp oder Mail an Jakob einfügen"); done();
   }
@@ -729,7 +729,7 @@ a { color: var(--accent); }
     Object.keys(S.recipes).forEach(function (id) { var n = S.recipes[id].recipe.nutrition; ((n && n.coverage.unmatched) || []).forEach(function (u) { if (!sent[u] && neu.indexOf(u) === -1) neu.push(u); }); });
     if (!neu.length) return;
     try {
-      fetch(MELDE_URL, { method: "POST", body: "Unbekannte Zutaten (Rezeptbuch " + APP_VERSION + "): " + neu.slice(0, 40).join(", "), headers: { "Title": "Rezeptbuch: Nährwerte fehlen" } })
+      fetch(MELDE_URL, { method: "POST", body: "Unbekannte Zutaten (Kombüse " + APP_VERSION + "): " + neu.slice(0, 40).join(", "), headers: { "Title": "Kombüse: Nährwerte fehlen" } })
         .then(function (res) { if (res.ok) { neu.forEach(function (u) { sent[u] = Date.now(); }); S.meta.gemeldet = sent; save("meta"); } }, function () {});
     } catch (x) { /* offline: später erneut */ }
   }
@@ -930,7 +930,7 @@ a { color: var(--accent); }
   }
   function onboardBanner() {
     if (S.prefs.onboarded) return "";
-    return '<div class="banner">' + ic("person") + '<div class="main"><b>Rezeptbuch einrichten.</b> Drei kurze Fragen, damit Portionen und Vorschläge zu dir passen.</div><button class="btn accent" data-a="onboard">Los</button></div>';
+    return '<div class="banner">' + ic("person") + '<div class="main"><b>Kombüse einrichten.</b> Drei kurze Fragen, damit Portionen und Vorschläge zu dir passen.</div><button class="btn accent" data-a="onboard">Los</button></div>';
   }
   function recipeRow(e) {
     var r = e.recipe, t = titleOf(e);
@@ -1416,7 +1416,7 @@ a { color: var(--accent); }
     var imp = "";
     if (ir) {
       imp = '<section class="sec"><div class="sec-head"><h2>Export gelesen</h2></div><div class="group">' +
-        [["Gespeicherte Posts", ir.posts], ["davon Rezepte", ir.recipes], ["schon im Rezeptbuch", ir.known], ["neu", ir.neu.length]].map(function (x) { return '<div class="row"><span class="main"><span>' + x[0] + '</span></span><span class="end"><span class="big">' + x[1] + '</span></span></div>'; }).join("") + '</div>' +
+        [["Gespeicherte Posts", ir.posts], ["davon Rezepte", ir.recipes], ["schon in der Kombüse", ir.known], ["neu", ir.neu.length]].map(function (x) { return '<div class="row"><span class="main"><span>' + x[0] + '</span></span><span class="end"><span class="big">' + x[1] + '</span></span></div>'; }).join("") + '</div>' +
         (ir.neu.length ? '<button class="btn accent" data-a="import-commit">' + ir.neu.length + ' neue Rezepte übernehmen</button>' : '<p class="small muted">Es gibt keine neuen Rezepte.</p>') +
         '<button class="btn soft" data-a="import-drop">Abbrechen</button></section>';
     }
@@ -1454,7 +1454,7 @@ a { color: var(--accent); }
       '<section class="sec"><div class="sec-head"><h2>Lernen</h2></div><div class="group"><button class="row" data-a="lern-show">' + ic("sparkle") + '<span class="main"><span class="title">Was die App gelernt hat</span><span class="sub">' + lernZahl() + ' Regeln · ansehen, löschen, an Jakob schicken</span></span>' + ic("chev", "chev") + '</button></div></section>' +
       '<section class="sec"><div class="sec-head"><h2>Hilfe</h2></div><div class="group"><button class="row" data-a="guides-reset"><span class="main"><span class="title">Anleitungen wieder zeigen</span></span></button></div></section>' +
       '<section class="sec"><div class="sec-head"><h2>Datenschutz und Infos</h2></div><div class="group"><button class="row" data-a="info">' + ic("info") + '<span class="main"><span class="title">So funktioniert die App</span><span class="sub">Datenschutz, Quellen, Regeln von Instagram, Grenzen der Erkennung</span></span>' + ic("chev", "chev") + '</button></div></section>' +
-      '<p class="foot"><span>' + esc(BLS_HINWEIS) + '</span><span>Rezeptbuch ' + APP_VERSION + ' · Kern ' + esc(K.VERSION) + '</span></p>' +
+      '<p class="foot"><span>' + esc(BLS_HINWEIS) + '</span><span>Kombüse ' + APP_VERSION + ' · Kern ' + esc(K.VERSION) + '</span></p>' +
       '<button class="btn soft" data-a="close-sheet">Fertig</button>');
   }
   // Profil: Name, Haushalt, Ernährung, Darstellung – bleibt auf dem Gerät
@@ -1470,7 +1470,7 @@ a { color: var(--accent); }
         return '<button data-a="pref-theme" data-v="' + x[0] + '" aria-pressed="' + (p.theme === x[0]) + '">' + x[1] + '</button>'; }).join("") + '</div></div></section>';
   }
   function onboardSheet() {
-    sheet('<h2>Willkommen im Rezeptbuch</h2><p class="small muted">Drei Angaben, damit Portionen und Vorschläge zu dir passen. Du kannst alles später in den Einstellungen ändern.</p>' +
+    sheet('<h2>Willkommen in der Kombüse</h2><p class="small muted">Drei Angaben, damit Portionen und Vorschläge zu dir passen. Du kannst alles später in den Einstellungen ändern.</p>' +
       profileFields().replace(/<div class="field"><label>Darstellung[\s\S]*?<\/div><\/div>/, "") +
       '<button class="btn accent" data-a="onboard-save">Fertig</button><button class="btn ghost" data-a="onboard-save" data-skip="1">Überspringen</button>');
   }
@@ -1584,7 +1584,7 @@ a { color: var(--accent); }
   function setupSheet() {
     var link = window.KURZBEFEHL_LINK || "";
     var ok = !!S.meta.shortcutOk;
-    sheet('<h2>Aus Instagram ins Rezeptbuch</h2>' +
+    sheet('<h2>Aus Instagram in die Kombüse</h2>' +
       (ok ? '<div class="note info"><b>Eingerichtet.</b><span>In Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“. Dann Rezeptbuch öffnen und oben auf „Einfügen“ tippen (iOS fragt einmal „Einsetzen erlauben?“).</span></div>' : '') +
       (ok && !UI.showBuild ? '<button class="btn soft" data-a="show-build">Bauanleitung anzeigen</button>' : link && !UI.showBuild ? '<p class="small">1. Tippe auf „Kurzbefehl hinzufügen“ und dort auf „Kurzbefehl hinzufügen“. 2. In Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“. 3. Beim ersten Mal fragt iOS, ob instagram.com abgerufen werden darf: „Immer erlauben“. 4. Rezeptbuch öffnen → „Einfügen“.</p><a class="btn accent" href="' + esc(link) + '" target="_blank" rel="noopener">Kurzbefehl hinzufügen</a><button class="btn ghost" data-a="show-build">Selbst bauen (Bauanleitung)</button>' :
       '<p class="small">Einmal in der Kurzbefehle-App anlegen (ca. 5 Minuten). Danach in Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“, dann Rezeptbuch öffnen und oben auf „Einfügen“ tippen.</p>' +
@@ -1670,7 +1670,7 @@ a { color: var(--accent); }
   }
   function doBackup() {
     if (/claude|claudeusercontent/.test(location.hostname)) { toast("Sichern funktioniert in der installierten App, nicht in dieser Vorschau"); return; }
-    var text = backupData(), name = "Rezeptbuch-Sicherung.json";
+    var text = backupData(), name = "Kombuese-Sicherung.json";
     var done = function () { S.meta.lastBackup = Date.now(); save("meta"); render(); toast("Gesichert"); };
     try {
       var file = new File([text], name, { type: "application/json" });
@@ -1685,8 +1685,8 @@ a { color: var(--accent); }
     } catch (e) { toast("Sichern ist hier nicht möglich"); }
   }
   function restore(text) {
-    var j; try { j = JSON.parse(text); } catch (e) { toast("Die Datei ist keine Rezeptbuch-Sicherung"); return; }
-    if (!j || j.app !== "rezeptbuch") { toast("Die Datei ist keine Rezeptbuch-Sicherung"); return; }
+    var j; try { j = JSON.parse(text); } catch (e) { toast("Die Datei ist keine Kombüse-Sicherung"); return; }
+    if (!j || j.app !== "rezeptbuch") { toast("Die Datei ist keine Kombüse-Sicherung"); return; }
     var added = 0, newer = 0;
     Object.keys(j.recipes || {}).forEach(function (id) {
       var a = S.recipes[id], b = j.recipes[id];
@@ -1838,7 +1838,7 @@ a { color: var(--accent); }
   }
   // Teilen-Probleme merken (die App lernt, wo es hakt; geht mit „An Jakob schicken“ mit)
   var HARTE_FEHLER = { "zwischenablage-leer": 1, "keine-daten": 1, "keine-beschreibung": 1, "nicht-gelesen": 1, "share-link": 1, "gemeldet": 1, "nicht-uebersetzt": 1, "blog-unvollstaendig": 1, "uebersetzer": 1 };
-  var FEHLER_TEXT = { "zwischenablage-leer": "Zwischenablage war leer", "keine-daten": "Kein Rezeptbuch-Text in der Zwischenablage", "keine-beschreibung": "Instagram gab keine Beschreibung heraus",
+  var FEHLER_TEXT = { "zwischenablage-leer": "Zwischenablage war leer", "keine-daten": "Kein Kombüse-Text in der Zwischenablage", "keine-beschreibung": "Instagram gab keine Beschreibung heraus",
     "nicht-gelesen": "Text kam an, Rezept nicht lesbar", "nicht-uebersetzt": "Schritte nicht übersetzt", "uebersetzer": "Übersetzer konnte nicht starten", "blog-unvollstaendig": "Blog angehängt, Rezept trotzdem unvollständig", "share-link": "Teilen-Link (instagram.com/share/…) nicht unterstützt", "unvollstaendig": "Gespeichert, aber unvollständig", "gemeldet": "Von dir gemeldet" };
   function merkeFehler(grund, txt, extra) {
     if (!S.lernen) return null;
@@ -1853,7 +1853,7 @@ a { color: var(--accent); }
   function offeneFehler() { return ((S.lernen && S.lernen.fehler) || []).filter(function (f) { return !f.gesendet && HARTE_FEHLER[f.grund]; }); }
   function fehlerText(f) {
     var d = f.diagnose || {};
-    return "Rezeptbuch – Problem beim Teilen\n" + (FEHLER_TEXT[f.grund] || f.grund) + (f.notiz ? " – " + f.notiz : "") + "\nLink: " + (f.link || "(keiner)") +
+    return "Kombüse – Problem beim Teilen\n" + (FEHLER_TEXT[f.grund] || f.grund) + (f.notiz ? " – " + f.notiz : "") + "\nLink: " + (f.link || "(keiner)") +
       "\nApp " + f.app + " · Kern " + f.kern + " · " + f.datum.replace("T", " ") +
       (d.laenge != null ? "\nAngekommen: " + d.laenge + " Zeichen · Text " + d.text + " · Deutsch " + d.deutsch + " · Zeilen " + d.zeilen + (d.html ? " · HTML" : "") : "") +
       (d.kopf && d.kopf.length ? "\nKopf: " + d.kopf.join(" | ") : "") + (d.fuss && d.fuss.length ? "\nFuß: " + d.fuss.join(" | ") : "") +
@@ -1937,7 +1937,7 @@ a { color: var(--accent); }
     if (p.b && p.b.length > 200) { if (/<(html|body|div|script)[\s>]/i.test(p.b)) input.blogHtml = p.b; else input.commentText = p.b; input.blogUrl = p.bu; }
     // schon gespeichert? Dann öffnen statt doppelt anlegen
     var same = url ? entries().filter(function (e) { return e.input && e.input.url && e.input.url.split("?")[0].replace(/\/$/, "") === url.split("?")[0].replace(/\/$/, ""); })[0] : null;
-    if (same) { UI.tab = "rezepte"; UI.detail = same.id; setTimeout(function () { toast("Schon im Rezeptbuch"); }, 300); var accS = (same.recipe.source && same.recipe.source.account) || account; if (accS) setTimeout(function () { folgenPruefen(accS); }, 1800); return true; }
+    if (same) { UI.tab = "rezepte"; UI.detail = same.id; setTimeout(function () { toast("Schon in der Kombüse"); }, 300); var accS = (same.recipe.source && same.recipe.source.account) || account; if (accS) setTimeout(function () { folgenPruefen(accS); }, 1800); return true; }
     startDraft(input);
     // Rezept erkannt (oder bewusst geteilt und Text vorhanden): sofort speichern, ohne weiteren Tipp
     if (UI.draft && ((UI.draft.like && UI.draft.like.recipe) || (forceSave && caption && caption.length > 40))) {
@@ -1950,7 +1950,7 @@ a { color: var(--accent); }
         // Fremdsprachige Schritte gleich auf dem iPhone übersetzen (Bergamot)
         if (!out.dupe && UEB_SPRACHEN[foreignLang(rS, S.recipes[out.id])]) setTimeout(function () { startTranslate(out.id, true); }, 900);
       } catch (x) { /* egal */ }
-      setTimeout(function () { toast(out.dupe ? "Schon im Rezeptbuch" : "Im Rezeptbuch gespeichert"); }, 300);
+      setTimeout(function () { toast(out.dupe ? "Schon in der Kombüse" : "In der Kombüse gespeichert"); }, 300);
       return true;
     }
     UI.tab = "neu"; UI.detail = null;
@@ -2185,7 +2185,7 @@ a { color: var(--accent); }
       case "save-draft":
         var d = UI.draft, nt2 = ($("#dtitle").value || "").trim();
         var out = addRecipe(d.res, { input: d.input });
-        if (out.dupe) { toast("Das Rezept ist schon im Rezeptbuch"); UI.draft = null; UI.detail = out.id; render(); break; }
+        if (out.dupe) { toast("Das Rezept ist schon in der Kombüse"); UI.draft = null; UI.detail = out.id; render(); break; }
         if (nt2 && nt2 !== d.res.recipe.title) { S.recipes[out.id].userTitle = nt2; titelLernen(out.id); }
         save("recipes"); UI.draft = null; UI.pasteText = ""; UI.detail = out.id; render(); window.scrollTo(0, 0); toast("Gespeichert");
         var acc = d.res.recipe.source.account;

@@ -29,9 +29,6 @@
   // Vokabular
   // ---------------------------------------------------------------------------
 
-  var KATEGORIEN = ["Frühstück", "Hauptgericht", "Salat & Bowl", "Suppe & Eintopf", "Snack",
-    "Beilage", "Dessert", "Backen", "Getränk", "Sauce & Dip"];
-
   var AISLES = ["Obst & Gemüse", "Kühlregal", "Fleisch & Fisch", "Brot & Backwaren",
     "Trockenware & Konserven", "Gewürze, Öle & Saucen", "Tiefkühl", "Getränke", "Sonstiges"];
 
@@ -1166,10 +1163,6 @@
       if (i.optional) return false;
       return [i.name, i.nameOriginal, i.key].some(function (n) { return n && (" " + lower(n)).indexOf(" " + w) !== -1; });
     });
-  }
-  function estimateTimeFromSteps(steps, gelernt) {
-    var z = zeitAnalyse({ steps: steps || [], ingredients: [] }, gelernt);
-    return z ? z.total : null;
   }
 
   var TITLE_BAD = /^(https?:|www\.|\(?\s*(?:recipe|rezept)\b|comment|kommentier|i'?m curious|follow|.*\bi used\b|.*:\s*\d+$|rezept|zum rezept|das rezept|recipe|portionen|servings|perfekt (für|zum)|schnell gemacht|kann kochen|comment|kommentier|werbung|anzeige|unbezahlt|gewinnspiel|ad\b|follow|folge|save|speicher|teil \d|part \d|step by step|veganuary|must try|naja|glaubst|aufmerksam|mit den produkten|mit \w+ so |etwas |some |& so|und so|schwierigkeit|zubereitungszeit|dauer|what you need|was brauchen|[\d\s\/]+$)|\b(gewinnspiel|anzeige)\b|^[^(]*\)|^[\wäöüÄÖÜß-]+:\s/i;
@@ -2440,39 +2433,6 @@
     return { recipe: r, trace: trace, completeness: c, next: suggestNext(r, c, input), ms: now() - t0, version: VERSION };
   }
 
-  /**
-   * Optionaler 5. Schritt: ein lokales Modell. Der Kern ruft es nur auf, wenn
-   * die Regeln nicht gereicht haben. modelFn(prompt) muss ein Promise mit
-   * JSON-Text liefern (z. B. EuroLLM im Browser oder Apples Modell in der App).
-   */
-  function analyseWithModel(input, modelFn) {
-    var res = analyse(input);
-    if (res.completeness.enough || typeof modelFn !== "function") return Promise.resolve(res);
-    var text = [input.caption, input.ocrText, input.transcript].filter(Boolean).join("\n\n").slice(0, 6000);
-    return Promise.resolve(modelFn(buildModelPrompt(text, res.completeness.missing))).then(function (out) {
-      var parsed = typeof out === "string" ? safeJson(out) : out;
-      if (!parsed) { res.trace.push({ step: "model", label: STEP_NAMES.model, status: "keine gültige Antwort" }); return res; }
-      var part = emptyRecipe();
-      part.title = clean(parsed.title || "");
-      part.servings = num(parsed.servings);
-      part.timeTotal = num(parsed.timeTotal);
-      part.ingredients = (parsed.ingredients || []).map(function (s) {
-        return parseIngredientLine(typeof s === "string" ? s : [s.qty, s.unit, s.name].filter(Boolean).join(" "));
-      }).filter(Boolean);
-      part.steps = (parsed.steps || []).map(String).map(cleanStep).filter(Boolean);
-      var before = res.completeness.score;
-      merge(res.recipe, part, "model");
-      finalize(res.recipe);
-      res.completeness = completeness(res.recipe);
-      res.trace.push({ step: "model", label: STEP_NAMES.model, status: "verwendet", gained: res.completeness.score - before });
-      res.next = suggestNext(res.recipe, res.completeness, input);
-      return res;
-    }, function () {
-      res.trace.push({ step: "model", label: STEP_NAMES.model, status: "Fehler" });
-      return res;
-    });
-  }
-
   function buildModelPrompt(text, missing) {
     return "Extrahiere aus dem folgenden Text ein Kochrezept auf Deutsch. Antworte NUR mit JSON: " +
       '{"title": string, "servings": number, "timeTotal": number (Minuten), ' +
@@ -2799,7 +2759,6 @@
     }
     return langs[0];
   }
-
 
   // ---------------------------------------------------------------------------
   // Labels: mehrere je Rezept, gruppiert, wichtigste Gruppe zuerst (B5)
@@ -3134,12 +3093,6 @@
     return clean([q, i.unit, i.name].join(" ")) + (i.note ? " (" + i.note + ")" : "");
   }
 
-  function scaleRecipe(r, servings) {
-    var base = r.servings || servings;
-    var f = base ? servings / base : 1;
-    return r.ingredients.map(function (i) { return { ingredient: i, text: fmtIngredient(i, f), factor: f }; });
-  }
-
   /**
    * Einkaufsliste aus mehreren Rezepten (D1): gleiche Zutat = eine Zeile, Einheiten werden
    * zusammengerechnet, die Einzelteile stehen darunter ("ca. 76 ml Olivenöl" / "2 EL · 50 ml · 1 TL").
@@ -3273,23 +3226,6 @@
       .concat(["", "Quelle: " + (r.source.account ? "@" + r.source.account + " " : "") + (r.source.url || r.source.blogUrl || "")])
       .filter(function (l, idx, arr) { return !(l === "" && arr[idx - 1] === ""); }).join("\n");
     return { fields: fields, fullText: full.trim(), hasThermomixSettings: !!r.thermomixSettings };
-  }
-
-  /**
-   * Export im offenen schema.org-Format (kein Lock-in: lässt sich in andere
-   * Rezept-Apps importieren).
-   */
-  function toSchemaOrg(r) {
-    return {
-      "@context": "https://schema.org", "@type": "Recipe", name: r.title,
-      recipeYield: r.servings ? String(r.servings) : undefined,
-      totalTime: r.timeTotal ? "PT" + r.timeTotal + "M" : undefined,
-      recipeCategory: r.category, recipeIngredient: r.ingredients.map(function (i) { return fmtIngredient(i); }),
-      recipeInstructions: r.steps.map(function (s) { return { "@type": "HowToStep", text: s }; }),
-      isBasedOn: r.source.url || r.source.blogUrl || undefined,
-      author: r.source.account ? { "@type": "Person", name: "@" + r.source.account } : undefined,
-      keywords: [].concat(r.diet || [], (r.focus || []).map(function (f) { return f.label; })).join(", ")
-    };
   }
 
   // ---------------------------------------------------------------------------
@@ -3893,62 +3829,6 @@
   }
   function linkHub(ownerUrl) { return /(linktr\.ee|beacons\.ai|linkin\.bio|taplink|campsite\.bio|stan\.store|komi\.io|later\.com)/i.test(ownerUrl || "") ? ownerUrl : null; }
 
-  /**
-   * Suchplan für das Blog-Rezept. Gibt eine geordnete Liste von Abrufen zurück (höchstens 6).
-   * r = Rezept aus der Caption, ctx = { caption, ownerUrl }.
-   */
-  function blogSuchplan(r, ctx) {
-    ctx = ctx || {};
-    var dom = blogDomain(r, ctx.ownerUrl), plan = [];
-    var title = r.titleOriginal || r.title || "";
-    var short = clean(title.replace(TITLE_FILLER, " ").replace(/[()&+]/g, " "));
-    var mains = (r.ingredients || []).filter(function (i) { return !i.staple && !isSpice(i); }).slice(0, 2).map(function (i) { return i.nameOriginal || i.name; }).join(" ");
-    var tags = (String(ctx.caption || "").match(/#[A-Za-z]{5,30}/g) || []).map(function (h) { return h.slice(1); })
-      .filter(function (h) { return !/(vegan|recipe|rezept|food|healthy|easy|instagood|foodie|reels?|viral|fyp|explore|lover|ideas|inspo)/i.test(h); }).slice(0, 1);
-    var direct = (r.links || []).filter(function (u) { return /^https?:\/\/[^\/]+\/.+/.test(u) && !/(instagram|linktr)/i.test(u); });
-    if (direct.length) plan.push({ schritt: "link", via: "kurzbefehl", url: direct[0], zweck: "Direkter Link aus der Caption" });
-    if (dom) {
-      var api = "https://" + dom + "/wp-json/wp/v2/posts?_fields=link,title,date&per_page=10";
-      plan.push({ schritt: "neueste", via: "app", url: api, zweck: "Neueste Beiträge (Reels bewerben meist neue Rezepte)" });
-      [title, short, mains, tags[0]].filter(function (q, i, a) { return q && q.length > 2 && a.indexOf(q) === i; }).forEach(function (q) {
-        plan.push({ schritt: "suche", via: "app", url: api + "&search=" + encodeURIComponent(q), suchbegriff: q, zweck: "Suche nach „" + q + "“" });
-      });
-    }
-    var hub = linkHub(ctx.ownerUrl);
-    if (hub) plan.push({ schritt: "linkseite", via: "kurzbefehl", url: hub, zweck: "Bio-Link-Seite nach passenden Titeln durchsuchen" });
-    if (dom && !plan.some(function (p) { return p.via === "kurzbefehl" && p.schritt !== "linkseite"; })) {
-      plan.push({ schritt: "seitensuche", via: "kurzbefehl", url: "https://" + dom + "/?s=" + encodeURIComponent(short || title), zweck: "Suchseite des Blogs" });
-    }
-    return plan.slice(0, 6);
-  }
-
-  // Kandidaten aus einer Antwort lesen: WordPress-JSON, RSS/Atom oder HTML (Links mit Text)
-  function blogKandidaten(antwort, basisUrl) {
-    var out = [];
-    if (antwort && typeof antwort === "object") {
-      (Array.isArray(antwort) ? antwort : [antwort]).forEach(function (p) {
-        if (p && p.link) out.push({ url: p.link, titel: clean(stripTags(p.title && p.title.rendered != null ? p.title.rendered : p.title || "")) });
-      });
-      return out;
-    }
-    var s = String(antwort || "");
-    var m, re;
-    if (/<rss|<feed/i.test(s)) {
-      re = /<(?:item|entry)\b[\s\S]*?<title[^>]*>([\s\S]*?)<\/title>[\s\S]*?(?:<link[^>]*href="([^"]+)"|<link>([\s\S]*?)<\/link>)/gi;
-      while ((m = re.exec(s)) !== null) out.push({ url: clean(m[2] || m[3]), titel: clean(stripTags(m[1].replace(/<!\[CDATA\[|\]\]>/g, ""))) });
-      return out;
-    }
-    re = /<a\b[^>]*href="([^"#]+)"[^>]*>([\s\S]*?)<\/a>/gi;
-    while ((m = re.exec(s)) !== null) {
-      var t = clean(stripTags(m[2]));
-      if (t.length < 4 || t.length > 120) continue;
-      var u = m[1];
-      if (basisUrl && /^\//.test(u)) u = String(basisUrl).replace(/^(https?:\/\/[^\/]+).*$/, "$1") + u;
-      if (/^https?:/.test(u)) out.push({ url: u, titel: t });
-    }
-    return out;
-  }
-
   // Wie gut passt ein Kandidat zum Post? Wort-Überlappung des Titels (Original und Deutsch)
   function bewerteKandidat(k, r) {
     var a = uniq(suggestTokens((r.titleOriginal || "") + " " + (r.title || "")).filter(function (t) { return !/^(best|easy|quick|vegan|the|with|and|und|mit)$/.test(t); }));
@@ -3956,10 +3836,6 @@
     if (!a.length) return 0;
     var hit = a.filter(function (t) { return b.some(function (x) { return x === t || (t.length > 4 && x.indexOf(t) === 0); }); }).length;
     return round(hit / a.length, 2);
-  }
-  function besteKandidaten(kandidaten, r, n) {
-    return (kandidaten || []).map(function (k) { return { url: k.url, titel: k.titel, passung: bewerteKandidat(k, r) }; })
-      .filter(function (k) { return k.passung >= 0.5; }).sort(function (x, y) { return y.passung - x.passung; }).slice(0, n || 3);
   }
 
   /**
@@ -4016,24 +3892,22 @@
   var api = {
     neuerLernspeicher: neuerLernspeicher, lerneAusRezept: lerneAusRezept, lerneKorrektur: lerneKorrektur, lernExport: lernExport, lernRegeln: lernRegeln, lernNorm: lernNorm,
     VERSION: VERSION, SCHEMA_VERSION: SCHEMA_VERSION,
-    KATEGORIEN: KATEGORIEN, AISLES: AISLES,
-    analyse: analyse, analyseWithModel: analyseWithModel,
+    AISLES: AISLES,
+    analyse: analyse,
     parseText: parseText, parseTranscript: parseTranscript, parseSchemaOrg: parseSchemaOrg,
     parseIngredientLine: parseIngredientLine, parseDuration: parseDuration,
     classify: classify, completeness: completeness, focusFromNutrition: focusFromNutrition,
-    teilenDiagnose: teilenDiagnose, lerneTeilenFehler: lerneTeilenFehler, lerneTitel: lerneTitel,
-    estimateTimeFromSteps: estimateTimeFromSteps, zeitAnalyse: zeitAnalyse, schrittArbeiten: schrittArbeiten, pruefeSchrittLogik: pruefeSchrittLogik,
+    teilenDiagnose: teilenDiagnose, lerneTeilenFehler: lerneTeilenFehler, lerneTitel: lerneTitel, zeitAnalyse: zeitAnalyse, schrittArbeiten: schrittArbeiten, pruefeSchrittLogik: pruefeSchrittLogik,
     berechneNaehrwerte: berechneNaehrwerte, pruefeNaehrwerte: pruefeNaehrwerte, eigenerNaehrwert: eigenerNaehrwert, kcalAusNaehrstoffen: kcalAusNaehrstoffen, NW_FELDER: NW_FELDER, findNutrientEntry: findNutrientEntry, NUTRIENT_KEYS: NUTRIENT_KEYS,
-    normName: normName, fmtQty: fmtQty, rundeMenge: rundeMenge, skalierHinweis: skalierHinweis, schrittTimer: schrittTimer, enthaeltZutat: enthaeltZutat, guessAisle: guessAisle, geraete: geraete, vorheizHinweis: vorheizHinweis, fmtIngredient: fmtIngredient, scaleRecipe: scaleRecipe,
+    normName: normName, fmtQty: fmtQty, rundeMenge: rundeMenge, skalierHinweis: skalierHinweis, schrittTimer: schrittTimer, enthaeltZutat: enthaeltZutat, guessAisle: guessAisle, geraete: geraete, vorheizHinweis: vorheizHinweis, fmtIngredient: fmtIngredient,
     shoppingList: shoppingList, shoppingText: shoppingText,
-    toCookidoo: toCookidoo, toSchemaOrg: toSchemaOrg,
+    toCookidoo: toCookidoo,
     parseInstagramExport: parseInstagramExport, shortcodeOf: shortcodeOf, extractUrls: extractUrls,
     recipeLikelihood: recipeLikelihood, fixMojibake: fixMojibake, parseInstagramEmbed: parseInstagramEmbed,
     translateTitle: translateTitle, polishTitle: polishTitle, translateIngredient: translateIngredient, translateNote: translateNote,
     buildLabels: buildLabels, LABEL_GRUPPEN: LABEL_GRUPPEN, GRUNDVORRAT: GRUNDVORRAT, standardVorrat: standardVorrat, vorratsSchluessel: vorratsSchluessel,
     extractInlineIngredients: extractInlineIngredients, isStepLike: isStepLike, postType: postType, normalizeFancy: normalizeFancy, zuordnungsVorschlaege: zuordnungsVorschlaege,
-    recipeId: recipeId, importNeue: importNeue, folgenVorschlag: folgenVorschlag, folgenAntwort: folgenAntwort, FOLGEN_ERNEUT_AB: FOLGEN_ERNEUT_AB, FOLGEN_AB: FOLGEN_AB,
-    blogSuchplan: blogSuchplan, blogKandidaten: blogKandidaten, besteKandidaten: besteKandidaten, pruefeBlogTreffer: pruefeBlogTreffer,
+    recipeId: recipeId, importNeue: importNeue, folgenVorschlag: folgenVorschlag, folgenAntwort: folgenAntwort, FOLGEN_ERNEUT_AB: FOLGEN_ERNEUT_AB, FOLGEN_AB: FOLGEN_AB, pruefeBlogTreffer: pruefeBlogTreffer,
     parseRecipeHtml: parseRecipeHtml, inferServings: inferServings, uebersetzeSchritte: uebersetzeSchritte, uebersetzeZutaten: uebersetzeZutaten, mergeFrameText: mergeFrameText, isEnglishTitle: isEnglishTitle, stepIngredients: stepIngredients, parseTranscript: parseTranscript, detectLang: detectLang, rezeptStil: rezeptStil, cleanSteps: cleanSteps, langOfText: langOfText, dropEnglishHalf: dropEnglishHalf
   };
 
