@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.5.1";
+  var VERSION = "0.5.2";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -2211,7 +2211,7 @@
   function lernNorm(t) { return lower(stripEmoji(String(t || ""))).replace(/[^a-zäöüß0-9 ]+/g, " ").replace(/\s+/g, " ").trim(); }
   function neuerLernspeicher() {
     return { app: "rezeptbuch-lernen", version: LERN_VERSION, rezepte: 0, rezepteSeitSenden: 0, gesendetAm: null,
-      creator: {}, ignorieren: {}, keinSchritt: {}, istSchritt: {}, zutatAlias: {}, keineZutat: {}, keineFloskel: {}, unbekannt: {}, fehler: [], zeiten: {}, protokoll: [] };
+      creator: {}, ignorieren: {}, keinSchritt: {}, istSchritt: {}, zutatAlias: {}, keineZutat: {}, keineFloskel: {}, unbekannt: {}, fehler: [], zeiten: {}, protokoll: [], titel: [] };
   }
   // Regeln aus mehreren Quellen (zentral + lokal) zusammenführen
   function lernRegeln(list) {
@@ -2342,6 +2342,19 @@
     while (L.fehler.length > FEHLER_MAX) { var iS = L.fehler.findIndex ? L.fehler.findIndex(function (x) { return x.gesendet; }) : -1; L.fehler.splice(iS >= 0 ? iS : 0, 1); }
     return f;
   }
+  // Geänderte Titel: was der Kern erkannt hat und was der Nutzer daraus gemacht hat (Eingang fürs Titel-Training).
+  // info: { id, konto, link, automatisch, original, neu }. Gleicher Titel wie automatisch -> Eintrag entfällt.
+  function lerneTitel(L, info) {
+    L.titel = L.titel || [];
+    var alt = L.titel.filter(function (x) { return x.id === info.id && !x.gesendet; })[0];
+    var neu = clean(info.neu || ""), auto = clean(info.automatisch || "");
+    if (!neu || lower(neu) === lower(auto)) { if (alt) L.titel.splice(L.titel.indexOf(alt), 1); return null; }
+    var e = { id: info.id || "", konto: String(info.konto || "").replace(/^@/, ""), link: info.link || "", automatisch: auto, original: clean(info.original || ""), neu: neu, datum: new Date().toISOString().slice(0, 16) };
+    if (alt) { Object.keys(e).forEach(function (k) { alt[k] = e[k]; }); return alt; }
+    L.titel.push(e);
+    while (L.titel.length > 300) { var iS = L.titel.findIndex(function (x) { return x.gesendet; }); L.titel.splice(iS >= 0 ? iS : 0, 1); }
+    return e;
+  }
   // Datei für den Betreiber: nur Regeln, keine Rezepttexte, keine persönlichen Daten
   function lernExport(L, meta) {
     var R = lernRegeln([L]);
@@ -2352,7 +2365,8 @@
       naehrwerte: naehrwertExport(meta && meta.zuord),
       teilenFehler: (L.fehler || []).filter(function (f) { return !f.gesendet; }),
       zeiten: L.zeiten || {},
-      protokoll: (L.protokoll || []).filter(function (x) { return !x.gesendet; }) };
+      protokoll: (L.protokoll || []).filter(function (x) { return !x.gesendet; }),
+      titel: (L.titel || []).filter(function (x) { return !x.gesendet; }).map(function (x) { return { konto: x.konto, link: x.link, automatisch: x.automatisch, original: x.original || undefined, neu: x.neu, datum: x.datum }; }) };
   }
   // Nährwert-Zuordnungen und eigene Angaben (nur Zutatenname, Werte, Quelle – keine Rezepte)
   function naehrwertExport(z) {
@@ -4007,7 +4021,7 @@
     parseText: parseText, parseTranscript: parseTranscript, parseSchemaOrg: parseSchemaOrg,
     parseIngredientLine: parseIngredientLine, parseDuration: parseDuration,
     classify: classify, completeness: completeness, focusFromNutrition: focusFromNutrition,
-    teilenDiagnose: teilenDiagnose, lerneTeilenFehler: lerneTeilenFehler,
+    teilenDiagnose: teilenDiagnose, lerneTeilenFehler: lerneTeilenFehler, lerneTitel: lerneTitel,
     estimateTimeFromSteps: estimateTimeFromSteps, zeitAnalyse: zeitAnalyse, schrittArbeiten: schrittArbeiten, pruefeSchrittLogik: pruefeSchrittLogik,
     berechneNaehrwerte: berechneNaehrwerte, pruefeNaehrwerte: pruefeNaehrwerte, eigenerNaehrwert: eigenerNaehrwert, kcalAusNaehrstoffen: kcalAusNaehrstoffen, NW_FELDER: NW_FELDER, findNutrientEntry: findNutrientEntry, NUTRIENT_KEYS: NUTRIENT_KEYS,
     normName: normName, fmtQty: fmtQty, rundeMenge: rundeMenge, skalierHinweis: skalierHinweis, schrittTimer: schrittTimer, enthaeltZutat: enthaeltZutat, guessAisle: guessAisle, geraete: geraete, vorheizHinweis: vorheizHinweis, fmtIngredient: fmtIngredient, scaleRecipe: scaleRecipe,

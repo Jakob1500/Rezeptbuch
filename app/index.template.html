@@ -674,6 +674,13 @@ a { color: var(--accent); }
     return out;
   }
   function lernZahl() { try { return lernListe().length; } catch (x) { return 0; } }
+  // Geänderten Titel fürs Gelernte merken (Titel-Training: automatisch erkannt -> vom Nutzer gewählt)
+  function titelLernen(id) {
+    var e = S.recipes[id]; if (!e || !S.lernen || e.example) return;
+    var r = e.recipe || {}, src = r.source || {};
+    K.lerneTitel(S.lernen, { id: id, konto: src.account || (e.input && e.input.account) || "", link: src.url || (e.input && e.input.url) || "", automatisch: r.title || "", original: r.titleOriginal && r.titleOriginal !== r.title ? r.titleOriginal : "", neu: e.userTitle || "" });
+    save("lernen");
+  }
   function lernSheet() {
     var L = S.lernen || {}, list = lernListe(), unb = Object.keys(L.unbekannt || {}).sort(function (a, b) { return L.unbekannt[b] - L.unbekannt[a]; });
     sheet('<h2>Was die App gelernt hat</h2><p class="small">Alles bleibt auf diesem iPhone. Die App lernt aus deinen Rezepten (Floskeln, die ein Creator immer wieder schreibt) und aus deinen Korrekturen. Du kannst jede Regel löschen.</p>' +
@@ -685,6 +692,11 @@ a { color: var(--accent); }
         var n = L.fehler.indexOf(f);
         return '<div class="row"><span class="main"><span class="title">' + esc(FEHLER_TEXT[f.grund] || f.grund) + (f.anzahl > 1 ? " (" + f.anzahl + "×)" : "") + '</span><span class="sub" style="overflow-wrap:anywhere">' + esc(f.datum.replace("T", " ") + " · " + (f.link || "ohne Link").replace(/^https:\/\/(www\.)?/, "") + (f.gesendet ? " · gesendet" : "")) + '</span></span>' +
           '<button class="iconbtn" data-a="fehler-del" data-n="' + n + '" aria-label="Problem löschen">' + ic("trash") + '</button></div>';
+      }).join("") + '</div>' : '') +
+      ((L.titel || []).length ? '<p class="small muted" style="padding-inline:4px">Geänderte Titel (' + L.titel.length + '):</p><div class="group">' + L.titel.slice().reverse().slice(0, 30).map(function (t) {
+        var n = L.titel.indexOf(t);
+        return '<div class="row"><span class="main"><span class="title">' + esc(t.neu) + '</span><span class="sub" style="overflow-wrap:anywhere">vorher: ' + esc(t.automatisch || "–") + (t.konto ? ' · @' + esc(t.konto) : '') + (t.gesendet ? ' · gesendet' : '') + '</span></span>' +
+          '<button class="iconbtn" data-a="titel-del" data-n="' + n + '" aria-label="Geänderten Titel aus dem Gelernten löschen">' + ic("trash") + '</button></div>';
       }).join("") + '</div>' : '') +
       (Object.keys(L.zeiten || {}).length ? '<p class="small muted" style="padding-inline:4px">Gelernte Dauer je Arbeitsschritt: ' + esc(Object.keys(L.zeiten).filter(function (a) { return L.zeiten[a].n; }).map(function (a) { return a + " ≈ " + Math.round(L.zeiten[a].summe / L.zeiten[a].n) + " Min. (" + L.zeiten[a].n + "×)"; }).join(" · ")) + '</p>' : '') +
       '<p class="small muted" style="padding-inline:4px">' + (L.rezepte || 0) + ' Rezepte ausgewertet · seit dem letzten Senden ' + (L.rezepteSeitSenden || 0) + (L.gesendetAm ? ' · zuletzt gesendet ' + esc(dateDe(L.gesendetAm)) : '') + '</p>' +
@@ -701,7 +713,7 @@ a { color: var(--accent); }
   function lernSenden() {
     var data = K.lernExport(S.lernen, { app: APP_VERSION, zuord: S.zuord });
     var text = JSON.stringify(data, null, 1), name = "Rezeptbuch-Gelerntes-" + data.datum + ".json";
-    var done = function () { S.lernen.rezepteSeitSenden = 0; S.lernen.gesendetAm = Date.now(); (S.lernen.fehler || []).forEach(function (f) { f.gesendet = true; }); (S.lernen.protokoll || []).forEach(function (x) { x.gesendet = true; delete x.beschreibung; }); (S.lernen.fehler || []).forEach(function (x) { delete x.beschreibung; }); save("lernen"); closeSheet(); render(); toast("Danke! Gelerntes geteilt"); };
+    var done = function () { S.lernen.rezepteSeitSenden = 0; S.lernen.gesendetAm = Date.now(); (S.lernen.fehler || []).forEach(function (f) { f.gesendet = true; }); (S.lernen.protokoll || []).forEach(function (x) { x.gesendet = true; delete x.beschreibung; }); (S.lernen.titel || []).forEach(function (x) { x.gesendet = true; }); (S.lernen.fehler || []).forEach(function (x) { delete x.beschreibung; }); save("lernen"); closeSheet(); render(); toast("Danke! Gelerntes geteilt"); };
     try {
       var file = new File([text], name, { type: "application/json" });
       if (navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: "Rezeptbuch: Gelerntes für Jakob", text: "Gelerntes aus meinem Rezeptbuch (nur Regeln, keine Rezepte)" }).then(done, function () { /* abgebrochen */ }); return; }
@@ -2095,6 +2107,7 @@ a { color: var(--accent); }
       case "edit": editSheet(id); break;
       case "nw-add": nwStart(el.dataset); break;
       case "fehler-del": S.lernen.fehler.splice(+el.dataset.n, 1); save("lernen"); lernSheet(); break;
+      case "titel-del": S.lernen.titel.splice(+el.dataset.n, 1); save("lernen"); lernSheet(); break;
       case "fehler-later": S.meta.fehlerSnooze = offeneFehler().length + 2; save("meta"); render(); break;
       case "melden": meldenSheet(id); break;
       case "melden-send":
@@ -2143,7 +2156,7 @@ a { color: var(--accent); }
           save("lernen"); reanalyseAlle(); lernSheet(); render();
         }
         break;
-      case "rename-save": var nt = ($("#newtitle").value || "").trim(); if (nt) { S.recipes[id].userTitle = nt; S.recipes[id].updatedAt = Date.now(); save("recipes"); } closeSheet(); render(); break;
+      case "rename-save": var nt = ($("#newtitle").value || "").trim(); if (nt) { S.recipes[id].userTitle = nt; S.recipes[id].updatedAt = Date.now(); save("recipes"); titelLernen(id); } closeSheet(); render(); break;
       case "delete":
         if (!el.dataset.ok) { confirmSheet("Rezept löschen?", "delete", id, "Löschen"); break; }
         delete S.recipes[id]; S.shopping.list = S.shopping.list.filter(function (x) { return x.id !== id; }); save("recipes"); save("shopping");
@@ -2172,7 +2185,7 @@ a { color: var(--accent); }
         var d = UI.draft, nt2 = ($("#dtitle").value || "").trim();
         var out = addRecipe(d.res, { input: d.input });
         if (out.dupe) { toast("Das Rezept ist schon im Rezeptbuch"); UI.draft = null; UI.detail = out.id; render(); break; }
-        if (nt2 && nt2 !== d.res.recipe.title) S.recipes[out.id].userTitle = nt2;
+        if (nt2 && nt2 !== d.res.recipe.title) { S.recipes[out.id].userTitle = nt2; titelLernen(out.id); }
         save("recipes"); UI.draft = null; UI.pasteText = ""; UI.detail = out.id; render(); window.scrollTo(0, 0); toast("Gespeichert");
         var acc = d.res.recipe.source.account;
         if (acc) setTimeout(function () { folgenPruefen(acc); }, 600);
@@ -2222,6 +2235,8 @@ a { color: var(--accent); }
     return Promise.all(["recipes", "pantry", "shopping", "follow", "zuord", "meta", "prefs", "lernen", "plan", "listen"].map(function (k) { return dbGet(k).then(function (v) { if (v) S[k] = (k === "meta" || k === "prefs") ? Object.assign(S[k], v) : v; }); }));
   }).then(function () {
     if (!S.lernen || S.lernen.app !== "rezeptbuch-lernen") S.lernen = K.neuerLernspeicher();
+    // einmalig: schon früher geänderte Titel ins Gelernte übernehmen
+    if (!S.lernen.titelNachgetragen) { Object.keys(S.recipes).forEach(function (rid) { if (S.recipes[rid].userTitle) titelLernen(rid); }); S.lernen.titelNachgetragen = true; save("lernen"); }
     applyTheme();
     seedExamples();
     var upd = reanalyseAll();

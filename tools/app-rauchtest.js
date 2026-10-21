@@ -54,7 +54,8 @@ const check = (name, cond, info) => { if (cond) ok++; else { bad++; console.log(
   const fokus = await page.evaluate(() => { const a = document.activeElement; return a ? a.tagName + (a.className ? "." + a.className : "") : ""; });
   check("Einstellungen: kein Eingabefeld im Fokus", !/^(INPUT|TEXTAREA|SELECT)/.test(fokus), fokus);
   const ver = await page.innerText("body");
-  check("Version 0.16.0 · Kern 0.5.1", /0\.16\.0/.test(ver) && /0\.5\.1/.test(ver), (ver.match(/.{0,20}Kern.{0,10}/) || [""])[0]);
+  const appV = (fs.readFileSync(path.join(__dirname, "../app/index.template.html"), "utf8").match(/APP_VERSION\s*=\s*"([^"]+)"/) || [])[1], kernV = require("../kern/rezept-kern.js").VERSION;
+  check("Version " + appV + " · Kern " + kernV, ver.includes(appV) && ver.includes(kernV), (ver.match(/.{0,20}Kern.{0,10}/) || [""])[0]);
 
   // ---- Paket 2: Ausschluss dauerhaft in den Einstellungen
   await page.fill("#ohne-immer-q", "Mozzarella"); await page.keyboard.press("Enter"); await page.waitForTimeout(300);

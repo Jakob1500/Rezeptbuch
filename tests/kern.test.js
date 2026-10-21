@@ -567,5 +567,22 @@ check("Timer: Sekunden und über Nacht nicht", K.schrittTimer("15 Sek./Stufe 6 m
 const rKo = zt("Curry\n\nZutaten\n1 Bund Koriander\n200 g Reis\noptional: Chili\n\nZubereitung\nAlles kochen.");
 check("Ohne Zutat: Koriander trifft, Optionales nicht, kurze Wörter nicht", K.enthaeltZutat(rKo, "Koriander") && !K.enthaeltZutat(rKo, "chili") && !K.enthaeltZutat(rKo, "re") && !K.enthaeltZutat(rKo, "Pilze"));
 
+// Auftrag 1 (21.10.): Gelerntes vollständig – Nährwerte und geänderte Titel
+const LT = K.neuerLernspeicher();
+K.lerneTitel(LT, { id: "r1", konto: "@koch.lisa", link: "https://www.instagram.com/reel/ABC", automatisch: "Persian Classics in vegan", neu: "Ash Reshteh" });
+K.lerneTitel(LT, { id: "r1", konto: "koch.lisa", link: "https://www.instagram.com/reel/ABC", automatisch: "Persian Classics in vegan", neu: "Ash Reshteh (vegan)" });
+K.lerneTitel(LT, { id: "r2", konto: "x", automatisch: "Linsensuppe", neu: "linsensuppe" });
+const exT = K.lernExport(LT, { zuord: {
+  zwiebel: { bls: "G480100", name: "Speisezwiebel roh", n: { kcal: 34 }, art: "stueck", stk: 90, zutat: "Zwiebel" },
+  "clear whey": K.eigenerNaehrwert("Clear Whey", { kcal: 380, fat: 2.5, carbs: 6, protein: 80 }, { quelle: "Verpackung", notiz: "Whey", stk: 30, hinweise: ["Hinweis"], zutat: "Clear Whey" }),
+  "zentral": { bls: "X", name: "zentral", n: {}, geprueft: true } } });
+check("Gelerntes: geänderter Titel geht mit (Konto, Link, automatisch, neu), Doppeltes wird zusammengefasst, gleicher Titel entfällt",
+  exT.titel.length === 1 && exT.titel[0].konto === "koch.lisa" && exT.titel[0].neu === "Ash Reshteh (vegan)" && exT.titel[0].automatisch === "Persian Classics in vegan" && exT.titel[0].link, exT.titel);
+check("Gelerntes: BLS-Zuordnung mit Stückgewicht und eigene Angabe mit Werten, Quelle, Produkt und Hinweisen gehen mit; zentrale nicht",
+  exT.naehrwerte.zwiebel.bls === "G480100" && exT.naehrwerte.zwiebel.stk === 90 && exT.naehrwerte["clear whey"].n.protein === 80 && exT.naehrwerte["clear whey"].quelle === "Verpackung" && exT.naehrwerte["clear whey"].notiz === "Whey" && exT.naehrwerte["clear whey"].stk === 30 && exT.naehrwerte["clear whey"].hinweise.length === 1 && !exT.naehrwerte.zentral, exT.naehrwerte);
+LT.titel.forEach(x => { x.gesendet = true; });
+check("Gelerntes: gesendete Titel gehen nicht noch einmal mit", K.lernExport(LT, {}).titel.length === 0);
+check("Gelerntes: Titel ohne Rezepttext", !JSON.stringify(exT.titel).includes("Zutaten"));
+
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);
