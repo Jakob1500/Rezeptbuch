@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.5.0";
+  var VERSION = "0.5.1";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -1148,6 +1148,24 @@
     ings.forEach(function (i, k) { if (!inSchritt[k] && schneidbar(i) && ZUTAT_GESCHNITTEN.test((i.raw || "") + " " + (i.note || ""))) sum += 2; });
     var t = sum + 5; // Bereitlegen und Kleinkram
     return { total: rundeZeit(t), roh: t, passiv: Math.round(passiv), explizit: Math.round(explizit), ueberNacht: ueberNacht };
+  }
+  // Timer für den Kochmodus: jede Zeitangabe im Schritt ("20–25 Minuten backen" → 25 Min.), höchstens drei
+  function schrittTimer(text) {
+    if (/über nacht|overnight/i.test(text)) return [];
+    var seen = {};
+    return zeitangaben(text).filter(function (m) { var k = Math.round(m); if (k < 1 || k > 600 || seen[k]) return false; seen[k] = 1; return true; }).slice(0, 3).map(function (m) {
+      var k = Math.round(m), h = Math.floor(k / 60), mi = k % 60;
+      return { min: k, text: (h ? h + " Std." + (mi ? " " : "") : "") + (mi ? mi + " Min." : "") };
+    });
+  }
+  // Enthält das Rezept eine Zutat, die ausgeschlossen werden soll? ("koriander" trifft "Koriander", "Korianderblätter")
+  function enthaeltZutat(r, wort) {
+    var w = lower(String(wort || "")).trim();
+    if (w.length < 3) return false;
+    return ((r && r.ingredients) || []).some(function (i) {
+      if (i.optional) return false;
+      return [i.name, i.nameOriginal, i.key].some(function (n) { return n && (" " + lower(n)).indexOf(" " + w) !== -1; });
+    });
   }
   function estimateTimeFromSteps(steps, gelernt) {
     var z = zeitAnalyse({ steps: steps || [], ingredients: [] }, gelernt);
@@ -3992,7 +4010,7 @@
     teilenDiagnose: teilenDiagnose, lerneTeilenFehler: lerneTeilenFehler,
     estimateTimeFromSteps: estimateTimeFromSteps, zeitAnalyse: zeitAnalyse, schrittArbeiten: schrittArbeiten, pruefeSchrittLogik: pruefeSchrittLogik,
     berechneNaehrwerte: berechneNaehrwerte, pruefeNaehrwerte: pruefeNaehrwerte, eigenerNaehrwert: eigenerNaehrwert, kcalAusNaehrstoffen: kcalAusNaehrstoffen, NW_FELDER: NW_FELDER, findNutrientEntry: findNutrientEntry, NUTRIENT_KEYS: NUTRIENT_KEYS,
-    normName: normName, fmtQty: fmtQty, rundeMenge: rundeMenge, skalierHinweis: skalierHinweis, geraete: geraete, vorheizHinweis: vorheizHinweis, fmtIngredient: fmtIngredient, scaleRecipe: scaleRecipe,
+    normName: normName, fmtQty: fmtQty, rundeMenge: rundeMenge, skalierHinweis: skalierHinweis, schrittTimer: schrittTimer, enthaeltZutat: enthaeltZutat, guessAisle: guessAisle, geraete: geraete, vorheizHinweis: vorheizHinweis, fmtIngredient: fmtIngredient, scaleRecipe: scaleRecipe,
     shoppingList: shoppingList, shoppingText: shoppingText,
     toCookidoo: toCookidoo, toSchemaOrg: toSchemaOrg,
     parseInstagramExport: parseInstagramExport, shortcodeOf: shortcodeOf, extractUrls: extractUrls,

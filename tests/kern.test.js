@@ -561,5 +561,11 @@ check("Vorheizen: kein Hinweis, wenn das Rezept es schon früh sagt", K.vorheizH
 const rAf = zt("Pommes\n\nZutaten\n500 g Kartoffeln\n\nZubereitung\nKartoffeln in Stifte schneiden.\nIn der Heißluftfritteuse 20 Minuten backen.");
 check("Geräte: Heißluftfritteuse statt Backofen", K.geraete(rAf).includes("Heißluftfritteuse") && !K.geraete(rAf).includes("Backofen"), K.geraete(rAf));
 
+// ---------------------------------------------------------------- Timer, Zutat ausschließen (Paket 2)
+check("Timer: Spanne → oberer Wert, Stunden", JSON.stringify(K.schrittTimer("20–25 Minuten backen, dann 1 Std. ruhen lassen.").map(x => x.text)) === JSON.stringify(["25 Min.", "1 Std."]), K.schrittTimer("20–25 Minuten backen, dann 1 Std. ruhen lassen."));
+check("Timer: Sekunden und über Nacht nicht", K.schrittTimer("15 Sek./Stufe 6 mixen").length === 0 && K.schrittTimer("Über Nacht 8 Stunden ziehen lassen").length === 0);
+const rKo = zt("Curry\n\nZutaten\n1 Bund Koriander\n200 g Reis\noptional: Chili\n\nZubereitung\nAlles kochen.");
+check("Ohne Zutat: Koriander trifft, Optionales nicht, kurze Wörter nicht", K.enthaeltZutat(rKo, "Koriander") && !K.enthaeltZutat(rKo, "chili") && !K.enthaeltZutat(rKo, "re") && !K.enthaeltZutat(rKo, "Pilze"));
+
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);
