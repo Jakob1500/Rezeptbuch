@@ -24,7 +24,8 @@ const faelle = [];
 const fd = path.join(root, "tests/faelle");
 if (fs.existsSync(fd)) fs.readdirSync(fd).filter(f => f.endsWith(".txt") && f !== "beispiel.txt").forEach(f => {
   const t = fs.readFileSync(path.join(fd, f), "utf8");
-  faelle.push({ id: "fall:" + f, caption: t.split(/--- Beschreibung des Beitrags ---\n?/)[1] || t, url: (t.match(/Link:\s*(\S+)/) || [])[1] || "" });
+  const jp = path.join(fd, f.replace(/\.txt$/, ".json")), soll = fs.existsSync(jp) ? JSON.parse(fs.readFileSync(jp, "utf8")) : {};
+  faelle.push({ id: "fall:" + f, caption: t.split(/--- Beschreibung des Beitrags ---\n?/)[1] || t, url: (t.match(/Link:\s*(\S+)/) || [])[1] || "", account: soll.konto || "", titel: soll.titel || "" });
 });
 
 // ---- Fehlerklassen (Invarianten, die für JEDES Rezept gelten sollen)
@@ -39,6 +40,7 @@ const KLASSEN = {
   "vage-unaufgeloest": "„Alles …“-Schritt ohne erkennbare Zutaten",
   "titel-satz": "Titel ist ein Satz oder sehr lang",
   "titel-geraten": "Titel geraten",
+  "titel-falsch": "Titel weicht vom richtigen Titel ab (nur Fälle mit bekanntem Titel)",
   "vegan-widerspruch": "Creator sagt vegan, Rezept nicht vegan",
   "ohne-naehrwert": "Zutat ohne Nährwert",
   "zeit-unplausibel": "geschätzte Zeit unter 5 oder über 180 Minuten",
@@ -79,6 +81,7 @@ faelle.forEach(f => {
   (r.logik && r.logik.vage || []).forEach(s => treffer("vage-unaufgeloest", f, s));
   if (r.title && (r.title.split(/\s+/).length > 7 || /\b(ich|wir|du|ist|sind|you|is|are|my|mein)\b/i.test(r.title))) treffer("titel-satz", f, r.title);
   if (r.titleGuessed) treffer("titel-geraten", f, r.title);
+  if (f.titel && norm(r.title) !== norm(f.titel) && norm(r.titleOriginal) !== norm(f.titel)) treffer("titel-falsch", f, `„${r.title}“ statt „${f.titel}“`);
   if (/(^|[^a-z])(#?vegan|plant.?based)([^a-z]|$)/i.test(f.caption) && !/vegan\w*\s+(möglich|option)/i.test(f.caption) && r.ingredients.length >= 2 && !r.diet.includes("vegan")) treffer("vegan-widerspruch", f, JSON.stringify(r.dietEvidence));
   ((r.nutrition && r.nutrition.coverage.offen) || []).filter(o => o.grund === "unbekannt").forEach(o => treffer("ohne-naehrwert", f, o.name));
   if (r.timeEstimated && (r.timeTotal < 5 || r.timeTotal > 180)) treffer("zeit-unplausibel", f, r.timeTotal + " Min.");
