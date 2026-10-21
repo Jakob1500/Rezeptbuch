@@ -7,7 +7,7 @@
  */
 (function (root) {
   "use strict";
-  var VERSION = "0.1.0";
+  var VERSION = "0.2.0";
 
   // ------------------------------------------------------------------ Hilfen
   function lower(s) { return String(s || "").toLowerCase(); }
@@ -37,8 +37,11 @@
    * -> { g: Gramm, ml: Milliliter, stk: Stück, lose: true }  (nur das Passende ist gesetzt)
    */
   function parseMenge(text) {
-    var t = lower(text).replace(/ /g, " ");
+    var t = lower(text).replace(/\u00a0/g, " ").replace(/(\d)\s*-\s*(kg|g|ml|cl|l)-/g, "$1 $2 ").replace(/(\d)\s*-\s*(kg|g|ml|cl|l)\b/g, "$1 $2");
     if (!t) return null;
+    if (/\bkg-preis\b/.test(t)) return { lose: true };
+    var er = t.match(/(\d+)er-?(?:packung|pack|schale|karton)/);
+    if (er) return { stk: parseInt(er[1], 10) };
     if (/\blose\b|\bje kg\b|\bper kg\b|\b1 kg = \b/.test(t) && !/\d+\s*(g|kg|ml|l)\b/.test(t.replace(/1\s*kg\s*=.*/, ""))) return { lose: true };
     var faktor = 1;
     var mx = t.match(/(\d+)\s*[x×]\s*(?=\d)/);
@@ -59,14 +62,15 @@
    * -> { preis: Euro, je: 1000, einheit: "g" | "ml" | "stk" } oder null
    */
   function parseGrundpreis(text) {
-    var t = lower(text).replace(/ /g, " ").replace(/€/g, " € ");
-    var m = t.match(/(\d+(?:[.,]\d+)?)\s*€?\s*\/\s*(\d+(?:[.,]\d+)?)?\s*(kg|g|l|ml|stück|stk)\b/) ||
+    var t = lower(text).replace(/\u00a0/g, " ").replace(/€/g, " € ");
+    var m = t.match(/(\d+(?:[.,]\d+)?)\s*€?\s*\/\s*(\d+(?:[.,]\d+)?)?\s*(kg|g|liter|l|ml|stück|stk)\b/) ||
             t.match(/(\d+(?:[.,]\d+)?)?\s*(kg|g|l|ml|stück|stk)\s*=\s*€?\s*(\d+(?:[.,]\d+)?)/);
     if (!m) return null;
     var preis, menge, einheit;
     if (/\//.test(m[0])) { preis = zahl(m[1]); menge = m[2] ? zahl(m[2]) : 1; einheit = m[3]; }
     else { menge = m[1] ? zahl(m[1]) : 1; einheit = m[2]; preis = zahl(m[3]); }
     if (preis == null) return null;
+    if (einheit === "liter") einheit = "l";
     if (einheit === "kg") return { preis: preis, je: menge * 1000, einheit: "g" };
     if (einheit === "g") return { preis: preis, je: menge, einheit: "g" };
     if (einheit === "l") return { preis: preis, je: menge * 1000, einheit: "ml" };
@@ -116,7 +120,7 @@
     "creme", "suppe", "pulver", "gewürz", "gewuerz", "pesto", "püree", "puree", "chutney", "konfitüre", "konfituere", "marmelade",
     "gelee", "joghurt", "eis", "kuchen", "torte", "keks", "kekse", "bonbon", "gummi", "schokolade", "likör", "likoer", "tee",
     "shampoo", "duschgel", "seife", "duft", "kerze", "pflanze", "samen", "saatgut", "topf", "dünger", "duenger", "erde",
-    "snack", "chips", "cracker", "drink", "limonade", "sirup", "bowl", "salat"];
+    "snack", "cracker", "rahm", "würz", "wurz", "dekor", "glasur", "aroma", "drink", "limonade", "sirup", "bowl", "salat"];
   // Sortenwörter: unterschiedliche Sorten sind unterschiedliche Zutaten (rote ≠ weiße Zwiebel)
   var SORTEN = ["rot", "rote", "roter", "rotes", "weiß", "weiße", "weißer", "weiss", "weisse", "gelb", "gelbe", "gelber", "grün", "grüne",
     "grüner", "süß", "süße", "mehlig", "mehlige", "festkochend", "festkochende", "vorwiegend", "braun", "braune", "schwarz", "schwarze",
@@ -125,7 +129,10 @@
   var ERLAUBTE_VORSAETZE = ["rispen", "strauch", "dattel", "kirsch", "cherry", "fleisch", "speise", "bund", "baby", "mini", "bio",
     "land", "berg", "gemüse", "gemuese", "kräuter", "kraeuter", "kultur", "tafel", "koch", "salat", "frisch", "mutzarella", "büffel",
     "hähnchen", "haehnchen", "puten", "schweine", "rinder", "hack", "basmati", "jasmin", "langkorn", "vollkorn", "schlag", "creme",
-    "kokos", "hafer", "soja", "mandel", "zucker", "frühlings", "fruehlings", "gemüsezwiebel", "schalotten", "blut", "baum", "tafel"];
+    "kokos", "hafer", "soja", "mandel", "weizen", "dinkel", "roggen", "tafel", "zucchini", "zucker", "frühlings", "fruehlings", "gemüsezwiebel", "schalotten", "blut", "baum", "tafel"];
+
+  // Erlaubte Endungen: Zutat + Endung (Lachsfilet|portionen, Hähnchenbrust|filet)
+  var ERLAUBTE_NACHSAETZE = ["filet", "portion", "steak", "stück", "stuck", "würfel", "wurfel", "scheibe", "hälfte", "halft", "brust", "keule", "schenkel", "rispe", "netz", "schale"];
 
   function sortenIn(liste) {
     return liste.filter(function (w) { return SORTEN.indexOf(w) !== -1; }).map(function (w) { return stamm(w).replace(/[aeiou]?$/, ""); });
@@ -151,6 +158,11 @@
         var vor = lower(w).slice(0, lower(w).length - lower(kw[kw.length - 1]).length - 1);
         var vorsatz = s.slice(0, s.length - kopf.length);
         if (ERLAUBTE_VORSAETZE.some(function (v) { return vorsatz.indexOf(stamm(v).slice(0, 4)) === 0 || vor.indexOf(v) === 0; })) { treffer = i; art = "zusammengesetzt"; }
+      }
+      // Zusammengesetztes Wort, das mit der Zutat beginnt: "Lachsfiletportionen" (nicht "Tomatenmark")
+      if (treffer === -1 && s.length > kopf.length && s.indexOf(kopf) === 0) {
+        var nach = s.slice(kopf.length).replace(/^(en|es|n|s|e)/, "");
+        if (ERLAUBTE_NACHSAETZE.some(function (v) { return nach.indexOf(stamm(v)) === 0; })) { treffer = i; art = "zusammengesetzt"; }
       }
     });
     if (treffer === -1) return { passt: "nein", grund: "Zutat nicht im Namen" };
@@ -188,6 +200,12 @@
    */
   function kosten(item, a) {
     var b = bedarf(item), p = a.menge || {}, packungen = 1, genau = false, rest = "";
+    if (p.lose && b.g && a.preis != null) {
+      var gp = a.grundpreis || { preis: a.preis, je: 1000 };
+      var k = b.g / gp.je * gp.preis;
+      var sp = a.streichpreis != null ? b.g / gp.je * gp.preis * (a.streichpreis / a.preis) - k : null;
+      return { packungen: null, kosten: rund(k), ersparnis: sp != null ? rund(sp) : null, rest: "", genau: true, lose: true };
+    }
     if (p.lose && a.grundpreis && b.g) {
       var k = b.g / a.grundpreis.je * a.grundpreis.preis;
       return { packungen: null, kosten: rund(k), ersparnis: null, rest: "", genau: true, lose: true };
@@ -279,9 +297,51 @@
     return s;
   }
 
+  // ------------------------------------------------------------------ Leser: ALDI Nord
+  // Quelle (öffentlich, darf von anderen Websites gelesen werden):
+  //   /api/offer/category/mgnl/de/current   -> Abschnitte der Woche mit Produktnummern
+  //   /api/product/pds/<nummern>?scope=de   -> Produkte mit Preisen
+  var ALDI_NORD = {
+    name: "ALDI Nord",
+    wocheUrl: "https://www.aldi-nord.de/api/offer/category/mgnl/de/current",
+    produktUrl: function (ids) { return "https://www.aldi-nord.de/api/product/pds/" + encodeURIComponent(ids.join(",")) + "?scope=de"; },
+    essen: /obst|gem(ü|ue)se|fleisch|fisch|geb(ä|ae)ck|wochen-angebote|wochenend|gek(ü|ue)hlt|haltbar|snacks|s(ü|ue)(ß|ss)es|getr(ä|ae)nke|backzutaten|frische/i
+  };
+  /** Produktnummern der Lebensmittel-Abschnitte (nur diese werden geladen). */
+  function aldiNordNummern(woche) {
+    var ids = [];
+    (woche.offers || []).forEach(function (o) {
+      (o.content || []).forEach(function (x) {
+        if (!ALDI_NORD.essen.test(x.title || "")) return;
+        (x.productIds || []).forEach(function (id) { if (id && ids.indexOf(id) === -1) ids.push(id); });
+      });
+    });
+    return ids;
+  }
+  /** Produkte (Antwort von /api/product/pds) -> einheitliche Angebote */
+  function ausAldiNord(produkte) {
+    return (produkte || []).map(function (p) {
+      var c = p.currentPrice || {}, pp = (p.promotionPrices || [])[0] || {};
+      var preis = pp.priceValue != null ? pp.priceValue : c.priceValue;
+      var sp = (pp.strikePrice || c.strikePrice || {}).strikePriceValue;
+      var bp = ((pp.basePrice || c.basePrice || [])[0]) || null, gp = null;
+      if (bp && bp.basePriceValue != null) {
+        var sc = lower(bp.basePriceScale).replace(/\s*\(.*\)/, "");
+        gp = sc === "kg" ? { preis: bp.basePriceValue, je: 1000, einheit: "g" } : sc === "liter" || sc === "l" ? { preis: bp.basePriceValue, je: 1000, einheit: "ml" } : { preis: bp.basePriceValue, je: 1, einheit: "stk" };
+      }
+      var attr = (p.additionalAttributes || []).filter(function (a) { return /\d\s*(g|kg|ml|l)\b/i.test(a); })[0];
+      return angebot({
+        haendler: ALDI_NORD.name, name: p.name, marke: p.brandName || "", menge: attr || p.salesUnit || "",
+        preis: preis, streichpreis: sp != null ? sp : null, grundpreis: gp,
+        gueltigVon: pp.validFromLocalDate || null, gueltigBis: pp.validUntilLocalDate || null,
+        link: p.productSlug ? "https://www.aldi-nord.de/produkt/" + p.productSlug + ".html" : ""
+      });
+    }).filter(function (a) { return a.preis != null; });
+  }
+
   var api = {
     VERSION: VERSION, parseMenge: parseMenge, parseGrundpreis: parseGrundpreis, angebot: angebot,
-    nochGueltig: nochGueltig, passt: passt, bedarf: bedarf, kosten: kosten, abgleich: abgleich, stamm: stamm
+    nochGueltig: nochGueltig, passt: passt, ALDI_NORD: ALDI_NORD, aldiNordNummern: aldiNordNummern, ausAldiNord: ausAldiNord, bedarf: bedarf, kosten: kosten, abgleich: abgleich, stamm: stamm
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.AngeboteKern = api;

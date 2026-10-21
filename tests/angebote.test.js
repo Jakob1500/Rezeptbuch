@@ -78,5 +78,31 @@ check("Text der Empfehlung", /^Diese Woche: Laden B – 3 von \d+ Zutaten im Ang
 r = A.abgleich(liste, roh, { heute: "2026-10-25" });
 check("nach Ablauf keine Empfehlung", r.empfehlung === null && r.angebote === 0, r);
 
+// ---------------------------------------------------------------- Leser ALDI Nord (Aufbau wie die echte Antwort, Werte ausgedacht)
+const woche = { offers: [{ content: [
+  { title: "Frische-Aktion: Obst & Gemüse", productIds: ["1", "2"] },
+  { title: "Damenmode", productIds: ["9"] },
+  { title: "Gekühlte & tiefgekühlte Produkte", productIds: ["3", "1"] }] }] };
+check("ALDI: nur Lebensmittel-Abschnitte, ohne Doppelte", JSON.stringify(A.aldiNordNummern(woche)) === '["1","2","3"]', A.aldiNordNummern(woche));
+const prod = [
+  { objectID: "1", name: "Feldsalat", salesUnit: "150-g-Schale", additionalAttributes: ["150 g"], productSlug: "feldsalat-1",
+    promotionPrices: [{ priceValue: 0.99, strikePrice: { strikePriceValue: 1.29 }, basePrice: [{ basePriceValue: 6.6, basePriceScale: "kg" }], validFromLocalDate: "2026-10-19", validUntilLocalDate: "2026-10-24" }] },
+  { objectID: "2", name: "Lachsfiletportionen", brandName: "MEER", salesUnit: "4x125-g-Packung",
+    promotionPrices: [{ priceValue: 7.99, strikePrice: { strikePriceValue: 9.49 }, basePrice: [{ basePriceValue: 15.98, basePriceScale: "kg" }], validFromLocalDate: "2026-10-19", validUntilLocalDate: "2026-10-24" }] },
+  { objectID: "3", name: "Hokkaido-Kürbis", salesUnit: "kg-Preis",
+    promotionPrices: [{ priceValue: 0.99, basePrice: [{ basePriceValue: 0.99, basePriceScale: "kg" }], validFromLocalDate: "2026-10-19", validUntilLocalDate: "2026-10-24" }] },
+  { objectID: "4", name: "Frische Eier", salesUnit: "12er-Packung", promotionPrices: [{ priceValue: 2.49, validFromLocalDate: "2026-10-22", validUntilLocalDate: "2026-10-28" }] },
+  { objectID: "5", name: "Saft", salesUnit: "1-L-Flasche", currentPrice: { priceValue: 1.49, basePrice: [{ basePriceValue: 1.49, basePriceScale: "Liter" }] } }];
+const al = A.ausAldiNord(prod);
+check("ALDI: Feldsalat 150 g, Streichpreis, gültig bis", al[0].menge.g === 150 && al[0].streichpreis === 1.29 && al[0].gueltigBis === "2026-10-24" && /feldsalat-1/.test(al[0].link), al[0]);
+check("ALDI: 4x125 g = 500 g", al[1].menge.g === 500 && al[1].marke === "MEER", al[1].menge);
+check("ALDI: kg-Preis = lose", al[2].menge.lose === true, al[2].menge);
+check("ALDI: 12er-Packung = 12 Stück", al[3].menge.stk === 12, al[3].menge);
+check("ALDI: Liter-Grundpreis", al[4].menge.ml === 1000 && al[4].grundpreis.einheit === "ml", al[4]);
+check("Lachsfiletportionen → lachsfilet", A.passt("lachsfilet", al[1]).passt === "ja");
+check("Rahm-Spinat ≠ spinat", P("spinat", "Rahm-Spinat 750 g") === "nein");
+check("Weizenmehl → mehl", P("mehl", "Weizenmehl XXL 2 kg") === "ja");
+check("Tomaten passiert → passierte tomate", P("passierte tomate", "Tomaten passiert 3x200 g") === "ja");
+
 console.log(`\nAngebote-Kern ${A.VERSION}: ${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);
