@@ -600,5 +600,19 @@ check("R7: Serien-Zähler ist kein Sammelbeitrag", K.mehrereRezepte("Veganuary 1
 const kr = K.analyse({ caption: "Comment “RECIPE” and I’ll send you a DM to the recipe on my membership page 💚\nYou roast the tofu. You get the gnocchi properly crispy.\nThe full recipe is on my membership page. For less than a coffee per month you get 300+ recipes." }).recipe;
 check("R8: kein Rezept – kein geratener Titel, Bezahlseite erkannt", kr.keinRezept && kr.title === "" && kr.elsewhere.wo === "bezahlseite", [kr.title, kr.elsewhere]);
 
+// Ton aus dem Video (23.10.): ergänzt Lücken, ersetzt kein vollständiges Rezept
+const tonVoll = K.analyse({
+  caption: "Linsen-Dal\nZutaten:\n200 g rote Linsen\n1 Zwiebel\n400 ml Kokosmilch\n1 EL Currypulver\nZubereitung:\nZwiebel würfeln und in Öl anbraten.\nLinsen, Currypulver und Kokosmilch dazugeben und 20 Minuten köcheln lassen.",
+  transcript: "Heute machen wir ein Linsen Dal. Das reicht für 4 Portionen und ist in 30 Minuten fertig. Zuerst die Zwiebel anbraten."
+});
+check("Ton: vollständiges Rezept bekommt Portionen aus dem Ton", tonVoll.recipe.servings === 4 && tonVoll.recipe.provenance.servings === "speech", [tonVoll.recipe.servings, tonVoll.recipe.provenance]);
+check("Ton: Zutaten aus der Caption bleiben", tonVoll.recipe.provenance.ingredients !== "speech" && tonVoll.recipe.ingredients.length === 4, tonVoll.recipe.provenance);
+const tonLeer = K.analyse({
+  caption: "Das beste Pasta-Rezept 🍝 Folgt mir für mehr!",
+  transcript: "Today we're making a creamy tomato pasta. You need 250 grams of pasta, 2 cloves of garlic, 400 grams of tomatoes and 100 ml of cream. First cook the pasta in salted water. Then fry the garlic in olive oil. Add the tomatoes and simmer for 10 minutes. Stir in the cream and the pasta."
+});
+check("Ton: fehlende Zutaten kommen aus dem Ton", tonLeer.recipe.ingredients.length >= 3 && tonLeer.recipe.provenance.ingredients === "speech", tonLeer.recipe.ingredients.map(x => x.name));
+check("Ton: fehlende Schritte kommen aus dem Ton", tonLeer.recipe.steps.length >= 2 && tonLeer.recipe.provenance.steps === "speech", tonLeer.recipe.steps);
+
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

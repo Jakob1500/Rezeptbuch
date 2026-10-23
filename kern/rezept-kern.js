@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.6.0";
+  var VERSION = "0.6.1";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -2392,6 +2392,17 @@
     function step(name, available, fn) {
       var before = completeness(r);
       if (before.enough && name !== "caption") {
+        // Ton ergänzt auch ein vollständiges Rezept: nur Lücken (Portionen, Dauer, Gericht), Zutaten und Schritte bleiben
+        if (name === "speech" && available && (!r.servings || !r.timeTotal || !r.title)) {
+          var teil = fn();
+          if (teil) {
+            teil.ingredients = []; teil.steps = [];
+            merge(r, teil, name);
+            var nachL = completeness(r);
+            trace.push({ step: name, label: STEP_NAMES[name], status: nachL.score > before.score ? "ergänzt" : "nichts gefunden", gained: nachL.score - before.score });
+            return;
+          }
+        }
         trace.push({ step: name, label: STEP_NAMES[name], status: "übersprungen", reason: "Rezept war schon vollständig" });
         return;
       }

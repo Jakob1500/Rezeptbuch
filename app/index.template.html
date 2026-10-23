@@ -306,7 +306,7 @@ a { color: var(--accent); }
   var LERN_ERINNERUNG = 20;
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.18.0";
+  var APP_VERSION = "0.19.0";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0 (creativecommons.org/licenses/by/4.0). Werte unverändert übernommen; Stück- und Löffelgewichte sind eigene Richtwerte der App. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -1580,7 +1580,7 @@ a { color: var(--accent); }
         '<p><b>Sicherung:</b> Eine JSON-Datei mit Rezepten, Vorrat, Einkaufsliste, eigenen Zuordnungen und Folgen-Status. Beim Laden auf einem anderen Gerät kommen neue Rezepte dazu; bei doppelten gewinnt die neuere Fassung. Die App erinnert an die Sicherung, wenn sich seit mehr als 24 Stunden etwas geändert hat.</p>') +
       sec("share", "Wie Rezepte aus Instagram ankommen",
         '<p>Du entscheidest bei jedem Rezept selbst. Nichts passiert im Hintergrund.</p>' +
-        '<ul><li><b>Kurzbefehl „Ins Rezeptbuch“:</b> Beim Teilen holt dein iPhone einmal die öffentliche Vorschau des Posts, ohne Anmeldung und ohne Zugriff auf dein Instagram-Konto. Private Konten gehen nicht.</li>' +
+        '<ul><li><b>Kurzbefehl „Ins Rezeptbuch“:</b> Beim Teilen holt dein iPhone einmal die öffentliche Vorschau des Posts, ohne Anmeldung und ohne Zugriff auf dein Instagram-Konto. Private Konten gehen nicht. Steht ein Blog-Link in der Beschreibung, holt es auch diese Seite. Bei Reels wandelt dein iPhone den Ton selbst in Text um (Apples Spracherkennung auf dem Gerät); das Video wird dafür nur kurz geladen und nirgends gespeichert.</li>' +
         '<li><b>Instagram-Export:</b> Die Datei aus „Deine Informationen herunterladen“ liest die App nur auf diesem Gerät. Es kommen nur neue Rezepte dazu, nichts wird überschrieben.</li>' +
         '<li><b>Bilder oder Ton:</b> Wenn ein Rezept nur auf Bildern oder im Video steht, liest dein iPhone den Text bzw. Ton aus und löscht die Datei danach wieder.</li></ul>', false,
         '<p><b>Reihenfolge, wenn Angaben fehlen:</b> 1. Blog des Creators (strukturierte Rezeptdaten der Seite) · 2. Text auf den Bildern des Posts (Live Text) · 3. Ton aus Instagrams offiziellem Download (Transkription). Danach kommt ein Screenshot als Handarbeit. Die App nimmt immer den sparsamsten Weg zuerst.</p>' +
@@ -1668,21 +1668,31 @@ a { color: var(--accent); }
       (ok ? '<div class="note info"><b>Eingerichtet.</b><span>In Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“. Dann Rezeptbuch öffnen und oben auf „Einfügen“ tippen (iOS fragt einmal „Einsetzen erlauben?“).</span></div>' : '') +
       (ok && !UI.showBuild ? '<button class="btn soft" data-a="show-build">Bauanleitung anzeigen</button>' : link && !UI.showBuild ? '<p class="small">1. Tippe auf „Kurzbefehl hinzufügen“ und dort auf „Kurzbefehl hinzufügen“. 2. In Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“. 3. Beim ersten Mal fragt iOS, ob instagram.com abgerufen werden darf: „Immer erlauben“. 4. Rezeptbuch öffnen → „Einfügen“.</p><a class="btn accent" href="' + esc(link) + '" target="_blank" rel="noopener">Kurzbefehl hinzufügen</a><button class="btn ghost" data-a="show-build">Selbst bauen (Bauanleitung)</button>' :
       '<p class="small">Einmal in der Kurzbefehle-App anlegen (ca. 5 Minuten). Danach in Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“, dann Rezeptbuch öffnen und oben auf „Einfügen“ tippen.</p>' +
-      '<div class="build"><ol>' +
+      '<p class="small"><b>Teil A – Beitrag holen</b></p><div class="build"><ol>' +
       '<li>Kurzbefehle-App → „+“ → oben auf den Namen → Umbenennen: <b>' + SC_NAME + '</b>.' + snip(SC_NAME) + '</li>' +
       '<li>Unten auf <b>ⓘ</b> → <b>Im Share-Sheet anzeigen</b> an. Im Block oben: Eingabe nur <b>URLs</b> und <b>Text</b>; „Falls keine Eingabe“: <b>Zwischenablage abrufen</b>.</li>' +
       '<li><b>Text abgleichen</b> in <b>Kurzbefehleingabe</b>, Muster:' + snip("(p|reel|reels|tv)/[A-Za-z0-9_-]+") + '</li>' +
       '<li><b>Objekt aus Liste abrufen</b> (Erstes Objekt).</li>' +
       '<li><b>Text</b>: davor <code>https://www.instagram.com/</code>, dann Variable <b>Objekt aus Liste</b>, direkt dahinter' + snip("/embed/captioned/") + '</li>' +
-      '<li><b>Inhalt von URL abrufen</b>.</li>' +
-      '<li><b>Text</b> mit genau diesen Zeilen; an die Stellen in [ ] die Variablen setzen:' + snip("REZEPTBUCH\nhttps://www.instagram.com/[Objekt aus Liste]\n###TEXT###\n[Inhalt von URL]") + '</li>' +
-      '<li><b>In Zwischenablage kopieren</b>. Fertig – kein „URL öffnen“.</li>' +
+      '<li><b>Inhalte von URL abrufen</b>.</li>' +
+      '<li><b>Variable festlegen</b>: Name <b>Seite</b>, Wert <b>Inhalt der URL</b>.</li>' +
       '</ol></div>' +
-      '<p class="small"><b>Blog-Link aus der Beschreibung gleich mitholen (empfohlen):</b> nach „Variable Inhalt festlegen“ einfügen:</p><div class="build"><ol>' +
-      '<li><b>Text abgleichen</b> in <b>Inhalt</b>, Muster:' + snip("(https?://|www\\.)(?!(www\\.)?(instagram\\.com|instagr\\.am|facebook\\.com|l\\.instagram\\.com))[^\\s\"<>]+") + '</li>' +
+      '<p class="small"><b>Teil B – Blog-Link aus der Beschreibung mitholen</b></p><div class="build"><ol>' +
+      '<li><b>Text abgleichen</b> in <b>Seite</b>, Muster:' + snip("(https?://|www\\.)(?![^/\\s\"<>]*(instagram\\.com|instagr\\.am|facebook\\.|fbcdn\\.net|fbsbx\\.com|cdninstagram\\.com|w3\\.org|schema\\.org|ogp\\.me))[^\\s\"<>]+") + '</li>' +
       '<li><b>Wenn</b> → „Treffer“ → <b>hat einen Wert</b> (den „Sonst“-Teil löschen).</li>' +
       '<li>Darin: <b>Erstes Objekt aus Liste abrufen</b> → <b>Variable festlegen</b> „BlogLink“ → <b>Inhalte von URL abrufen</b> (BlogLink) → <b>Variable festlegen</b> „Blog“ (Inhalt der URL).</li>' +
-      '<li>Im letzten Text-Block unten anhängen:' + snip("###BLOG###\n[BlogLink]\n[Blog]") + '(Variablen ohne Klammern)</li>' +
+      '</ol></div>' +
+      '<p class="small"><b>Teil C – Ton aus dem Video in Text umwandeln</b> (nur bei Reels; das Video bleibt nur kurz im Arbeitsspeicher und wird nirgends gespeichert)</p><div class="build"><ol>' +
+      '<li><b>Text abgleichen</b> in <b>Seite</b>, Muster:' + snip("video_url[\\\\\":\\s]+(https:[^\"]+)") + '</li>' +
+      '<li><b>Wenn</b> → „Treffer“ → <b>hat einen Wert</b> (den „Sonst“-Teil löschen).</li>' +
+      '<li>Darin: <b>Gruppe aus übereinstimmendem Text abrufen</b> → „Gruppe bei Index“ <b>1</b>.</li>' +
+      '<li><b>Text ersetzen</b>: suchen' + snip("\\\\+u0026") + 'ersetzen durch <code>&amp;</code>, unten <b>Regulärer Ausdruck</b> an.</li>' +
+      '<li><b>Text ersetzen</b> (im ersetzten Text): suchen' + snip("\\\\") + 'ersetzen durch nichts (Feld leer lassen), <b>Regulärer Ausdruck</b> an.</li>' +
+      '<li><b>Inhalte von URL abrufen</b> (ersetzter Text) → <b>Medien codieren</b> mit <b>Nur Audio</b> an → <b>Audio transkribieren</b> → <b>Variable festlegen</b> „Ton“ (Transkript).</li>' +
+      '</ol></div>' +
+      '<p class="small"><b>Teil D – alles an die Kombüse geben</b></p><div class="build"><ol>' +
+      '<li>Ganz unten (nach allen „Ende“): <b>Text</b> mit genau diesen Zeilen; an die Stellen in [ ] die Variablen setzen:' + snip("REZEPTBUCH\nhttps://www.instagram.com/[Objekt aus Liste]\n###TEXT###\n[Seite]\n###TON###\n[Ton]\n###BLOG###\n[BlogLink]\n[Blog]") + '</li>' +
+      '<li><b>In Zwischenablage kopieren</b>. Fertig – kein „URL öffnen“.</li>' +
       '</ol></div>' +
       '<p class="small"><b>Blog direkt aus Safari teilen:</b> direkt nach dem ersten „Text abgleichen“ einfügen:</p><div class="build"><ol>' +
       '<li><b>Wenn</b> → „Treffer“ → <b>hat keinen Wert</b> (den „Sonst“-Teil löschen).</li>' +
@@ -1691,7 +1701,7 @@ a { color: var(--accent); }
       '<li><b>In Zwischenablage kopieren</b>, dann <b>Kurzbefehl stoppen</b>. „Ende“ bleibt stehen.</li>' +
       '</ol></div><p class="small muted">Dann: Blog in Safari öffnen → Teilen → „' + SC_NAME + '“ → Rezeptbuch → Einfügen. Die App fragt, zu welchem Rezept der Blog gehört.</p>' +
       '<p class="small muted">Beim ersten Mal fragt iOS, ob der Kurzbefehl instagram.com abrufen und die Seite öffnen darf: „Immer erlauben“. Ist das Rezept deutsch, gibt der Übersetzer den Text unverändert zurück.</p>') +
-      '<p class="small muted">Der Kurzbefehl liest nur die öffentliche Vorschau des Posts, den du teilst. Ohne Anmeldung, ohne Zugriff auf dein Instagram-Konto. Alles bleibt auf deinem iPhone.</p>' +
+      '<p class="small muted">Der Kurzbefehl liest nur die öffentliche Vorschau des Posts, den du teilst, und den Blog aus der Beschreibung. Den Ton wandelt dein iPhone selbst in Text um; das Video wird nicht gespeichert. Ohne Anmeldung, ohne Zugriff auf dein Instagram-Konto. Alles bleibt auf deinem iPhone.</p>' +
       '<button class="btn" data-a="sc-test">' + ic("play") + 'Kurzbefehl jetzt testen</button>' +
       '<button class="btn soft" data-a="close-sheet">Schließen</button>');
     S.meta.setupAsked = true; save("meta");
@@ -1872,6 +1882,15 @@ a { color: var(--accent); }
     var m = t.match(/^\s*REZEPTBUCH\s*\n([\s\S]*)$/i);
     if (!m) { var h = payloadHash(t); return h ? parseImportHash(h) : null; }
     var body = m[1], p = {};
+    // Ton aus dem Video („Audio transkribieren“ im Kurzbefehl): "###TON###\n<gesprochener Text>", endet am nächsten ###-Block
+    var iS = body.search(/^[ \t]*###[ \t]*TON[ \t]*###[ \t]*$/m);
+    if (iS >= 0) {
+      var nachTon = body.slice(body.indexOf("\n", iS) + 1), endeTon = nachTon.search(/^[ \t]*###[ \t]*[A-ZÄÖÜ]+[ \t]*###[ \t]*$/m);
+      if (body.indexOf("\n", iS) < 0) nachTon = "";
+      p.s = nachTon.slice(0, endeTon >= 0 ? endeTon : nachTon.length).replace(/^\[\s*|\s*\]$/g, "").trim();
+      body = body.slice(0, iS) + (endeTon >= 0 ? nachTon.slice(endeTon) : "");
+      if (p.s.length < 15) delete p.s; // kein Video oder kein gesprochener Text
+    }
     // Blog-Seite, die der Kurzbefehl zum Link aus der Beschreibung geholt hat: "###BLOG###\n<link>\n<inhalt>"
     var iB = body.search(/^[ \t]*###[ \t]*BLOG[ \t]*###[ \t]*$/m);
     if (iB >= 0) {
@@ -2022,6 +2041,16 @@ a { color: var(--accent); }
     }
     // schon gespeichert? Dann öffnen statt doppelt anlegen
     var same = url ? entries().filter(function (e) { return e.input && e.input.url && e.input.url.split("?")[0].replace(/\/$/, "") === url.split("?")[0].replace(/\/$/, ""); })[0] : null;
+    // nochmal geteilt, jetzt mit Ton oder Blog: das gespeicherte Rezept damit ergänzen
+    if (same && same.input && ((input.transcript && !same.input.transcript) || (input.blogHtml && !same.input.blogHtml) || (input.commentText && !same.input.commentText))) {
+      if (input.transcript && !same.input.transcript) same.input.transcript = input.transcript;
+      if (input.blogHtml && !same.input.blogHtml) { same.input.blogHtml = input.blogHtml; same.input.blogUrl = input.blogUrl; }
+      if (input.commentText && !same.input.commentText) { same.input.commentText = input.commentText; same.input.blogUrl = same.input.blogUrl || input.blogUrl; }
+      reanalyse(same); if (input.blogUrl) same.recipe.source.blogUrl = input.blogUrl; save("recipes");
+      UI.tab = "rezepte"; UI.detail = same.id;
+      setTimeout(function () { toast("Rezept ergänzt"); }, 300);
+      return true;
+    }
     if (same) { UI.tab = "rezepte"; UI.detail = same.id; setTimeout(function () { toast("Schon in der Kombüse"); }, 300); var accS = (same.recipe.source && same.recipe.source.account) || account; if (accS) setTimeout(function () { folgenPruefen(accS); }, 1800); return true; }
     startDraft(input);
     // Rezept erkannt (oder bewusst geteilt und Text vorhanden): sofort speichern, ohne weiteren Tipp
