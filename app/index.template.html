@@ -295,7 +295,8 @@ a { color: var(--accent); }
 <script>
   // iCloud-Link des fertigen Kurzbefehls („Ins Rezeptbuch“ → Teilen → „iCloud-Link kopieren“).
   // Sobald er hier steht, richten Nutzer den Kurzbefehl mit einem Tipp ein statt ihn selbst zu bauen.
-  window.KURZBEFEHL_LINK = "https://www.icloud.com/shortcuts/148c7f91aef14a4d9c8023192de0f6b2";
+  // iCloud-Links der beiden Kurzbefehl-Versionen (beide heißen „Ins Rezeptbuch“). Leer = Bauanleitung zeigen.
+  window.KURZBEFEHL_LINKS = { einfach: "", komplett: "" };
 </script>
 <script>
 (function () {
@@ -957,11 +958,13 @@ a { color: var(--accent); }
       var favs = mine.filter(function (e) { return e.fav; });
       var withMiss = mine.map(function (e) { return { e: e, m: missingOf(e.recipe) }; }).filter(function (x) { return x.m.total >= 3 && x.e.nochmal !== false && K.completeness(x.e.recipe).enough; })
         .sort(function (a, b) { return a.m.missing - b.m.missing || (a.e.recipe.timeTotal || 999) - (b.e.recipe.timeTotal || 999); }).slice(0, 8);
-      var recent = mine.filter(function (e) { return e.lastCooked || e.viewedAt; }).sort(function (a, b) { return Math.max(b.lastCooked || 0, b.viewedAt || 0) - Math.max(a.lastCooked || 0, a.viewedAt || 0); }).slice(0, 8);
+      var gekocht = mine.filter(function (e) { return e.lastCooked; }).sort(function (a, b) { return b.lastCooked - a.lastCooked; }).slice(0, 8);
+      var angesehen = mine.filter(function (e) { return e.viewedAt && gekocht.indexOf(e) === -1; }).sort(function (a, b) { return b.viewedAt - a.viewedAt; }).slice(0, 8);
       var quick = mine.filter(function (e) { return e.recipe.timeTotal && e.recipe.timeTotal <= 20 && K.completeness(e.recipe).enough; }).sort(function (a, b) { return a.recipe.timeTotal - b.recipe.timeTotal; }).slice(0, 8);
       personal = planBlock() + tileRow("Mit deinem Vorrat", withMiss.map(function (x) { return x.e; }), function (e) { var m = missingOf(e.recipe); return m.missing ? '<span class="miss">' + (m.missing === 1 ? "1 Zutat fehlt" : m.missing + " Zutaten fehlen") + '</span>' : '<span class="miss">Alles da</span>'; }) +
         tileRow("Favoriten", favs, function (e) { return e.recipe.timeTotal ? e.recipe.timeTotal + " Min." : esc(e.recipe.category); }) +
-        tileRow("Zuletzt", recent, function (e) { return e.lastCooked ? "gekocht " + relDay(e.lastCooked) : "angesehen " + relDay(e.viewedAt); }) +
+        tileRow("Zuletzt gekocht", gekocht, function (e) { return "gekocht " + relDay(e.lastCooked); }) +
+        tileRow("Zuletzt angesehen", angesehen, function (e) { return "angesehen " + relDay(e.viewedAt); }) +
         tileRow("Lange nicht gekocht", langeNicht(mine), function (e) { return "zuletzt " + relDay(e.lastCooked); }) +
         tileRow("Schnell, bis 20 Minuten", quick.filter(function (e) { return e.nochmal !== false; }), function (e) { return e.recipe.timeTotal + " Min."; });
     }
@@ -1256,7 +1259,9 @@ a { color: var(--accent); }
       (function () { var g = K.geraete(r); return g.length && !hideSteps ? '<p class="have-line">Du brauchst: ' + esc(g.join(" · ")) + '</p>' : ''; })() +
       (cookList(r).length && !hideSteps ? '<button class="btn" data-a="cook" data-id="' + esc(id) + '">' + ic("play") + 'Kochen starten</button>' : '') +
       (function () { var tage = planDieseWoche().filter(function (t) { return t.ids.indexOf(id) !== -1; }).map(function (t) { return t.name; });
-        return '<button class="btn soft" data-a="plan" data-id="' + esc(id) + '">' + ic("clock") + (tage.length ? 'Geplant: ' + esc(tage.join(", ")) : 'Einplanen') + '</button>'; })() +
+        var heute = e.lastCooked && relDay(e.lastCooked) === "heute";
+        return '<div style="display:flex;gap:8px"><button class="btn soft" style="flex:1" data-a="plan" data-id="' + esc(id) + '">' + ic("clock") + (tage.length ? 'Geplant: ' + esc(tage.join(", ")) : 'Einplanen') + '</button>' +
+          '<button class="btn soft" style="flex:1" data-a="mark-cooked" data-id="' + esc(id) + '"' + (heute ? ' aria-pressed="true"' : '') + '>' + ic("check") + (heute ? 'Heute gekocht' : 'Gekocht') + '</button></div>'; })() +
       guide("detail") + missing +
       '<section class="sec"><div class="sec-head"><h2>Zutaten</h2><span class="stepper" role="group" aria-label="Portionen"><button data-a="serv" data-id="' + esc(id) + '" data-d="-1" aria-label="Weniger">−</button><output>' + serv + " " + esc(unitWord) + '</output><button data-a="serv" data-id="' + esc(id) + '" data-d="1" aria-label="Mehr">+</button></span></div>' +
       (household ? '<p class="have-line">Auf deinen Haushalt umgerechnet (' + S.prefs.persons + ' Personen, im Rezept ' + r.servings + ').</p>' : '') +
@@ -1386,7 +1391,7 @@ a { color: var(--accent); }
     // Automatische Suche (Blog, Bilder, Ton) ist noch nicht eingebaut: ehrlicher Hinweis statt Versprechen
     if (nx && /^(blogsuche|bilder|download|screenshot)$/.test(nx.action)) {
       var wo = r.elsewhere && r.elsewhere.wo;
-      return wo === "video" || /\/(reel|reels|tv)\//.test(r.source.url || "") ? "Der Rest steckt vermutlich im Video. Zutaten und Schritte per Live-Text aus einem Bildschirmfoto kopieren und mit „Fehlenden Text einfügen“ ergänzen." :
+      return wo === "video" || /\/(reel|reels|tv)\//.test(r.source.url || "") ? "Der Rest steckt vermutlich im Video. " + (S.prefs.kurzbefehl !== "komplett" ? "Mit dem Kurzbefehl „Komplett“ kommt der Ton automatisch mit (Einstellungen → Kurzbefehl einrichten). " : "") + "Oder Zutaten und Schritte per Live-Text aus einem Bildschirmfoto kopieren und mit „Fehlenden Text einfügen“ ergänzen." :
         "Der Rest steht nicht in der Beschreibung. Wenn du ihn findest (Kommentar, Blog, Video): kopieren und mit „Fehlenden Text einfügen“ ergänzen.";
     }
     if (nx && nx.action === "blog") return "In der Beschreibung steht ein Link. Dort Zutaten und Zubereitung kopieren und mit „Fehlenden Text einfügen“ ergänzen.";
@@ -1527,7 +1532,7 @@ a { color: var(--accent); }
       '<p class="small muted" style="padding-inline:4px">Eine einzige Datei mit allen ' + n + ' Rezepten, deinem Vorrat und der Einkaufsliste. Speichere sie in iCloud Drive und ersetze die alte. Auf einem zweiten Gerät lädst du sie mit „Sicherung laden“.</p>' +
       '<div class="btnrow"><button class="btn accent" data-a="backup">' + ic("cloud") + 'Jetzt sichern</button><label class="btn soft" for="restorefile">Sicherung laden</label></div>' +
       '<input type="file" id="restorefile" accept=".json,application/json" class="sr"></section>' +
-      '<section class="sec"><div class="sec-head"><h2>Instagram</h2></div><div class="group"><button class="row" data-a="setup">' + ic("share") + '<span class="main"><span class="title">Kurzbefehl einrichten</span><span class="sub">„Ins Rezeptbuch“ im Teilen-Menü</span></span>' + ic("chev", "chev") + '</button></div></section>' +
+      '<section class="sec"><div class="sec-head"><h2>Instagram</h2></div><div class="group"><button class="row" data-a="setup">' + ic("share") + '<span class="main"><span class="title">Kurzbefehl einrichten</span><span class="sub">„Ins Rezeptbuch“ im Teilen-Menü' + (S.prefs.kurzbefehl ? ' · Version ' + (S.prefs.kurzbefehl === "komplett" ? "Komplett" : "Einfach") : '') + '</span></span>' + ic("chev", "chev") + '</button></div></section>' +
       '<section class="sec"><div class="sec-head"><h2>Sprache</h2></div><div class="group"><button class="row" data-a="translate">' + ic("lang") + '<span class="main"><span class="title">Zubereitung auf Deutsch übersetzen</span><span class="sub">' + englishEntries().length + ' Rezepte noch nicht auf Deutsch · Übersetzung auf dem iPhone (Bergamot)</span></span>' + ic("chev", "chev") + '</button></div></section>' +
       '<section class="sec"><div class="sec-head"><h2>Lernen</h2></div><div class="group"><button class="row" data-a="lern-show">' + ic("sparkle") + '<span class="main"><span class="title">Was die App gelernt hat</span><span class="sub">' + lernZahl() + ' Regeln · ansehen, löschen, an Jakob schicken</span></span>' + ic("chev", "chev") + '</button></div></section>' +
       '<section class="sec"><div class="sec-head"><h2>Hilfe</h2></div><div class="group"><button class="row" data-a="guides-reset"><span class="main"><span class="title">Anleitungen wieder zeigen</span></span></button></div></section>' +
@@ -1661,13 +1666,26 @@ a { color: var(--accent); }
     var u = "shortcuts://run-shortcut?name=" + encodeURIComponent(SC_NAME) + (text ? "&input=text&text=" + encodeURIComponent(text) : "");
     try { var a = document.createElement("a"); a.href = u; a.rel = "noopener"; document.body.appendChild(a); a.click(); a.remove(); } catch (x) { try { location.href = u; } catch (y) { /* kein Kurzbefehl */ } }
   }
+  // Kurzbefehl in zwei Versionen (Jakob, 26.10.): „Einfach“ (nur Beschreibung) oder „Komplett“ (mit Blog und Ton)
+  var SC_VERSIONEN = { einfach: "Einfach – nur die Beschreibung", komplett: "Komplett – mit Ton und Blog" };
+  function scWahlSheet() {
+    sheet('<h2>Welchen Kurzbefehl möchtest du?</h2><p class="small muted">Beide heißen „' + SC_NAME + '“ und funktionieren mit der Kombüse. Du kannst später jederzeit wechseln.</p>' +
+      '<div class="group">' +
+      '<button class="row" data-a="sc-version" data-v="einfach">' + ic("copy") + '<span class="main"><span class="title">' + SC_VERSIONEN.einfach + '</span><span class="sub">Schnell und sparsam. Reicht, wenn das Rezept im Beitragstext steht.</span></span>' + ic("chev", "chev") + '</button>' +
+      '<button class="row" data-a="sc-version" data-v="komplett">' + ic("sparkle") + '<span class="main"><span class="title">' + SC_VERSIONEN.komplett + '</span><span class="sub">Holt zusätzlich den Blog aus der Beschreibung und wandelt den Ton von Reels auf deinem iPhone in Text um. Dauert etwas länger.</span></span>' + ic("chev", "chev") + '</button>' +
+      '</div><button class="btn soft" data-a="close-sheet">Später</button>');
+  }
   function setupSheet() {
-    var link = window.KURZBEFEHL_LINK || "";
+    var ver = S.prefs.kurzbefehl;
+    if (!ver || UI.scWahl) { UI.scWahl = false; scWahlSheet(); return; }
+    var komplett = ver === "komplett";
+    var link = (window.KURZBEFEHL_LINKS || {})[ver] || "";
     var ok = !!S.meta.shortcutOk;
     sheet('<h2>Aus Instagram in die Kombüse</h2>' +
-      (ok ? '<div class="note info"><b>Eingerichtet.</b><span>In Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“. Dann Rezeptbuch öffnen und oben auf „Einfügen“ tippen (iOS fragt einmal „Einsetzen erlauben?“).</span></div>' : '') +
-      (ok && !UI.showBuild ? '<button class="btn soft" data-a="show-build">Bauanleitung anzeigen</button>' : link && !UI.showBuild ? '<p class="small">1. Tippe auf „Kurzbefehl hinzufügen“ und dort auf „Kurzbefehl hinzufügen“. 2. In Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“. 3. Beim ersten Mal fragt iOS, ob instagram.com abgerufen werden darf: „Immer erlauben“. 4. Rezeptbuch öffnen → „Einfügen“.</p><a class="btn accent" href="' + esc(link) + '" target="_blank" rel="noopener">Kurzbefehl hinzufügen</a><button class="btn ghost" data-a="show-build">Selbst bauen (Bauanleitung)</button>' :
-      '<p class="small">Einmal in der Kurzbefehle-App anlegen (ca. 5 Minuten). Danach in Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“, dann Rezeptbuch öffnen und oben auf „Einfügen“ tippen.</p>' +
+      '<div class="row" style="padding:0 4px;min-height:0"><span class="main small muted">Version: <b>' + SC_VERSIONEN[ver] + '</b></span><button class="btn ghost" style="width:auto;min-height:36px;padding:0" data-a="sc-wahl">Ändern</button></div>' +
+      (ok ? '<div class="note info"><b>Eingerichtet.</b><span>In Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“. Dann die Kombüse öffnen und oben auf „Einfügen“ tippen (iOS fragt einmal „Einsetzen erlauben?“).</span></div>' : '') +
+      (ok && !UI.showBuild ? '<button class="btn soft" data-a="show-build">Bauanleitung anzeigen</button>' : link && !UI.showBuild ? '<p class="small">1. Tippe auf „Kurzbefehl hinzufügen“ und dort auf „Kurzbefehl hinzufügen“. 2. In Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“. 3. Beim ersten Mal fragt iOS, ob instagram.com abgerufen werden darf: „Immer erlauben“. 4. Kombüse öffnen → „Einfügen“.</p><a class="btn accent" href="' + esc(link) + '" target="_blank" rel="noopener">Kurzbefehl hinzufügen</a><button class="btn ghost" data-a="show-build">Selbst bauen (Bauanleitung)</button>' :
+      '<p class="small">Einmal in der Kurzbefehle-App anlegen (ca. ' + (komplett ? 5 : 3) + ' Minuten). Danach in Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“, dann die Kombüse öffnen und oben auf „Einfügen“ tippen.</p>' +
       '<p class="small"><b>Teil A – Beitrag holen</b></p><div class="build"><ol>' +
       '<li>Kurzbefehle-App → „+“ → oben auf den Namen → Umbenennen: <b>' + SC_NAME + '</b>.' + snip(SC_NAME) + '</li>' +
       '<li>Unten auf <b>ⓘ</b> → <b>Im Share-Sheet anzeigen</b> an. Im Block oben: Eingabe nur <b>URLs</b> und <b>Text</b>; „Falls keine Eingabe“: <b>Zwischenablage abrufen</b>.</li>' +
@@ -1677,7 +1695,7 @@ a { color: var(--accent); }
       '<li><b>Inhalte von URL abrufen</b>.</li>' +
       '<li><b>Variable festlegen</b>: Name <b>Seite</b>, Wert <b>Inhalt der URL</b>.</li>' +
       '</ol></div>' +
-      '<p class="small"><b>Teil B – Blog-Link aus der Beschreibung mitholen</b></p><div class="build"><ol>' +
+      (komplett ? '<p class="small"><b>Teil B – Blog-Link aus der Beschreibung mitholen</b></p><div class="build"><ol>' +
       '<li><b>Text abgleichen</b> in <b>Seite</b>, Muster:' + snip("(https?://|www\\.)(?![^/\\s\"<>]*(instagram\\.com|instagr\\.am|facebook\\.|fbcdn\\.net|fbsbx\\.com|cdninstagram\\.com|w3\\.org|schema\\.org|ogp\\.me))[^\\s\"<>]+") + '</li>' +
       '<li><b>Wenn</b> → „Treffer“ → <b>hat einen Wert</b> (den „Sonst“-Teil löschen).</li>' +
       '<li>Darin: <b>Erstes Objekt aus Liste abrufen</b> → <b>Variable festlegen</b> „BlogLink“ → <b>Inhalte von URL abrufen</b> (BlogLink) → <b>Variable festlegen</b> „Blog“ (Inhalt der URL).</li>' +
@@ -1689,9 +1707,9 @@ a { color: var(--accent); }
       '<li><b>Text ersetzen</b>: suchen' + snip("\\\\+u0026") + 'ersetzen durch <code>&amp;</code>, unten <b>Regulärer Ausdruck</b> an.</li>' +
       '<li><b>Text ersetzen</b> (im ersetzten Text): suchen' + snip("\\\\") + 'ersetzen durch nichts (Feld leer lassen), <b>Regulärer Ausdruck</b> an.</li>' +
       '<li><b>Inhalte von URL abrufen</b> (ersetzter Text) → <b>Medien codieren</b> mit <b>Nur Audio</b> an → <b>Audio transkribieren</b> → <b>Variable festlegen</b> „Ton“ (Transkript).</li>' +
-      '</ol></div>' +
-      '<p class="small"><b>Teil D – alles an die Kombüse geben</b></p><div class="build"><ol>' +
-      '<li>Ganz unten (nach allen „Ende“): <b>Text</b> mit genau diesen Zeilen; an die Stellen in [ ] die Variablen setzen:' + snip("REZEPTBUCH\nhttps://www.instagram.com/[Objekt aus Liste]\n###TEXT###\n[Seite]\n###TON###\n[Ton]\n###BLOG###\n[BlogLink]\n[Blog]") + '</li>' +
+      '</ol></div>' : '') +
+      '<p class="small"><b>' + (komplett ? 'Teil D' : 'Teil B') + ' – alles an die Kombüse geben</b></p><div class="build"><ol>' +
+      '<li>Ganz unten' + (komplett ? ' (nach allen „Ende“)' : '') + ': <b>Text</b> mit genau diesen Zeilen; an die Stellen in [ ] die Variablen setzen:' + snip(komplett ? "REZEPTBUCH\nhttps://www.instagram.com/[Objekt aus Liste]\n###TEXT###\n[Seite]\n###TON###\n[Ton]\n###BLOG###\n[BlogLink]\n[Blog]" : "REZEPTBUCH\nhttps://www.instagram.com/[Objekt aus Liste]\n###TEXT###\n[Seite]") + '</li>' +
       '<li><b>In Zwischenablage kopieren</b>. Fertig – kein „URL öffnen“.</li>' +
       '</ol></div>' +
       '<p class="small"><b>Blog direkt aus Safari teilen:</b> direkt nach dem ersten „Text abgleichen“ einfügen:</p><div class="build"><ol>' +
@@ -1699,9 +1717,9 @@ a { color: var(--accent); }
       '<li>Darin <b>Inhalte von URL abrufen</b> mit <b>Kurzbefehleingabe</b>.</li>' +
       '<li><b>Text</b>:' + snip("REZEPTBUCH\n[Kurzbefehleingabe]\n###TEXT###\n[Inhalt der URL]") + '(die Wörter in [ ] durch die Variablen ersetzen, ohne Klammern)</li>' +
       '<li><b>In Zwischenablage kopieren</b>, dann <b>Kurzbefehl stoppen</b>. „Ende“ bleibt stehen.</li>' +
-      '</ol></div><p class="small muted">Dann: Blog in Safari öffnen → Teilen → „' + SC_NAME + '“ → Rezeptbuch → Einfügen. Die App fragt, zu welchem Rezept der Blog gehört.</p>' +
+      '</ol></div><p class="small muted">Dann: Blog in Safari öffnen → Teilen → „' + SC_NAME + '“ → Kombüse → Einfügen. Die App fragt, zu welchem Rezept der Blog gehört.</p>' +
       '<p class="small muted">Beim ersten Mal fragt iOS, ob der Kurzbefehl instagram.com abrufen und die Seite öffnen darf: „Immer erlauben“. Ist das Rezept deutsch, gibt der Übersetzer den Text unverändert zurück.</p>') +
-      '<p class="small muted">Der Kurzbefehl liest nur die öffentliche Vorschau des Posts, den du teilst, und den Blog aus der Beschreibung. Den Ton wandelt dein iPhone selbst in Text um; das Video wird nicht gespeichert. Ohne Anmeldung, ohne Zugriff auf dein Instagram-Konto. Alles bleibt auf deinem iPhone.</p>' +
+      '<p class="small muted">Der Kurzbefehl liest nur die öffentliche Vorschau des Posts, den du teilst, ' + (komplett ? 'und den Blog aus der Beschreibung. Den Ton wandelt dein iPhone selbst in Text um; das Video wird nicht gespeichert.' : '– sonst nichts.') + ' Ohne Anmeldung, ohne Zugriff auf dein Instagram-Konto. Alles bleibt auf deinem iPhone.</p>' +
       '<button class="btn" data-a="sc-test">' + ic("play") + 'Kurzbefehl jetzt testen</button>' +
       '<button class="btn soft" data-a="close-sheet">Schließen</button>');
     S.meta.setupAsked = true; save("meta");
@@ -2173,6 +2191,12 @@ a { color: var(--accent); }
         startDraft(bIn); if (UI.draft && UI.draft.res.recipe.ingredients.length >= 2) { var bo = addRecipe(UI.draft.res, { input: bIn }); UI.draft = null; UI.tab = "rezepte"; UI.detail = bo.id; toast("Rezept vom Blog gespeichert"); } else { UI.tab = "neu"; }
         render(); break;
       case "share-apply": var stx = (($("#sharetext") || {}).value || ""); closeSheet(); var sf = payloadFields(stx); if (sf && handleImport(sf, true)) render(); else diagSheet("Kein geteiltes Rezept erkannt.", stx, !stx.trim() ? "zwischenablage-leer" : sf ? "nicht-gelesen" : "keine-daten"); break;
+      case "sc-version": S.prefs.kurzbefehl = el.dataset.v; save("prefs"); UI.showBuild = false; setupSheet(); break;
+      case "sc-wahl": UI.scWahl = true; setupSheet(); break;
+      case "mark-cooked":
+        var mc = S.recipes[id];
+        if (mc.lastCooked && relDay(mc.lastCooked) === "heute") { toast("Für heute schon eingetragen"); break; }
+        mc.cooked = (mc.cooked || 0) + 1; mc.lastCooked = Date.now(); save("recipes"); render(); toast("Als gekocht eingetragen"); break;
       case "show-build": UI.showBuild = true; setupSheet(); break;
       case "sc-run-link": closeSheet(); UI.pasteText = ""; runShortcut(el.dataset.t); break;
       case "sc-test": closeSheet(); toast("Kurzbefehl wird mit einem Beispiel-Link gestartet …"); setTimeout(function () { runShortcut("https://www.instagram.com/p/C0Test/"); }, 400); break;

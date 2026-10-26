@@ -18,7 +18,7 @@ const check = (name, cond, info) => { if (cond) ok++; else { bad++; console.log(
 (async () => {
   await new Promise(r => srv.listen(8765, r));
   const browser = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
-  const page = await browser.newPage({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const errors = []; page.on("pageerror", e => errors.push(String(e)));
   await page.goto("http://127.0.0.1:8765/index.html");
   await page.waitForTimeout(800);

@@ -1,6 +1,6 @@
 # Rezeptbuch
 
-Persönliches Rezeptbuch für Rezepte aus Instagram. Web-App per Link, läuft auf dem iPhone ab iPhone 11,
+Persönliches Rezeptbuch für Rezepte aus Instagram. Web-App per Link, läuft auf dem iPhone ab iPhone 12,
 alles bleibt auf dem Gerät (kein Server, kein Tracking, keine fremden Schriften oder Skripte).
 
 ## Aufbau
