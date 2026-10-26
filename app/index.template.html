@@ -189,6 +189,35 @@ a { color: var(--accent); }
 .tile .sub { font-size: 0.8rem; color: var(--muted); }
 .glyph { width: 40px; height: 40px; border-radius: 12px; background: var(--surface-2); display: grid; place-items: center; color: var(--ink); flex: none; }
 .glyph svg { width: 22px; height: 22px; }
+.glyph { position: relative; }
+.glyph .dish { position: absolute; right: -5px; bottom: -5px; width: 22px; height: 22px; border-radius: 11px; background: var(--brand-soft); color: var(--brand-text); display: grid; place-items: center; box-shadow: 0 0 0 2px var(--bg); }
+.glyph .dish svg { width: 14px; height: 14px; }
+/* Startseite: Woche, Schnellzugriffe, Suche */
+.wochen { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x mandatory; margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding-inline: max(16px, env(safe-area-inset-left, 0px)); }
+.wochen::-webkit-scrollbar { display: none; }
+.wkarte { flex: none; width: 280px; scroll-snap-align: start; background: var(--surface); border-radius: var(--r-group); padding: 12px 14px; display: grid; gap: 10px; }
+.wkarte.erste { background: #121513; color: #F3F1EC; }
+.wkarte .wk-main { border: 0; background: none; color: inherit; text-align: left; padding: 0; display: grid; gap: 2px; }
+.wkarte .wtag { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--brand-text); }
+.wkarte.erste .wtag { color: #FF9F45; }
+.wkarte .title { font-weight: 650; font-size: 1rem; line-height: 1.25; }
+.wkarte .sub { font-size: 0.82rem; color: var(--muted); }
+.wkarte.erste .sub { color: #C9CCC6; }
+.wkarte .wk-act { display: flex; gap: 8px; }
+.wkarte .wk-act .btn { flex: 1; min-height: 40px; padding: 8px 10px; font-size: 0.9rem; }
+.wkarte.erste .btn.soft { background: #2A302C; color: #F3F1EC; }
+.kacheln { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.kachel { border: 0; background: var(--surface); border-radius: 18px; padding: 16px; min-height: 120px; display: flex; flex-direction: column; justify-content: space-between; gap: 14px; text-align: left; color: var(--ink); }
+.kachel .ki { width: 44px; height: 44px; border-radius: 12px; background: var(--brand-soft); color: var(--brand-text); display: grid; place-items: center; }
+.kachel .ki svg { width: 24px; height: 24px; }
+.kachel .title { font-weight: 650; font-size: 1.05rem; line-height: 1.2; }
+.kachel .sub { font-size: 0.85rem; color: var(--muted); }
+.schnellchips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding-inline: max(16px, env(safe-area-inset-left, 0px)); }
+.schnellchips::-webkit-scrollbar { display: none; }
+.schnellchips .chip { display: inline-flex; align-items: center; gap: 6px; }
+.schnellchips .chip svg { width: 16px; height: 16px; color: var(--brand-text); }
+.schnellchips .chip[aria-pressed="true"] svg { color: inherit; }
+.topbar .acts { display: flex; gap: 8px; }
 .row .glyph { width: 46px; height: 46px; }
 .toolbar { display: flex; gap: 8px; align-items: center; }
 .toolbar .search { flex: 1; min-width: 0; }
@@ -339,6 +368,26 @@ a { color: var(--accent); }
     more: '<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
     sliders: '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',
     x: '<path d="M6 6l12 12M18 6L6 18"/>',
+    bolt: '<path d="M13 3L5 14h6l-1 7 8-11h-6z"/>',
+    history: '<path d="M4 12a8 8 0 1 0 2.3-5.7"/><path d="M4 4v4h4"/><path d="M12 8v4l3 2"/>',
+    neu: '<path d="M12 3l1.8 4.6L18.5 9l-4.7 1.4L12 15l-1.8-4.6L5.5 9l4.7-1.4z"/><path d="M18 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/>',
+    // Gerichte (ergänzen das Kategorie-Symbol, überschneiden sich nicht damit)
+    d_pasta: '<path d="M4 12h16"/><path d="M5 12a7 7 0 0 0 14 0"/><path d="M8 12c0-3 1-5 2-7M12 12c0-3 0-5 1-8M16 12c0-3-1-5-2-7"/>',
+    d_pizza: '<path d="M12 3L3 19h18z"/><circle cx="10" cy="14" r="1"/><circle cx="14" cy="15" r="1"/><circle cx="12" cy="10" r="1"/>',
+    d_burger: '<path d="M4 11a8 6 0 0 1 16 0z"/><path d="M4 14h16"/><path d="M5 17h14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"/>',
+    d_wrap: '<path d="M3 15a9 9 0 0 1 18 0z"/><path d="M7 15c1-3 3-5 5-5M12 15c1-2 2-3 4-3"/>',
+    d_pfanne: '<circle cx="10" cy="13" r="6"/><path d="M16 13h6"/>',
+    d_brot: '<path d="M5 10a4 4 0 0 1 2-7h10a4 4 0 0 1 2 7v10H5z"/><path d="M9 13l2 2M13 11l2 2"/>',
+    d_kuchen: '<path d="M3 20h18L12 6z"/><path d="M6 15h12"/>',
+    d_muffin: '<path d="M6 12h12l-1.5 8h-9z"/><path d="M5 12a7 5 0 0 1 14 0"/><path d="M12 4v3"/>',
+    d_keks: '<circle cx="12" cy="12" r="8.5"/><circle cx="9" cy="10" r="1"/><circle cx="14" cy="9" r="1"/><circle cx="13" cy="14" r="1"/><circle cx="9" cy="15" r="1"/>',
+    d_tofu: '<path d="M4 9l8-4 8 4v8l-8 4-8-4z"/><path d="M4 9l8 4 8-4M12 13v8"/>',
+    d_ei: '<path d="M12 3c3.5 0 6 5.5 6 10a6 6 0 0 1-12 0c0-4.5 2.5-10 6-10z"/>',
+    d_pancake: '<ellipse cx="12" cy="8" rx="8" ry="2.5"/><path d="M4 8v3c0 1.4 3.6 2.5 8 2.5s8-1.1 8-2.5V8M4 13v3c0 1.4 3.6 2.5 8 2.5s8-1.1 8-2.5v-3"/>',
+    d_fisch: '<path d="M3 12c3-4 8-5 12-2l5-3v10l-5-3c-4 3-9 2-12-2z"/><circle cx="8" cy="11" r="0.8"/>',
+    d_kartoffel: '<path d="M6 8c2-4 10-4 12 0 2 4 0 10-6 10S4 12 6 8z"/><path d="M9 10h.01M14 9h.01M12 14h.01"/>',
+    d_bohnen: '<path d="M7 6c3 0 4 3 2 5s-5 1-5-1 1-4 3-4zM17 6c-3 0-4 3-2 5s5 1 5-1-1-4-3-4zM12 13c3 0 4 3 2 5s-5 1-5-1 1-4 3-4z"/>',
+    d_gemuese: '<path d="M14 10L5 21l11-9z"/><path d="M14 10c1-3 3-5 6-6M16 12c2-1 4-1 5 1M14 10c0-2 0-4-2-5"/>',
     home: '<path d="M4 11l8-7 8 7"/><path d="M6 10v10h12V10"/>',
     play: '<path d="M8 5l11 7-11 7z"/>',
     edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/>',
@@ -356,7 +405,23 @@ a { color: var(--accent); }
   };
   var GANG_ICON = { "Hauptgericht": "g_haupt", "Frühstück": "g_frueh", "Salat & Bowl": "g_salat", "Suppe & Eintopf": "g_suppe", "Backen": "g_backen",
     "Dessert": "g_dessert", "Snack": "g_snack", "Getränk": "g_getraenk", "Sauce & Dip": "g_sauce", "Beilage": "g_beilage" };
-  function glyph(r) { return '<span class="glyph" aria-hidden="true">' + ic(GANG_ICON[r.category] || "g_haupt") + '</span>'; }
+  // Gericht am Titel erkennen (Symbol zusätzlich zur Kategorie; die Kategorie bleibt das Hauptsymbol)
+  var GERICHT_ICON = [
+    ["d_pizza", /pizza|flammkuchen/], ["d_burger", /burger|sandwich|toast\b/], ["d_wrap", /wrap|taco|burrito|quesadilla|tortilla|döner|kebab|shawarma|enchilada/],
+    ["d_pasta", /pasta|nudel|spaghetti|penne|lasagne|orzo|gnocchi|ramen|udon|noodle|tagliatelle|linguine|risotto|mac and/], ["d_pfanne", /curry|wok|pfanne|stir.?fry|dal\b|dhal|chili|gulasch|massaman|korma|masala/],
+    ["d_pancake", /pancake|pfannkuchen|waffel|crêpe|crepe/], ["d_muffin", /muffin|cupcake/], ["d_keks", /cookie|keks|plätzchen|riegel/], ["d_kuchen", /kuchen|torte|cheesecake|tarte|brownie|strudel|cake|pie\b/],
+    ["d_brot", /brot|brötchen|focaccia|bagel|zopf|bread|baguette/], ["d_ei", /\bei\b|eier|omelett|rührei|frittata|shakshuka|quiche/], ["d_fisch", /fisch|lachs|thunfisch|garnele|shrimp|sushi|forelle/],
+    ["d_tofu", /tofu|tempeh|seitan/], ["d_kartoffel", /kartoffel|pommes|wedges|gratin|rösti/], ["d_bohnen", /linsen|kichererbse|bohnen|hummus|falafel|erbsen/],
+    ["d_gemuese", /gemüse|brokkoli|blumenkohl|zucchini|aubergine|kürbis|möhre|karotte|paprika/]];
+  function gerichtIcon(e) {
+    var t = (titleOf(e) + " " + (e.recipe.titleOriginal || "")).toLowerCase();
+    for (var k = 0; k < GERICHT_ICON.length; k++) if (GERICHT_ICON[k][1].test(t)) return GERICHT_ICON[k][0];
+    return "";
+  }
+  function glyph(r, e) {
+    var d = e ? gerichtIcon(e) : "";
+    return '<span class="glyph" aria-hidden="true">' + ic(GANG_ICON[r.category] || "g_haupt") + (d ? '<span class="dish">' + ic(d) + '</span>' : '') + '</span>';
+  }
   function ic(name, cls) { return '<svg class="' + (cls || "") + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + I[name] + '</svg>'; }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
   var $ = function (sel, el) { return (el || document).querySelector(sel); };
@@ -403,7 +468,7 @@ a { color: var(--accent); }
   // ------------------------------------------------------------------ Zustand
   var S = { recipes: {}, pantry: {}, shopping: { list: [], done: {}, extra: [] }, follow: {}, zuord: {}, lernen: null, plan: {}, listen: {}, meta: { guides: {}, lastBackup: 0, lastChange: 0, setupAsked: false, examples: false },
     prefs: { name: "", persons: 2, diet: "alles", theme: "system", onboarded: false, nutrition: true, showOriginal: false, ohne: [] } };
-  var UI = { tab: "rezepte", detail: null, q: "", filter: {}, servings: {}, showOrig: {}, draft: null, importRes: null, showHave: false, sort: "neu", cook: null, cat: null, ohne: [], timers: [] };
+  var UI = { tab: "rezepte", detail: null, q: "", filter: {}, servings: {}, showOrig: {}, draft: null, importRes: null, showHave: false, sort: "neu", cook: null, cat: null, ohne: [], timers: [], chip: null, homeSuche: false };
 
   function entries() { return Object.keys(S.recipes).map(function (id) { return S.recipes[id]; }).sort(function (a, b) { return (b.addedAt || 0) - (a.addedAt || 0); }); }
   function rec(e) { return e.recipe; }
@@ -508,7 +573,7 @@ a { color: var(--accent); }
       ["sparkle", "Zutaten, Schritte, Zeit, Nährwerte und ob es vegan ist. Englische Rezepte übersetzt die App auf Deutsch – ohne Internet.", "Den Rest erkennt die App"],
       ["bag", "Portionen umrechnen, im Kochmodus mit Timer kochen und nur das einkaufen, was dir noch fehlt.", "Kochen und Einkaufen"],
       ["info", "Stimmt etwas nicht, tippe im Rezept auf „Problem melden“. Gesammelt schickst du alles über „An Jakob schicken“.", "Hilf beim Testen"]] },
-    kategorien: { t: "Kategorien", s: [["grid", "Die App sortiert jedes Rezept von selbst ein, zum Beispiel in Hauptgericht, Suppe oder Backen."], ["plus", "Ganz oben stehen deine eigenen Listen."]] },
+    kategorien: { t: "Kategorien", s: [["search", "Oben suchst du in allen Rezepten – mit Filtern und Schnellauswahl."], ["grid", "Darunter sortiert die App jedes Rezept von selbst in eine Kategorie ein."], ["plus", "Deine eigenen Listen stehen über den Kategorien."]] },
     naehrwert: { t: "Nährwerte zuordnen", s: [["search", "Such das Lebensmittel in der amtlichen Datenbank (BLS) und tippe auf den passenden Eintrag."], ["edit", "Findest du nichts, trag die Werte von der Verpackung selbst ein. Die App prüft, ob sie stimmen können."], ["check", "Die Zuordnung gilt danach für alle deine Rezepte."]] },
     rezepte: { t: "So funktioniert dein Rezeptbuch", s: [["share", "Auf Instagram bei einem Rezept auf Teilen tippen und „In die Kombüse“ wählen."], ["sparkle", "Die App erkennt Zutaten, Schritte, Zeit und Labels von selbst."], ["search", "Hier findest du alles wieder: suchen oder nach Labels filtern."]] },
     einkauf: { t: "Einkaufsliste", s: [["tap", "Auf eine Zutat tippen kopiert sie, zum Beispiel für eine Liefer-App."], ["check", "Den Kreis antippen, wenn du sie hast. Die App merkt sich das für deinen Vorrat."], ["scale", "Gleiche Zutaten aus mehreren Rezepten werden zusammengerechnet."]] },
@@ -861,7 +926,7 @@ a { color: var(--accent); }
     return '<div class="banner">' + ic("cloud") + '<div class="main"><b>Sicherung fällig.</b> Seit der letzten Sicherung hat sich etwas geändert.</div><button class="btn accent" data-a="backup">Sichern</button></div>';
   }
   function activeFilters() { return Object.keys(UI.filter).filter(function (g) { return UI.filter[g]; }); }
-  function filteredList(all) {
+  function filteredList(all, eigeneReihenfolge) {
     var q = UI.q.trim().toLowerCase();
     var list = all.filter(function (e) {
       var r = e.recipe;
@@ -878,11 +943,11 @@ a { color: var(--accent); }
       zeit: function (a, b) { return (a.recipe.timeTotal || big) - (b.recipe.timeTotal || big); },
       vorrat: function (a, b) { return missingOf(a.recipe).missing - missingOf(b.recipe).missing; }
     };
-    return list.sort(by[UI.sort] || by.neu);
+    return eigeneReihenfolge ? list : list.sort(by[UI.sort] || by.neu);
   }
   function tile(e, sub) {
     var r = e.recipe;
-    return '<button class="tile" data-a="open" data-id="' + esc(e.id) + '">' + glyph(r) + '<span class="title">' + esc(titleOf(e)) + '</span><span class="sub">' + sub + '</span></button>';
+    return '<button class="tile" data-a="open" data-id="' + esc(e.id) + '">' + glyph(r, e) + '<span class="title">' + esc(titleOf(e)) + '</span><span class="sub">' + sub + '</span></button>';
   }
   function tagKey(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
   function naechsteTage(n) { var out = [], d = new Date(); d.setHours(12, 0, 0, 0); for (var k = 0; k < n; k++) { out.push(new Date(d)); d.setDate(d.getDate() + 1); } return out; }
@@ -940,48 +1005,87 @@ a { color: var(--accent); }
     if (!items.length) return "";
     return '<section class="sec"><div class="sec-head"><h2>' + esc(title) + '</h2></div><div class="tiles">' + items.map(function (e) { return tile(e, subFn(e)); }).join("") + '</div></section>';
   }
+  // ------------------------------------------------------------------ Startseite (Jakob, 26.10.: Variante C mit Woche, sechs Schnellzugriffen und Suche hinter der Lupe)
+  var SCHNELL = [["gekocht", "Zuletzt gekocht", "clock"], ["fav", "Favoriten", "heart"], ["schnell", "Schnell", "bolt"], ["vorrat", "Mit deinem Vorrat", "jar"], ["nie", "Noch nie gekocht", "neu"], ["lange", "Lange nicht gekocht", "history"]];
+  var SCHNELL_NAME = {}; SCHNELL.forEach(function (x) { SCHNELL_NAME[x[0]] = x[1]; });
+  // Rezepte eines Schnellzugriffs, in seiner eigenen Reihenfolge (null = alle, normal sortiert)
+  function schnellListe(k, mine) {
+    if (k === "gekocht") return mine.filter(function (e) { return e.lastCooked; }).sort(function (a, b) { return b.lastCooked - a.lastCooked; });
+    if (k === "fav") return mine.filter(function (e) { return e.fav; });
+    if (k === "schnell") return mine.filter(function (e) { return e.recipe.timeTotal && e.recipe.timeTotal <= 20 && K.completeness(e.recipe).enough && e.nochmal !== false; }).sort(function (a, b) { return a.recipe.timeTotal - b.recipe.timeTotal; });
+    if (k === "vorrat") return mine.map(function (e) { return { e: e, m: missingOf(e.recipe) }; }).filter(function (x) { return x.m.total >= 3 && x.e.nochmal !== false && K.completeness(x.e.recipe).enough; })
+      .sort(function (a, b) { return a.m.missing - b.m.missing || (a.e.recipe.timeTotal || 999) - (b.e.recipe.timeTotal || 999); }).map(function (x) { return x.e; });
+    if (k === "nie") return mine.filter(function (e) { return !e.cooked && !e.lastCooked && !e.example && K.completeness(e.recipe).enough; });
+    if (k === "lange") { var grenze = Date.now() - 21 * 864e5; return mine.filter(function (e) { return e.lastCooked && e.lastCooked < grenze && e.nochmal !== false; }).sort(function (a, b) { return a.lastCooked - b.lastCooked; }); }
+    return null;
+  }
+  function schnellSub(k, list) {
+    if (k === "schnell") return "bis 20 Min.";
+    if (k === "lange") return list.length ? "seit über 3 Wochen" : "noch keine";
+    if (k === "vorrat") { var fast = list.filter(function (e) { return missingOf(e.recipe).missing <= 2; }).length; return fast ? fast + " fast komplett" : "noch keine"; }
+    return list.length ? list.length + (list.length === 1 ? " Rezept" : " Rezepte") : "noch keine";
+  }
+  function suchAktiv() { return !!(UI.q.trim() || activeFilters().length || UI.ohne.length || UI.chip); }
+  // Dieselbe Suche auf „Rezepte“ (hinter der Lupe) und auf „Kategorien“ (oben)
+  function suchKopf() {
+    var nf = activeFilters().length + UI.ohne.length;
+    return '<div class="toolbar"><label class="search"><span class="sr">Suche</span>' + ic("search") + '<input id="q" type="search" placeholder="Rezept, Zutat oder Creator" value="' + esc(UI.q) + '" autocomplete="off" enterkeyhint="search"></label>' +
+      '<button class="fbtn" data-a="filters" aria-label="Filter">' + ic("sliders") + (nf ? '<span class="n">' + nf + '</span>' : '') + '</button></div>' +
+      '<div class="schnellchips" role="group" aria-label="Schnellauswahl">' +
+      '<button class="chip" data-a="schnell-chip" data-k="alle" aria-pressed="' + (UI.chip === "alle") + '">Alle</button>' +
+      SCHNELL.map(function (x) { return '<button class="chip" data-a="schnell-chip" data-k="' + x[0] + '" aria-pressed="' + (UI.chip === x[0]) + '">' + ic(x[2]) + esc(x[1]) + '</button>'; }).join("") + '</div>' +
+      (nf ? '<div class="wrapchips">' + activeFilters().map(function (g) { return '<button class="chip on" data-a="filter" data-g="' + esc(g) + '" data-v="' + esc(UI.filter[g]) + '" aria-label="Filter ' + esc(UI.filter[g]) + ' entfernen">' + esc(UI.filter[g]) + ic("x") + '</button>'; }).join("") +
+        UI.ohne.map(function (w) { return '<button class="chip on" data-a="ohne-weg" data-w="' + esc(w) + '" aria-label="Ohne ' + esc(w) + ' entfernen">ohne ' + esc(w) + ic("x") + '</button>'; }).join("") + '</div>' : '');
+  }
+  function suchErgebnis(basis) {
+    var all = entries();
+    var mine = all.filter(function (e) { return dietOk(e.recipe); });
+    var eigen = UI.chip && UI.chip !== "alle" ? schnellListe(UI.chip, mine) : null;
+    var list = filteredList(eigen || (UI.q.trim() || activeFilters().length || UI.ohne.length ? all : (basis || mine)), !!eigen && UI.chip !== "fav");
+    var sortSeg = !eigen && list.length > 1 ? '<div class="seg" role="group" aria-label="Sortierung">' + [["neu", "Neueste"], ["zeit", "Schnellste"], ["vorrat", "Vorrat"], ["az", "A–Z"]].map(function (x) {
+      return '<button data-a="sort" data-v="' + x[0] + '" aria-pressed="' + (UI.sort === x[0]) + '">' + x[1] + '</button>'; }).join("") + '</div>' : '';
+    var titel = eigen ? SCHNELL_NAME[UI.chip] : UI.q.trim() || activeFilters().length || UI.ohne.length ? list.length + " gefunden" : "Alle Rezepte";
+    var hidden = !UI.q.trim() && (S.prefs.diet !== "alles" || S.prefs.ohne.length) ? all.length - mine.length : 0;
+    var ex = all.some(function (e) { return e.example; });
+    return '<section class="sec"><div class="sec-head"><h2>' + esc(titel) + '</h2>' + (eigen ? '<span class="small muted">' + list.length + '</span>' : (activeFilters().length || UI.ohne.length ? '<button class="link" data-a="filter-reset">Filter löschen</button>' : '')) + '</div>' + sortSeg +
+      (list.length ? '<div class="group">' + list.map(recipeRow).join("") + '</div>' :
+        '<div class="group empty">' + ic("search") + '<p><b>Nichts gefunden.</b></p><p class="muted small">' + (eigen ? "Hier ist noch nichts." : "Andere Suche oder weniger Filter probieren.") + '</p></div>') +
+      (hidden ? '<p class="foot">' + hidden + (hidden === 1 ? ' Rezept ist' : ' Rezepte sind') + ' ausgeblendet (' + esc([S.prefs.diet !== "alles" ? S.prefs.diet : "", S.prefs.ohne.length ? "ohne " + S.prefs.ohne.join(", ") : ""].filter(Boolean).join(" · ")) + '). Ändern kannst du das in den Einstellungen.</p>' : '') +
+      '</section>' +
+      (ex && !eigen ? '<p class="foot">Die Rezepte mit „Beispiel“ sind Muster zum Ausprobieren. <button class="btn ghost" style="width:auto;display:inline;padding:0;min-height:0" data-a="remove-examples">Beispiele entfernen</button></p>' : '');
+  }
+  // Geplante Rezepte der Woche als kleine Karten zum Wischen (nur wenn etwas geplant ist)
+  function wocheBlock() {
+    var karten = [];
+    planDieseWoche().forEach(function (t) { t.ids.forEach(function (id) { karten.push({ tag: t.name, id: id }); }); });
+    if (!karten.length) return "";
+    return '<section class="sec"><div class="sec-head"><h2>Diese Woche</h2><span class="small muted">' + karten.length + ' geplant</span></div><div class="wochen">' +
+      karten.map(function (k, n) {
+        var e = S.recipes[k.id], m = missingOf(e.recipe);
+        return '<div class="wkarte' + (n === 0 ? ' erste' : '') + '"><button class="wk-main" data-a="open" data-id="' + esc(k.id) + '"><span class="wtag">' + esc(k.tag) + '</span><span class="title">' + esc(titleOf(e)) + '</span><span class="sub">' + (m.total ? (m.missing ? (m.missing === 1 ? "1 Zutat fehlt" : m.missing + " Zutaten fehlen") : "Alles da") : "") + '</span></button>' +
+          '<div class="wk-act"><button class="btn accent" data-a="open" data-id="' + esc(k.id) + '">' + ic("play") + 'Kochen</button><button class="btn soft" data-a="woche-einkauf" data-id="' + esc(k.id) + '">' + ic("bag") + 'Einkaufen</button></div></div>';
+      }).join("") + '</div></section>';
+  }
   function viewRezepte() {
     var all = entries();
     var mine = all.filter(function (e) { return dietOk(e.recipe); });
-    var searching = UI.q.trim() || activeFilters().length || UI.ohne.length;
-    var list = filteredList(searching ? all : mine);
-    var head = '<header class="topbar"><h1>Rezepte</h1><button class="iconbtn" data-a="settings" aria-label="Einstellungen und Profil">' + ic("gear") + '</button></header>' +
+    var head = '<header class="topbar"><h1>Rezepte</h1><div class="acts">' +
+      '<button class="iconbtn" data-a="' + (UI.homeSuche ? 'suche-zu' : 'home-suche') + '" aria-label="' + (UI.homeSuche ? 'Suche schließen' : 'Rezepte suchen') + '">' + ic(UI.homeSuche ? "x" : "search") + '</button>' +
+      '<button class="iconbtn" data-a="settings" aria-label="Einstellungen und Profil">' + ic("gear") + '</button></div></header>' +
       '<p class="hello">' + esc(greeting()) + (all.length ? " · " + all.length + (all.length === 1 ? " Rezept" : " Rezepte") : "") + '</p>';
-    var nf = activeFilters().length + UI.ohne.length;
-    var tools = '<div class="toolbar"><label class="search"><span class="sr">Suche</span>' + ic("search") + '<input id="q" type="search" placeholder="Rezept, Zutat oder Creator" value="' + esc(UI.q) + '" autocomplete="off"></label>' +
-      '<button class="fbtn" data-a="filters" aria-label="Filter">' + ic("sliders") + 'Filter' + (nf ? '<span class="n">' + nf + '</span>' : '') + '</button></div>' +
-      (nf ? '<div class="wrapchips">' + activeFilters().map(function (g) { return '<button class="chip on" data-a="filter" data-g="' + esc(g) + '" data-v="' + esc(UI.filter[g]) + '" aria-label="Filter ' + esc(UI.filter[g]) + ' entfernen">' + esc(UI.filter[g]) + ic("x") + '</button>'; }).join("") + UI.ohne.map(function (w) { return '<button class="chip on" data-a="ohne-weg" data-w="' + esc(w) + '" aria-label="Ohne ' + esc(w) + ' entfernen">ohne ' + esc(w) + ic("x") + '</button>'; }).join("") + '</div>' : '');
-    // Persönliche Bereiche nur ohne Suche/Filter
-    var personal = "";
-    if (!searching && mine.length) {
-      planAufraeumen();
-      var favs = mine.filter(function (e) { return e.fav; });
-      var withMiss = mine.map(function (e) { return { e: e, m: missingOf(e.recipe) }; }).filter(function (x) { return x.m.total >= 3 && x.e.nochmal !== false && K.completeness(x.e.recipe).enough; })
-        .sort(function (a, b) { return a.m.missing - b.m.missing || (a.e.recipe.timeTotal || 999) - (b.e.recipe.timeTotal || 999); }).slice(0, 8);
-      var gekocht = mine.filter(function (e) { return e.lastCooked; }).sort(function (a, b) { return b.lastCooked - a.lastCooked; }).slice(0, 8);
-      var quick = mine.filter(function (e) { return e.recipe.timeTotal && e.recipe.timeTotal <= 20 && K.completeness(e.recipe).enough; }).sort(function (a, b) { return a.recipe.timeTotal - b.recipe.timeTotal; }).slice(0, 8);
-      personal = planBlock() + tileRow("Mit deinem Vorrat", withMiss.map(function (x) { return x.e; }), function (e) { var m = missingOf(e.recipe); return m.missing ? '<span class="miss">' + (m.missing === 1 ? "1 Zutat fehlt" : m.missing + " Zutaten fehlen") + '</span>' : '<span class="miss">Alles da</span>'; }) +
-        tileRow("Favoriten", favs, function (e) { return e.recipe.timeTotal ? e.recipe.timeTotal + " Min." : esc(e.recipe.category); }) +
-        tileRow("Zuletzt gekocht", gekocht, function (e) { return "gekocht " + relDay(e.lastCooked); }) +
-        tileRow("Lange nicht gekocht", langeNicht(mine), function (e) { return "zuletzt " + relDay(e.lastCooked); }) +
-        tileRow("Schnell, bis 20 Minuten", quick.filter(function (e) { return e.nochmal !== false; }), function (e) { return e.recipe.timeTotal + " Min."; });
-    }
-    var sortSeg = '<div class="seg" role="group" aria-label="Sortierung">' + [["neu", "Neueste"], ["zeit", "Schnellste"], ["vorrat", "Vorrat"], ["az", "A–Z"]].map(function (x) {
-      return '<button data-a="sort" data-v="' + x[0] + '" aria-pressed="' + (UI.sort === x[0]) + '">' + x[1] + '</button>'; }).join("") + '</div>';
-    var hidden = !searching && (S.prefs.diet !== "alles" || S.prefs.ohne.length) ? all.length - mine.length : 0;
-    var ex = all.some(function (e) { return e.example; });
-    var enN = englishEntries().length;
-    var enHint = enN && !UEB.laeuft && uebersetzbar().length ? '<div class="banner">' + ic("lang") + '<div class="main"><b>' + enN + (enN === 1 ? " Rezept hat" : " Rezepte haben") + ' Schritte in einer Fremdsprache.</b> Jetzt auf Deutsch übersetzen.</div><button class="btn accent" data-a="translate">Übersetzen</button></div>' : '';
-    // Immer nur ein Hinweis auf einmal, der wichtigste zuerst
-    var banner = [shareBanner(), onboardBanner(), lernBanner(), translateBanner(), enHint, kurzbefehlBanner(), backupBanner()].filter(Boolean)[0] || "";
-    return head + banner + guide("start") + tools + personal +
-      '<section class="sec"><div class="sec-head"><h2>' + (searching ? list.length + " gefunden" : "Alle Rezepte") + '</h2>' + (nf ? '<button class="link" data-a="filter-reset">Filter löschen</button>' : '') + '</div>' +
-      (list.length > 1 ? sortSeg : '') +
-      (list.length ? '<div class="group">' + list.map(recipeRow).join("") + '</div>' :
-        '<div class="group empty">' + ic("book") + '<p><b>' + (all.length ? "Nichts gefunden." : "Noch keine Rezepte.") + '</b></p><p class="muted small">' + (all.length ? "Andere Suche oder weniger Filter probieren." : "Teile ein Rezept aus Instagram oder füge unter „Hinzufügen“ Text ein.") + '</p></div>') +
-      (hidden ? '<p class="foot">' + hidden + (hidden === 1 ? ' Rezept ist' : ' Rezepte sind') + ' ausgeblendet (' + esc([S.prefs.diet !== "alles" ? S.prefs.diet : "", S.prefs.ohne.length ? "ohne " + S.prefs.ohne.join(", ") : ""].filter(Boolean).join(" · ")) + '). Ändern kannst du das in den Einstellungen.</p>' : '') +
-      '</section>' +
-      (ex ? '<p class="foot">Die Rezepte mit „Beispiel“ sind Muster zum Ausprobieren. <button class="btn ghost" style="width:auto;display:inline;padding:0;min-height:0" data-a="remove-examples">Beispiele entfernen</button></p>' : '');
+    if (UI.homeSuche) return head + suchKopf() + suchErgebnis(mine);
+    if (!all.length) return head + guide("start") + '<div class="group empty">' + ic("book") + '<p><b>Noch keine Rezepte.</b></p><p class="muted small">Neue Rezepte kommen über den Reiter „Neu“ – aus Instagram oder als Text.</p><button class="btn soft" data-a="tab" data-t="neu">Zu „Neu“</button></div>';
+    planAufraeumen();
+    // Höchstens ein Hinweis, über der Woche (Übersetzen wird hier nicht angezeigt)
+    var geteilt = UI.shareBanner && !UEB.laeuft ? '<div class="banner">' + ic("share") + '<div class="main"><b>Rezept aus Instagram geteilt?</b> Unter „Neu“ einfügen.</div><button class="btn accent" data-a="tab" data-t="neu">Zu „Neu“</button></div>' : "";
+    var banner = [geteilt, onboardBanner(), lernBanner(), kurzbefehlBanner(), backupBanner()].filter(Boolean)[0] || "";
+    var kacheln = '<section class="sec"><div class="kacheln">' + SCHNELL.map(function (x) {
+      var l = schnellListe(x[0], mine);
+      return '<button class="kachel" data-a="schnell" data-k="' + x[0] + '"><span class="ki">' + ic(x[2]) + '</span><span><span class="title" style="display:block">' + esc(x[1]) + '</span><span class="sub">' + esc(schnellSub(x[0], l)) + '</span></span></button>';
+    }).join("") + '</div></section>';
+    var neu = mine.slice(0, 3);
+    var neuBlock = neu.length ? '<section class="sec"><div class="sec-head"><h2>Neu gespeichert</h2><button class="link" data-a="schnell" data-k="alle">Alle Rezepte</button></div><div class="group">' + neu.map(recipeRow).join("") + '</div></section>' : "";
+    return head + banner + guide("start") + wocheBlock() + kacheln + neuBlock;
   }
   function relDay(ts) {
     if (!ts) return "";
@@ -1016,7 +1120,7 @@ a { color: var(--accent); }
     // Creator erst im geöffneten Rezept zeigen
     var m = missingOf(r);
     var badge = e.example ? '<span class="badge">Beispiel</span>' : (!K.completeness(r).enough ? '<span class="badge warn">unvollständig</span>' : (m.total >= 3 && m.missing <= 2 ? '<span class="badge ok">' + (m.missing ? m.missing + " fehlt" + (m.missing > 1 ? "en" : "") : "alles da") + '</span>' : ''));
-    return '<button class="row" data-a="open" data-id="' + esc(e.id) + '">' + glyph(r) +
+    return '<button class="row" data-a="open" data-id="' + esc(e.id) + '">' + glyph(r, e) +
       '<span class="main"><span class="title">' + esc(t) + (e.fav ? ' <span class="sr">Favorit</span>' : '') + '</span><span class="sub">' + esc(sub.join(" · ")) + '</span>' + (badge ? '<span>' + badge + '</span>' : '') + '</span>' +
       '<span class="end"><span class="big">' + (r.timeTotal ? fmtMin(r.timeTotal) : "–") + '</span><span class="tiny muted">' + (r.timeTotal ? (r.timeTotal < 60 ? "Min." : "Std.") : "Zeit") + '</span></span></button>';
   }
@@ -1062,8 +1166,9 @@ a { color: var(--accent); }
     }
     var counts = {};
     KAT_ORDER.forEach(function (c) { counts[c] = all.filter(function (e) { return inCat(e, c); }).length; });
+    if (suchAktiv()) return '<header class="topbar"><h1>Kategorien</h1></header>' + suchKopf() + suchErgebnis();
     return '<header class="topbar"><h1>Kategorien</h1></header>' +
-      '<p class="hello">' + all.length + ' Rezepte in ' + KAT_ORDER.filter(function (c) { return counts[c]; }).length + ' Kategorien</p>' +
+      '<p class="hello">' + all.length + ' Rezepte in ' + KAT_ORDER.filter(function (c) { return counts[c]; }).length + ' Kategorien</p>' + suchKopf() +
       (function () { var ks = Object.keys(S.listen).sort(function (a, b) { return S.listen[a].name.localeCompare(S.listen[b].name, "de"); });
         return ks.length ? '<section class="sec"><div class="sec-head"><h2>Deine Listen</h2></div><div class="group">' + ks.map(function (k) {
           var n = S.listen[k].ids.filter(function (id) { return S.recipes[id]; }).length;
@@ -1501,7 +1606,9 @@ a { color: var(--accent); }
         (ir.neu.length ? '<button class="btn accent" data-a="import-commit">' + ir.neu.length + ' neue Rezepte übernehmen</button>' : '<p class="small muted">Es gibt keine neuen Rezepte.</p>') +
         '<button class="btn soft" data-a="import-drop">Abbrechen</button></section>';
     }
-    return '<header class="topbar"><h1>Hinzufügen</h1></header>' + guide("neu") +
+    var exportHinweis = !S.meta.exportHinweisWeg && !Object.keys(S.recipes).some(function (k) { return !S.recipes[k].example; }) ?
+      '<div class="note info"><b>Schon Rezepte auf Instagram gespeichert?</b><span>Hol alle auf einmal in die Kombüse.</span><div class="btnrow"><button class="btn accent" data-a="export-anleitung">So geht’s</button><button class="btn soft" data-a="export-hinweis-weg">Nicht jetzt</button></div></div>' : '';
+    return '<header class="topbar"><h1>Hinzufügen</h1></header>' + guide("neu") + shareBanner() + exportHinweis +
       '<div class="group"><button class="row" data-a="setup">' + ic("share") + '<span class="main"><span class="title">Aus Instagram teilen</span><span class="sub">Der schnellste Weg: Kurzbefehl „In die Kombüse“ einrichten</span></span>' + ic("chev", "chev") + '</button></div>' +
       '<button class="btn accent" data-a="share-paste">' + ic("copy") + 'Geteiltes Rezept einfügen</button>' +
       '<section class="sec"><div class="field"><label for="paste">Caption, Rezepttext oder Instagram-Link</label><textarea class="input" id="paste" placeholder="Zum Beispiel: Linsen-Curry · Zutaten: 250 g rote Linsen …">' + esc(UI.pasteText || "") + '</textarea></div>' +
@@ -1553,9 +1660,14 @@ a { color: var(--accent); }
         return '<button data-a="pref-theme" data-v="' + x[0] + '" aria-pressed="' + (p.theme === x[0]) + '">' + x[1] + '</button>'; }).join("") + '</div></div></section>';
   }
   function onboardSheet() {
-    sheet('<h2>Willkommen in der Kombüse</h2><p class="small muted">Drei Angaben, damit Portionen und Vorschläge zu dir passen. Du kannst alles später in den Einstellungen ändern.</p>' +
-      profileFields().replace(/<div class="field"><label>Darstellung[\s\S]*?<\/div><\/div>/, "") +
-      '<button class="btn accent" data-a="onboard-save">Fertig</button><button class="btn ghost" data-a="onboard-save" data-skip="1">Überspringen</button>');
+    var v = S.prefs.kurzbefehl || "komplett";
+    var opt = function (k, titel, text) { return '<label class="row checkrow"><input type="radio" name="scv" value="' + k + '"' + (v === k ? ' checked' : '') + '><span class="main"><span class="title">' + titel + (k === "komplett" && komplettBereit() ? ' <span class="badge ok">Empfohlen</span>' : '') + '</span><span class="sub">' + text + '</span></span></label>'; };
+    sheet('<h2>Willkommen in der Kombüse</h2><p class="small muted">Vier Angaben, damit Portionen, Vorschläge und der Import zu dir passen. Du kannst alles später in den Einstellungen ändern.</p>' +
+      profileFields().replace(/<div class="field"><label>Titel englischer Rezepte[\s\S]*?<\/div><\/div>/, "").replace(/<div class="field"><label>Darstellung[\s\S]*?<\/div><\/div>/, "") +
+      '<section class="sec"><div class="sec-head"><h2>Wie sollen Rezepte aus Instagram kommen?</h2></div><div class="group">' +
+      opt("komplett", SC_VERSIONEN.komplett, "Hört bei Reels mit und holt den Blog. Vollständigere Rezepte.") +
+      opt("einfach", SC_VERSIONEN.einfach, "Schneller und sparsamer.") + '</div></section>' +
+      '<button class="btn accent" data-a="onboard-save" data-sc="1">Speichern und Kurzbefehl einrichten</button><button class="btn ghost" data-a="onboard-save">Kurzbefehl später</button>');
   }
   // Infoseite: Datenschutz, Funktionsweise, Quellen, Regeln – kurz und verständlich
   function infoSheet() {
@@ -1996,11 +2108,41 @@ a { color: var(--accent); }
       '<div class="btnrow"><button class="btn" data-a="share-apply">Übernehmen</button><button class="btn soft" data-a="close-sheet">Abbrechen</button></div>');
   }
   // Wer „Einfach“ nutzt, bekommt einen Hinweis auf „Komplett“, sobald diese Version freigegeben ist und Rezepte aus Reels unvollständig sind
+  var WASNEU_VERSION = 1; // 1: neuer Kurzbefehl „In die Kombüse“ (App 0.20.0)
+  function wasNeuPruefen() {
+    if (!S.prefs.onboarded || (S.meta.wasNeu || 0) >= WASNEU_VERSION || einwilligungFehlt()) return;
+    var v = S.prefs.kurzbefehl || "komplett", link = (window.KURZBEFEHL_LINKS || {})[v];
+    if (!link) return; // ohne fertigen Kurzbefehl nichts verlangen
+    var versuche = 0;
+    (function zeigen() {
+      if (($("#layer").innerHTML || $("#coach").innerHTML) && versuche++ < 40) { setTimeout(zeigen, 1500); return; }
+      var andere = v === "komplett" ? "einfach" : "komplett", linkAndere = (window.KURZBEFEHL_LINKS || {})[andere];
+      sheet('<p class="small" style="margin:0;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--brand-text)">Neue Version</p><h2>Zwei Dinge einmal erledigen</h2>' +
+        '<div class="group" style="padding:16px;display:grid;gap:10px"><b>1 · Neuen Kurzbefehl laden</b><span class="small muted">Er heißt jetzt „' + SC_NAME + '“' + (v === "komplett" ? ' und holt auch Ton und Blog.' : '.') + '</span>' +
+        '<a class="btn accent" href="' + esc(link) + '" target="_blank" rel="noopener">Kurzbefehl laden</a>' +
+        (linkAndere ? '<button class="btn ghost" data-a="wasneu-version" data-v="' + andere + '">Lieber „' + (andere === "komplett" ? "Komplett" : "Einfach") + '“</button>' : '') + '</div>' +
+        '<div class="group" style="padding:16px;display:grid;gap:10px"><b>2 · Alten Kurzbefehl löschen</b><span class="small muted">In der Kurzbefehle-App lange auf „Ins Rezeptbuch“ drücken → Löschen. Das geht nur von Hand – Apple lässt Apps keine Kurzbefehle löschen.</span>' +
+        '<a class="btn soft" href="shortcuts://">Kurzbefehle-App öffnen</a></div>' +
+        '<p class="small muted">Außerdem neu: Startseite mit deiner Woche und Schnellzugriffen · Suche auf „Rezepte“ und „Kategorien“ · Knopf „Gekocht“ im Rezept.</p>' +
+        '<button class="btn" data-a="wasneu-ok">Erledigt</button><button class="btn ghost" data-a="close-sheet">Später erinnern</button>');
+    })();
+  }
   function kurzbefehlBanner() {
     if (S.prefs.kurzbefehl !== "einfach" || !komplettBereit() || S.meta.kbTippWeg) return "";
     var n = entries().filter(function (e) { return !e.example && /\/(reel|reels|tv)\//.test((e.recipe.source && e.recipe.source.url) || "") && !K.completeness(e.recipe).enough; }).length;
     if (!n) return "";
     return '<div class="banner">' + ic("sparkle") + '<div class="main"><b>' + n + (n === 1 ? ' Rezept aus einem Reel ist' : ' Rezepte aus Reels sind') + ' unvollständig.</b> Mit dem Kurzbefehl „Komplett“ kommt der Ton aus dem Video mit.</div><button class="btn accent" data-a="sc-wahl">Ansehen</button><button class="iconbtn" data-a="kb-tipp-weg" aria-label="Hinweis ausblenden">' + ic("x") + '</button></div>';
+  }
+  function exportAnleitungSheet() {
+    var schritt = function (n, t) { return '<li style="display:flex;gap:12px;align-items:flex-start"><span style="flex:none;width:28px;height:28px;border-radius:14px;background:var(--brand);color:var(--brand-ink);font-weight:700;display:grid;place-items:center;font-size:0.85rem">' + n + '</span><span>' + t + '</span></li>'; };
+    sheet('<h2>Alle Rezepte aus Instagram holen</h2><p class="small muted">Einmal anfordern, dann einlesen. Die Datei bleibt auf deinem iPhone; es kommen nur neue Rezepte dazu.</p>' +
+      '<ol style="list-style:none;margin:0;padding:0;display:grid;gap:14px">' +
+      schritt(1, 'In Instagram: <b>Profil → ☰ → Kontenübersicht → Deine Informationen und Berechtigungen → Deine Informationen herunterladen</b>') +
+      schritt(2, '<b>Informationen herunterladen</b> → nur <b>„Gespeichert“</b> auswählen → <b>Auf Gerät herunterladen</b>, Format <b>JSON</b>, Zeitraum <b>Gesamter Zeitraum</b> → Dateien erstellen') +
+      schritt(3, 'Wenn Instagram Bescheid gibt (kann etwas dauern): Datei <b>herunterladen</b>') +
+      schritt(4, 'Hier auf <b>„Datei auswählen“</b> tippen – fertig') + '</ol>' +
+      '<label class="btn accent" for="expfile" style="cursor:pointer">' + ic("file") + 'Datei auswählen</label>' +
+      '<button class="btn soft" data-a="close-sheet">Später</button>');
   }
   function shareBanner() {
     if (!UI.shareBanner || UEB.laeuft) return "";
@@ -2122,7 +2264,20 @@ a { color: var(--accent); }
     if (el.dataset.a === "close-sheet" && ev.target.closest("[data-stop]") && el.classList.contains("scrim")) return;
     var a = el.dataset.a, id = el.dataset.id;
     switch (a) {
-      case "tab": UI.tab = el.dataset.t; UI.detail = null; if (UI.tab === "kategorien" && el.closest(".tabbar")) { UI.cat = null; UI.liste = null; } render(); window.scrollTo(0, 0); break;
+      case "tab": UI.tab = el.dataset.t; UI.detail = null; if (UI.tab === "kategorien" && el.closest(".tabbar")) { UI.cat = null; UI.liste = null; }
+        if (el.closest(".tabbar")) { UI.homeSuche = false; UI.q = ""; UI.chip = null; }
+        render(); window.scrollTo(0, 0); break;
+      case "home-suche": UI.homeSuche = true; UI.chip = UI.chip || "alle"; render(); window.scrollTo(0, 0); setTimeout(function () { var q = $("#q"); if (q) q.focus(); }, 50); break;
+      case "suche-zu": UI.homeSuche = false; UI.q = ""; UI.chip = null; render(); window.scrollTo(0, 0); break;
+      case "schnell": if (UI.tab !== "rezepte") UI.tab = "rezepte"; UI.homeSuche = true; UI.chip = el.dataset.k; render(); window.scrollTo(0, 0); break;
+      case "schnell-chip":
+        if (UI.chip !== el.dataset.k) UI.chip = el.dataset.k;
+        else UI.chip = UI.tab === "rezepte" ? "alle" : null; // zweimal tippen: auf „Rezepte“ zurück zu „Alle“, in „Kategorien“ zurück zu den Kategorien
+        render(); break;
+      case "woche-einkauf":
+        var we = S.recipes[id];
+        if (we && !S.shopping.list.some(function (x) { return x.id === id; })) { S.shopping.list.push({ id: id, servings: UI.servings[id] || defaultServings(we.recipe) }); save("shopping"); }
+        UI.tab = "einkauf"; UI.detail = null; render(); window.scrollTo(0, 0); toast("Fehlende Zutaten stehen auf der Einkaufsliste"); break;
       case "cat": UI.cat = el.dataset.c; render(); window.scrollTo(0, 0); break;
       case "cat-back": UI.cat = null; render(); break;
       case "nutri-toggle":
@@ -2133,15 +2288,20 @@ a { color: var(--accent); }
       case "translate": startTranslate(el.dataset.id); break;
       case "orig-toggle": S.prefs.showOriginal = !showOrigAllowed(); if (!S.prefs.showOriginal) UI.showOrig = {}; save("prefs"); el.setAttribute("aria-checked", String(S.prefs.showOriginal)); render(); break;
       case "translate-info": uebersetzerInfoSheet(); break;
-      case "einwilligung-ok": S.prefs.testEinwilligung = { version: EINWILLIGUNG_VERSION, am: new Date().toISOString() }; save("prefs"); closeSheet(); render(); setTimeout(coachZeigen, 300); break;
+      case "einwilligung-ok": S.prefs.testEinwilligung = { version: EINWILLIGUNG_VERSION, am: new Date().toISOString() }; save("prefs"); closeSheet(); render(); setTimeout(coachZeigen, 300); setTimeout(wasNeuPruefen, 800); break;
       case "einwilligung-zeigen": einwilligungSheet(); break;
       case "open": closeSheet(); UI.detail = id; if (S.recipes[id]) { S.recipes[id].viewedAt = Date.now(); save("recipes"); } render(); window.scrollTo(0, 0); break;
       case "filters": filterSheet(); break;
       case "sort": UI.sort = el.dataset.v; render(); break;
       case "onboard": onboardSheet(); break;
       case "onboard-save":
-        if (!el.dataset.skip) { var nm = $("#pname"); if (nm) S.prefs.name = nm.value.trim().slice(0, 30); }
-        S.prefs.onboarded = true; save("prefs"); closeSheet(); render();
+        var nm = $("#pname"); if (nm) S.prefs.name = nm.value.trim().slice(0, 30);
+        var scv = document.querySelector('input[name="scv"]:checked'); if (scv) S.prefs.kurzbefehl = scv.value;
+        S.prefs.onboarded = true; S.meta.wasNeu = WASNEU_VERSION; save("prefs"); save("meta"); closeSheet(); render();
+        if (el.dataset.sc) {
+          var scLink = (window.KURZBEFEHL_LINKS || {})[S.prefs.kurzbefehl];
+          if (scLink) { try { window.open(scLink, "_blank", "noopener"); } catch (x) { location.href = scLink; } } else setTimeout(setupSheet, 250);
+        }
         break;
       case "pref-persons": S.prefs.persons = Math.max(1, Math.min(12, (S.prefs.persons || 2) + (+el.dataset.d))); save("prefs"); el.parentNode.querySelector("output").textContent = S.prefs.persons; UI.servings = {}; render(); break;
       case "pref-diet": S.prefs.diet = el.dataset.v; save("prefs"); Array.prototype.forEach.call(el.parentNode.children, function (b) { b.setAttribute("aria-pressed", String(b === el)); }); render(); break;
@@ -2206,6 +2366,10 @@ a { color: var(--accent); }
         var mc = S.recipes[id];
         if (mc.lastCooked && relDay(mc.lastCooked) === "heute") { toast("Für heute schon eingetragen"); break; }
         mc.cooked = (mc.cooked || 0) + 1; mc.lastCooked = Date.now(); save("recipes"); render(); toast("Als gekocht eingetragen"); break;
+      case "export-anleitung": exportAnleitungSheet(); break;
+      case "wasneu-ok": S.meta.wasNeu = WASNEU_VERSION; save("meta"); closeSheet(); break;
+      case "wasneu-version": S.prefs.kurzbefehl = el.dataset.v; save("prefs"); closeSheet(); wasNeuPruefen(); break;
+      case "export-hinweis-weg": S.meta.exportHinweisWeg = true; save("meta"); render(); break;
       case "show-build": UI.showBuild = true; setupSheet(); break;
       case "sc-run-link": closeSheet(); UI.pasteText = ""; runShortcut(el.dataset.t); break;
       case "sc-test": closeSheet(); toast("Kurzbefehl wird mit einem Beispiel-Link gestartet …"); setTimeout(function () { runShortcut("https://www.instagram.com/p/C0Test/"); }, 400); break;
@@ -2376,7 +2540,7 @@ a { color: var(--accent); }
     if (ev.target.id === "pname") { S.prefs.name = ev.target.value.trim().slice(0, 30); save("prefs"); }
   });
   document.addEventListener("change", function (ev) {
-    if (ev.target.id === "expfile") handleExportFiles(ev.target.files);
+    if (ev.target.id === "expfile") { S.meta.exportHinweisWeg = true; save("meta"); closeSheet(); handleExportFiles(ev.target.files); }
     if (ev.target.id === "restorefile" && ev.target.files[0]) ev.target.files[0].text().then(restore);
   });
   document.addEventListener("keydown", function (ev) {
@@ -2395,7 +2559,7 @@ a { color: var(--accent); }
     if (S.meta.shortcutOk || S.meta.awaitShortcut || S.meta.setupAsked) {
       if (hiddenAt && Date.now() - hiddenAt > 2000) UI.shareBanner = true;
     }
-    if (S.meta.awaitShortcut && Date.now() - S.meta.awaitShortcut < 600000 && !UEB.laeuft) { UI.detail = null; UI.tab = "rezepte"; }
+    if (S.meta.awaitShortcut && Date.now() - S.meta.awaitShortcut < 600000 && !UEB.laeuft) { UI.detail = null; UI.tab = "neu"; }
     render();
   });
 
@@ -2412,6 +2576,7 @@ a { color: var(--accent); }
     readHashImport();
     render();
     if (einwilligungFehlt()) setTimeout(einwilligungSheet, 300);
+    setTimeout(wasNeuPruefen, 1500);
     if (upd) toast(upd + (upd === 1 ? " Rezept" : " Rezepte") + " mit der verbesserten Erkennung neu ausgewertet");
     setTimeout(meldeUnbekannte, 3000);
   });

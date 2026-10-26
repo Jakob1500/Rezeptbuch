@@ -69,7 +69,8 @@ const check = (name, cond, info) => { if (cond) ok++; else { bad++; console.log(
   await klick('[data-a="settings"]'); await klick('[data-a="ohne-immer-weg"]'); await page.keyboard.press("Escape"); await page.waitForTimeout(300);
   liste = await page.innerText("body");
   check("Wieder erlaubt: Rezept sichtbar", /Blechpizza/.test(liste));
-  // ---- Ausschluss im Filter
+  // ---- Ausschluss im Filter (Suche liegt auf der Startseite hinter der Lupe)
+  await klick('[data-a="home-suche"]');
   await klick('[data-a="filters"]');
   await page.fill("#ohne-q", "Mozzarella");  await klick('[data-a="ohne-add"]');
   check("Filter zeigt „ohne Mozzarella“", /ohne Mozzarella/.test(await page.innerText(".sheet")));
@@ -113,11 +114,10 @@ const check = (name, cond, info) => { if (cond) ok++; else { bad++; console.log(
   check("Rezept zeigt „Geplant: Heute“", /Geplant: Heute/.test(await page.innerText("body")));
   await klick('[data-a="back"]');
   let start = await page.innerText("body");
-  check("Startseite: „Diese Woche“ mit dem Rezept", /Diese Woche/.test(start) && /Heute/.test(start), (start.match(/Diese Woche[\s\S]{0,80}/) || [""])[0]);
+  check("Startseite: „Diese Woche“ mit dem Rezept", /Diese Woche/.test(start) && /Heute/i.test(start) && /Blechpizza/.test(start), (start.match(/Diese Woche[\s\S]{0,80}/) || [""])[0]);
   await page.screenshot({ path: path.join(require("os").tmpdir(), 'start.png'), fullPage: true });
-  await coachWeg(); await page.click('text=Alles auf die Einkaufsliste'); await page.waitForTimeout(400);
-  await coachWeg(); await page.click('.tabbar [data-t="einkauf"]'); await page.waitForTimeout(400);
-  check("Wocheneinkauf: Zutaten auf der Liste", /Mehl/.test(await page.innerText("body")));
+  await coachWeg(); await page.click('[data-a="woche-einkauf"]'); await page.waitForTimeout(500); await coachWeg();
+  check("Woche „Einkaufen“: Einkaufsliste offen, Zutaten drauf", /Einkauf/.test(await page.innerText("h1")) && /Mehl/.test(await page.innerText("body")));
   // ---- Eigene Listen
   await coachWeg(); await page.click('.tabbar [data-t="rezepte"]'); await page.waitForTimeout(300);
   const t4 = await page.$('text=Blechpizza'); if (t4) { await t4.click(); await page.waitForTimeout(400); }
