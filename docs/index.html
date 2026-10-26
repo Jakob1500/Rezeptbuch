@@ -4909,9 +4909,9 @@ root.RezeptKern = api;
 <script>var GELERNT_ZENTRAL = {"app":"rezeptbuch-lernen","version":1,"stand":"2026-10-20","hinweis":"Zentral geprüfte Regeln für alle Nutzer. Wird mit tools/lernen-uebernehmen.js gepflegt.","floskeln":{},"ignorieren":{},"keinSchritt":{},"istSchritt":{},"zutatAlias":{},"keineZutat":{},"keineFloskel":{}}
 ;</script>
 <script>
-  // iCloud-Link des fertigen Kurzbefehls („Ins Rezeptbuch“ → Teilen → „iCloud-Link kopieren“).
+  // iCloud-Link des fertigen Kurzbefehls („In die Kombüse“ → Teilen → „iCloud-Link kopieren“).
   // Sobald er hier steht, richten Nutzer den Kurzbefehl mit einem Tipp ein statt ihn selbst zu bauen.
-  // iCloud-Links der beiden Kurzbefehl-Versionen (beide heißen „Ins Rezeptbuch“). Leer = Bauanleitung zeigen.
+  // iCloud-Links der beiden Kurzbefehl-Versionen (beide heißen „In die Kombüse“). Leer = Bauanleitung zeigen.
   window.KURZBEFEHL_LINKS = { einfach: "", komplett: "" };
 </script>
 <script>
@@ -5120,16 +5120,16 @@ root.RezeptKern = api;
   var GUIDES = {
     start: { t: "Kombüse", s: [
       ["book", "Hier sammelst du Rezepte aus Instagram. Alles bleibt auf deinem iPhone.", "Willkommen in der Kombüse"],
-      ["share", "Auf Instagram bei einem Rezept auf Teilen tippen und „Ins Rezeptbuch“ wählen. Den Kurzbefehl dafür richtest du einmal unter „Neu“ ein.", "Rezepte speichern"],
+      ["share", "Auf Instagram bei einem Rezept auf Teilen tippen und „In die Kombüse“ wählen. Den Kurzbefehl dafür richtest du einmal unter „Neu“ ein.", "Rezepte speichern"],
       ["sparkle", "Zutaten, Schritte, Zeit, Nährwerte und ob es vegan ist. Englische Rezepte übersetzt die App auf Deutsch – ohne Internet.", "Den Rest erkennt die App"],
       ["bag", "Portionen umrechnen, im Kochmodus mit Timer kochen und nur das einkaufen, was dir noch fehlt.", "Kochen und Einkaufen"],
       ["info", "Stimmt etwas nicht, tippe im Rezept auf „Problem melden“. Gesammelt schickst du alles über „An Jakob schicken“.", "Hilf beim Testen"]] },
     kategorien: { t: "Kategorien", s: [["grid", "Die App sortiert jedes Rezept von selbst ein, zum Beispiel in Hauptgericht, Suppe oder Backen."], ["plus", "Ganz oben stehen deine eigenen Listen."]] },
     naehrwert: { t: "Nährwerte zuordnen", s: [["search", "Such das Lebensmittel in der amtlichen Datenbank (BLS) und tippe auf den passenden Eintrag."], ["edit", "Findest du nichts, trag die Werte von der Verpackung selbst ein. Die App prüft, ob sie stimmen können."], ["check", "Die Zuordnung gilt danach für alle deine Rezepte."]] },
-    rezepte: { t: "So funktioniert dein Rezeptbuch", s: [["share", "Auf Instagram bei einem Rezept auf Teilen tippen und „Ins Rezeptbuch“ wählen."], ["sparkle", "Die App erkennt Zutaten, Schritte, Zeit und Labels von selbst."], ["search", "Hier findest du alles wieder: suchen oder nach Labels filtern."]] },
+    rezepte: { t: "So funktioniert dein Rezeptbuch", s: [["share", "Auf Instagram bei einem Rezept auf Teilen tippen und „In die Kombüse“ wählen."], ["sparkle", "Die App erkennt Zutaten, Schritte, Zeit und Labels von selbst."], ["search", "Hier findest du alles wieder: suchen oder nach Labels filtern."]] },
     einkauf: { t: "Einkaufsliste", s: [["tap", "Auf eine Zutat tippen kopiert sie, zum Beispiel für eine Liefer-App."], ["check", "Den Kreis antippen, wenn du sie hast. Die App merkt sich das für deinen Vorrat."], ["scale", "Gleiche Zutaten aus mehreren Rezepten werden zusammengerechnet."]] },
     vorrat: { t: "Vorrat", s: [["jar", "Was du immer zu Hause hast, steht nie auf der Einkaufsliste."], ["check", "Schalter an heißt: habe ich. Du kannst das jederzeit ändern."]] },
-    neu: { t: "Rezept hinzufügen", s: [["share", "Am schnellsten: in Instagram teilen und „Ins Rezeptbuch“ wählen."], ["copy", "Oder hier Text einfügen, etwa eine Caption oder ein Rezept von einer Webseite."], ["file", "Deinen Instagram-Export kannst du auf einmal einlesen. Es kommen nur neue Rezepte dazu."]] },
+    neu: { t: "Rezept hinzufügen", s: [["share", "Am schnellsten: in Instagram teilen und „In die Kombüse“ wählen."], ["copy", "Oder hier Text einfügen, etwa eine Caption oder ein Rezept von einer Webseite."], ["file", "Deinen Instagram-Export kannst du auf einmal einlesen. Es kommen nur neue Rezepte dazu."]] },
     kochen: { t: "Kochmodus", s: [["clock", "Zeiten im Schritt werden zum Timer: antippen startet ihn."], ["flame", "Braucht ein späterer Schritt den Ofen, erinnert dich die App rechtzeitig ans Vorheizen."], ["info", "Der Bildschirm bleibt an. Den Ton am Ende hörst du, solange die App offen ist."]] },
     extra: { t: "Eigene Einträge", s: [["plus", "Unter „Was noch?“ trägst du ein, was nicht aus einem Rezept kommt, zum Beispiel Spülmittel."], ["check", "Abhaken, Kopieren und Teilen funktionieren wie bei den anderen Zutaten."]] },
     ohne: { t: "Zutat ausschließen", s: [["search", "Zutat eintippen und „Ausschließen“ antippen: Rezepte damit verschwinden aus der Liste."], ["gear", "Dauerhaft geht das in den Einstellungen unter „Zutaten, die du nie willst“."]] },
@@ -5575,12 +5575,10 @@ root.RezeptKern = api;
       var withMiss = mine.map(function (e) { return { e: e, m: missingOf(e.recipe) }; }).filter(function (x) { return x.m.total >= 3 && x.e.nochmal !== false && K.completeness(x.e.recipe).enough; })
         .sort(function (a, b) { return a.m.missing - b.m.missing || (a.e.recipe.timeTotal || 999) - (b.e.recipe.timeTotal || 999); }).slice(0, 8);
       var gekocht = mine.filter(function (e) { return e.lastCooked; }).sort(function (a, b) { return b.lastCooked - a.lastCooked; }).slice(0, 8);
-      var angesehen = mine.filter(function (e) { return e.viewedAt && gekocht.indexOf(e) === -1; }).sort(function (a, b) { return b.viewedAt - a.viewedAt; }).slice(0, 8);
       var quick = mine.filter(function (e) { return e.recipe.timeTotal && e.recipe.timeTotal <= 20 && K.completeness(e.recipe).enough; }).sort(function (a, b) { return a.recipe.timeTotal - b.recipe.timeTotal; }).slice(0, 8);
       personal = planBlock() + tileRow("Mit deinem Vorrat", withMiss.map(function (x) { return x.e; }), function (e) { var m = missingOf(e.recipe); return m.missing ? '<span class="miss">' + (m.missing === 1 ? "1 Zutat fehlt" : m.missing + " Zutaten fehlen") + '</span>' : '<span class="miss">Alles da</span>'; }) +
         tileRow("Favoriten", favs, function (e) { return e.recipe.timeTotal ? e.recipe.timeTotal + " Min." : esc(e.recipe.category); }) +
         tileRow("Zuletzt gekocht", gekocht, function (e) { return "gekocht " + relDay(e.lastCooked); }) +
-        tileRow("Zuletzt angesehen", angesehen, function (e) { return "angesehen " + relDay(e.viewedAt); }) +
         tileRow("Lange nicht gekocht", langeNicht(mine), function (e) { return "zuletzt " + relDay(e.lastCooked); }) +
         tileRow("Schnell, bis 20 Minuten", quick.filter(function (e) { return e.nochmal !== false; }), function (e) { return e.recipe.timeTotal + " Min."; });
     }
@@ -5591,7 +5589,7 @@ root.RezeptKern = api;
     var enN = englishEntries().length;
     var enHint = enN && !UEB.laeuft && uebersetzbar().length ? '<div class="banner">' + ic("lang") + '<div class="main"><b>' + enN + (enN === 1 ? " Rezept hat" : " Rezepte haben") + ' Schritte in einer Fremdsprache.</b> Jetzt auf Deutsch übersetzen.</div><button class="btn accent" data-a="translate">Übersetzen</button></div>' : '';
     // Immer nur ein Hinweis auf einmal, der wichtigste zuerst
-    var banner = [shareBanner(), onboardBanner(), lernBanner(), translateBanner(), enHint, backupBanner()].filter(Boolean)[0] || "";
+    var banner = [shareBanner(), onboardBanner(), lernBanner(), translateBanner(), enHint, kurzbefehlBanner(), backupBanner()].filter(Boolean)[0] || "";
     return head + banner + guide("start") + tools + personal +
       '<section class="sec"><div class="sec-head"><h2>' + (searching ? list.length + " gefunden" : "Alle Rezepte") + '</h2>' + (nf ? '<button class="link" data-a="filter-reset">Filter löschen</button>' : '') + '</div>' +
       (list.length > 1 ? sortSeg : '') +
@@ -6120,7 +6118,7 @@ root.RezeptKern = api;
         '<button class="btn soft" data-a="import-drop">Abbrechen</button></section>';
     }
     return '<header class="topbar"><h1>Hinzufügen</h1></header>' + guide("neu") +
-      '<div class="group"><button class="row" data-a="setup">' + ic("share") + '<span class="main"><span class="title">Aus Instagram teilen</span><span class="sub">Der schnellste Weg: Kurzbefehl „Ins Rezeptbuch“ einrichten</span></span>' + ic("chev", "chev") + '</button></div>' +
+      '<div class="group"><button class="row" data-a="setup">' + ic("share") + '<span class="main"><span class="title">Aus Instagram teilen</span><span class="sub">Der schnellste Weg: Kurzbefehl „In die Kombüse“ einrichten</span></span>' + ic("chev", "chev") + '</button></div>' +
       '<button class="btn accent" data-a="share-paste">' + ic("copy") + 'Geteiltes Rezept einfügen</button>' +
       '<section class="sec"><div class="field"><label for="paste">Caption, Rezepttext oder Instagram-Link</label><textarea class="input" id="paste" placeholder="Zum Beispiel: Linsen-Curry · Zutaten: 250 g rote Linsen …">' + esc(UI.pasteText || "") + '</textarea></div>' +
       '<button class="btn" data-a="analyse">' + ic("sparkle") + 'Erkennen</button></section>' + preview +
@@ -6148,7 +6146,7 @@ root.RezeptKern = api;
       '<p class="small muted" style="padding-inline:4px">Eine einzige Datei mit allen ' + n + ' Rezepten, deinem Vorrat und der Einkaufsliste. Speichere sie in iCloud Drive und ersetze die alte. Auf einem zweiten Gerät lädst du sie mit „Sicherung laden“.</p>' +
       '<div class="btnrow"><button class="btn accent" data-a="backup">' + ic("cloud") + 'Jetzt sichern</button><label class="btn soft" for="restorefile">Sicherung laden</label></div>' +
       '<input type="file" id="restorefile" accept=".json,application/json" class="sr"></section>' +
-      '<section class="sec"><div class="sec-head"><h2>Instagram</h2></div><div class="group"><button class="row" data-a="setup">' + ic("share") + '<span class="main"><span class="title">Kurzbefehl einrichten</span><span class="sub">„Ins Rezeptbuch“ im Teilen-Menü' + (S.prefs.kurzbefehl ? ' · Version ' + (S.prefs.kurzbefehl === "komplett" ? "Komplett" : "Einfach") : '') + '</span></span>' + ic("chev", "chev") + '</button></div></section>' +
+      '<section class="sec"><div class="sec-head"><h2>Instagram</h2></div><div class="group"><button class="row" data-a="setup">' + ic("share") + '<span class="main"><span class="title">Kurzbefehl einrichten</span><span class="sub">„In die Kombüse“ im Teilen-Menü' + (S.prefs.kurzbefehl ? ' · Version ' + (S.prefs.kurzbefehl === "komplett" ? "Komplett" : "Einfach") : '') + '</span></span>' + ic("chev", "chev") + '</button></div></section>' +
       '<section class="sec"><div class="sec-head"><h2>Sprache</h2></div><div class="group"><button class="row" data-a="translate">' + ic("lang") + '<span class="main"><span class="title">Zubereitung auf Deutsch übersetzen</span><span class="sub">' + englishEntries().length + ' Rezepte noch nicht auf Deutsch · Übersetzung auf dem iPhone (Bergamot)</span></span>' + ic("chev", "chev") + '</button></div></section>' +
       '<section class="sec"><div class="sec-head"><h2>Lernen</h2></div><div class="group"><button class="row" data-a="lern-show">' + ic("sparkle") + '<span class="main"><span class="title">Was die App gelernt hat</span><span class="sub">' + lernZahl() + ' Regeln · ansehen, löschen, an Jakob schicken</span></span>' + ic("chev", "chev") + '</button></div></section>' +
       '<section class="sec"><div class="sec-head"><h2>Hilfe</h2></div><div class="group"><button class="row" data-a="guides-reset"><span class="main"><span class="title">Anleitungen wieder zeigen</span></span></button></div></section>' +
@@ -6201,7 +6199,7 @@ root.RezeptKern = api;
         '<p><b>Sicherung:</b> Eine JSON-Datei mit Rezepten, Vorrat, Einkaufsliste, eigenen Zuordnungen und Folgen-Status. Beim Laden auf einem anderen Gerät kommen neue Rezepte dazu; bei doppelten gewinnt die neuere Fassung. Die App erinnert an die Sicherung, wenn sich seit mehr als 24 Stunden etwas geändert hat.</p>') +
       sec("share", "Wie Rezepte aus Instagram ankommen",
         '<p>Du entscheidest bei jedem Rezept selbst. Nichts passiert im Hintergrund.</p>' +
-        '<ul><li><b>Kurzbefehl „Ins Rezeptbuch“:</b> Beim Teilen holt dein iPhone einmal die öffentliche Vorschau des Posts, ohne Anmeldung und ohne Zugriff auf dein Instagram-Konto. Private Konten gehen nicht. Steht ein Blog-Link in der Beschreibung, holt es auch diese Seite. Bei Reels wandelt dein iPhone den Ton selbst in Text um (Apples Spracherkennung auf dem Gerät); das Video wird dafür nur kurz geladen und nirgends gespeichert.</li>' +
+        '<ul><li><b>Kurzbefehl „In die Kombüse“:</b> Beim Teilen holt dein iPhone einmal die öffentliche Vorschau des Posts, ohne Anmeldung und ohne Zugriff auf dein Instagram-Konto. Private Konten gehen nicht. Steht ein Blog-Link in der Beschreibung, holt es auch diese Seite. Bei Reels wandelt dein iPhone den Ton selbst in Text um (Apples Spracherkennung auf dem Gerät); das Video wird dafür nur kurz geladen und nirgends gespeichert.</li>' +
         '<li><b>Instagram-Export:</b> Die Datei aus „Deine Informationen herunterladen“ liest die App nur auf diesem Gerät. Es kommen nur neue Rezepte dazu, nichts wird überschrieben.</li>' +
         '<li><b>Bilder oder Ton:</b> Wenn ein Rezept nur auf Bildern oder im Video steht, liest dein iPhone den Text bzw. Ton aus und löscht die Datei danach wieder.</li></ul>', false,
         '<p><b>Reihenfolge, wenn Angaben fehlen:</b> 1. Blog des Creators (strukturierte Rezeptdaten der Seite) · 2. Text auf den Bildern des Posts (Live Text) · 3. Ton aus Instagrams offiziellem Download (Transkription). Danach kommt ein Screenshot als Handarbeit. Die App nimmt immer den sparsamsten Weg zuerst.</p>' +
@@ -6275,7 +6273,7 @@ root.RezeptKern = api;
     ["Meta Platforms. (o. J.). <i>oEmbed – Instagram Platform</i>. Abgerufen am 18. Oktober 2026, von", "https://developers.facebook.com/documentation/instagram-platform/oembed"]
   ];
   var APP_URL = "https://jakob1500.github.io/Rezeptbuch/";
-  var SC_NAME = "Ins Rezeptbuch";
+  var SC_NAME = "In die Kombüse"; // Name des Kurzbefehls (Jakob, 26.10.; vorher „In die Kombüse“)
   function snip(t) { return '<div class="snip"><code>' + esc(t) + '</code><button data-a="copy-item" data-t="' + esc(t) + '">Kopieren</button></div>'; }
   function runShortcut(text) {
     S.meta.awaitShortcut = Date.now(); save("meta");
@@ -6284,13 +6282,17 @@ root.RezeptKern = api;
   }
   // Kurzbefehl in zwei Versionen (Jakob, 26.10.): „Einfach“ (nur Beschreibung) oder „Komplett“ (mit Blog und Ton)
   var SC_VERSIONEN = { einfach: "Einfach – nur die Beschreibung", komplett: "Komplett – mit Ton und Blog" };
+  function komplettBereit() { return !!(window.KURZBEFEHL_LINKS || {}).komplett; }
   function scWahlSheet() {
+    var empf = komplettBereit();
+    var kompl = '<button class="row" data-a="sc-version" data-v="komplett">' + ic("sparkle") + '<span class="main"><span class="title">' + SC_VERSIONEN.komplett + (empf ? ' <span class="badge ok">Empfohlen</span>' : '') + '</span><span class="sub">Holt zusätzlich den Blog aus der Beschreibung und wandelt den Ton von Reels auf deinem iPhone in Text um. Dauert etwas länger.</span></span>' + ic("chev", "chev") + '</button>';
+    var einf = '<button class="row" data-a="sc-version" data-v="einfach">' + ic("copy") + '<span class="main"><span class="title">' + SC_VERSIONEN.einfach + '</span><span class="sub">Schnell und sparsam. Reicht, wenn das Rezept im Beitragstext steht.</span></span>' + ic("chev", "chev") + '</button>';
     sheet('<h2>Welchen Kurzbefehl möchtest du?</h2><p class="small muted">Beide heißen „' + SC_NAME + '“ und funktionieren mit der Kombüse. Du kannst später jederzeit wechseln.</p>' +
-      '<div class="group">' +
-      '<button class="row" data-a="sc-version" data-v="einfach">' + ic("copy") + '<span class="main"><span class="title">' + SC_VERSIONEN.einfach + '</span><span class="sub">Schnell und sparsam. Reicht, wenn das Rezept im Beitragstext steht.</span></span>' + ic("chev", "chev") + '</button>' +
-      '<button class="row" data-a="sc-version" data-v="komplett">' + ic("sparkle") + '<span class="main"><span class="title">' + SC_VERSIONEN.komplett + '</span><span class="sub">Holt zusätzlich den Blog aus der Beschreibung und wandelt den Ton von Reels auf deinem iPhone in Text um. Dauert etwas länger.</span></span>' + ic("chev", "chev") + '</button>' +
-      '</div><button class="btn soft" data-a="close-sheet">Später</button>');
+      '<div class="group">' + (empf ? kompl + einf : einf + kompl) + '</div>' +
+      (empf ? '<div class="note info"><b>Warum „Komplett“?</b><span>Viele Creator sprechen das Rezept nur im Video. „Komplett“ hört mit und ergänzt Zutaten, Mengen und Schritte. Steht das Rezept auf einem Blog, kommt es gleich mit. Der Ton wird auf deinem iPhone in Text umgewandelt; das Video wird nicht gespeichert.</span></div>' : '') +
+      '<button class="btn soft" data-a="close-sheet">Später</button>');
   }
+
   function setupSheet() {
     var ver = S.prefs.kurzbefehl;
     if (!ver || UI.scWahl) { UI.scWahl = false; scWahlSheet(); return; }
@@ -6609,6 +6611,13 @@ root.RezeptKern = api;
       '<div class="field"><textarea class="input" id="sharetext" placeholder="https://jakob1500.github.io/Rezeptbuch/#u=…"></textarea></div>' +
       '<div class="btnrow"><button class="btn" data-a="share-apply">Übernehmen</button><button class="btn soft" data-a="close-sheet">Abbrechen</button></div>');
   }
+  // Wer „Einfach“ nutzt, bekommt einen Hinweis auf „Komplett“, sobald diese Version freigegeben ist und Rezepte aus Reels unvollständig sind
+  function kurzbefehlBanner() {
+    if (S.prefs.kurzbefehl !== "einfach" || !komplettBereit() || S.meta.kbTippWeg) return "";
+    var n = entries().filter(function (e) { return !e.example && /\/(reel|reels|tv)\//.test((e.recipe.source && e.recipe.source.url) || "") && !K.completeness(e.recipe).enough; }).length;
+    if (!n) return "";
+    return '<div class="banner">' + ic("sparkle") + '<div class="main"><b>' + n + (n === 1 ? ' Rezept aus einem Reel ist' : ' Rezepte aus Reels sind') + ' unvollständig.</b> Mit dem Kurzbefehl „Komplett“ kommt der Ton aus dem Video mit.</div><button class="btn accent" data-a="sc-wahl">Ansehen</button><button class="iconbtn" data-a="kb-tipp-weg" aria-label="Hinweis ausblenden">' + ic("x") + '</button></div>';
+  }
   function shareBanner() {
     if (!UI.shareBanner || UEB.laeuft) return "";
     return '<div class="banner">' + ic("share") + '<div class="main"><b>Rezept aus Instagram geteilt?</b> Hier einfügen, dann ist es gespeichert.</div><button class="btn accent" data-a="share-paste">Einfügen</button></div>';
@@ -6749,7 +6758,6 @@ root.RezeptKern = api;
       case "onboard-save":
         if (!el.dataset.skip) { var nm = $("#pname"); if (nm) S.prefs.name = nm.value.trim().slice(0, 30); }
         S.prefs.onboarded = true; save("prefs"); closeSheet(); render();
-        if (!S.meta.setupAsked) setTimeout(setupSheet, 250);
         break;
       case "pref-persons": S.prefs.persons = Math.max(1, Math.min(12, (S.prefs.persons || 2) + (+el.dataset.d))); save("prefs"); el.parentNode.querySelector("output").textContent = S.prefs.persons; UI.servings = {}; render(); break;
       case "pref-diet": S.prefs.diet = el.dataset.v; save("prefs"); Array.prototype.forEach.call(el.parentNode.children, function (b) { b.setAttribute("aria-pressed", String(b === el)); }); render(); break;
@@ -6809,6 +6817,7 @@ root.RezeptKern = api;
       case "share-apply": var stx = (($("#sharetext") || {}).value || ""); closeSheet(); var sf = payloadFields(stx); if (sf && handleImport(sf, true)) render(); else diagSheet("Kein geteiltes Rezept erkannt.", stx, !stx.trim() ? "zwischenablage-leer" : sf ? "nicht-gelesen" : "keine-daten"); break;
       case "sc-version": S.prefs.kurzbefehl = el.dataset.v; save("prefs"); UI.showBuild = false; setupSheet(); break;
       case "sc-wahl": UI.scWahl = true; setupSheet(); break;
+      case "kb-tipp-weg": S.meta.kbTippWeg = true; save("meta"); render(); break;
       case "mark-cooked":
         var mc = S.recipes[id];
         if (mc.lastCooked && relDay(mc.lastCooked) === "heute") { toast("Für heute schon eingetragen"); break; }
