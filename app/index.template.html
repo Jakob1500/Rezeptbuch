@@ -273,6 +273,106 @@ a { color: var(--accent); }
 .coach .act { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
 .coach .act .btn { width: auto; }
 .coach .act .btn.accent { min-width: 132px; }
+.coach .card { max-height: calc(100dvh - 32px); overflow-y: auto; }
+.coach .card.mitbild { gap: 10px; }
+/* Handy-Bilder in den Anleitungen: immer im hellen iOS-Look, damit sie wie das echte iPhone aussehen */
+.ill { position: relative; height: 200px; border-radius: 14px; background: linear-gradient(160deg, var(--brand-soft), var(--surface-2)); overflow: hidden; font: 500 11px/1.25 var(--font); color: #111; text-align: left; }
+.ill .tel { box-shadow: 0 0 0 1px rgba(255, 255, 255, .14); position: absolute; left: 50%; width: 226px; margin-left: -113px; background: #fff; border: 7px solid #1d1d1f; overflow: hidden; display: flex; flex-direction: column; }
+.ill .tel.oben { top: 14px; bottom: -8px; border-radius: 30px 30px 0 0; }
+.ill .tel.unten { top: -8px; bottom: 14px; border-radius: 0 0 30px 30px; justify-content: flex-end; }
+.ill .sb { display: flex; align-items: center; justify-content: space-between; padding: 6px 16px 4px; font-size: 10px; }
+.ill .sb i { width: 54px; height: 15px; border-radius: 8px; background: #1d1d1f; }
+.ill .sb span { letter-spacing: -2px; font-size: 8px; }
+.ill svg { width: 18px; height: 18px; flex: none; }
+.ill b { font-weight: 650; }
+.ill img { display: block; }
+.ill .m-grau { color: #8a8a8e; }
+.ill .m-blau { color: #0A84FF; }
+.ill .m-fett { font-weight: 650; }
+.ill .m-zeile { display: block; height: 7px; border-radius: 4px; background: #e5e5ea; margin: 6px 0 0; }
+.ill .m-zeile.kurz { width: 60%; }
+.ill .m-pad { padding: 8px 12px; display: grid; gap: 4px; }
+.ill .m-h1 { font-size: 17px; font-weight: 750; }
+.ill .m-nav { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 6px 10px; font-size: 10.5px; }
+.ill .m-mitte { display: grid; justify-items: center; gap: 4px; padding: 8px 10px; text-align: center; font-size: 13px; }
+.ill .m-kachel { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; color: #fff; }
+.ill .m-kachel svg { width: 22px; height: 22px; }
+.ill .m-li .m-kachel { width: 24px; height: 24px; border-radius: 6px; }
+.ill .m-li .m-kachel svg { width: 14px; height: 14px; }
+.ill .m-knopf { margin-top: 8px; background: #0A84FF; color: #fff; font-weight: 650; padding: 8px 14px; border-radius: 10px; }
+.ill .m-ig-kopf { display: flex; align-items: center; gap: 6px; padding: 4px 10px; }
+.ill .m-ig-kopf .m-grau { margin-left: auto; }
+.ill .m-avatar { width: 22px; height: 22px; border-radius: 50%; background: conic-gradient(#F58529, #DD2A7B, #8134AF, #F58529); border: 2px solid #fff; box-shadow: 0 0 0 1px #DD2A7B; }
+.ill .m-ig-bild { height: 82px; display: grid; place-items: center; font-size: 40px; background: linear-gradient(135deg, #f6d365, #fda085); }
+.ill .m-ig-leiste { display: flex; align-items: center; gap: 12px; padding: 7px 10px 2px; }
+.ill .m-ig-leiste .m-rechts { margin-left: auto; display: flex; }
+.ill .tel > .m-zeile { margin: 6px 10px 0; }
+.ill .m-icon { display: inline-grid; place-items: center; padding: 3px; border-radius: 8px; }
+.ill .m-blatt { background: #fff; border-radius: 14px 14px 0 0; padding: 4px 10px 8px; display: grid; gap: 7px; }
+.ill .m-griff { justify-self: center; width: 32px; height: 4px; border-radius: 2px; background: #d1d1d6; }
+.ill .m-suche { background: #eeeef0; border-radius: 8px; padding: 4px 8px; color: #8a8a8e; }
+.ill .m-reihe { display: flex; justify-content: space-between; gap: 6px; }
+.ill .m-kontakt { flex: 1; display: grid; justify-items: center; }
+.ill .m-kontakt i { width: 32px; height: 32px; border-radius: 50%; background: #d8d8dc; }
+.ill .m-kontakt .m-zeile { width: 30px; margin-top: 4px; }
+.ill .m-aktionen { border-top: 1px solid #ececf0; padding-top: 7px; }
+.ill .m-akt { flex: 1; display: grid; justify-items: center; gap: 3px; font-size: 8.5px; text-align: center; padding: 2px; border-radius: 8px; }
+.ill .m-akt i { width: 30px; height: 30px; border-radius: 50%; background: #eeeef0; display: grid; place-items: center; }
+.ill .m-akt i svg { width: 15px; height: 15px; }
+.ill .m-quelle { display: flex; gap: 8px; align-items: center; }
+.ill .m-quelle > span:last-child { display: grid; }
+.ill .m-thumb { width: 30px; height: 30px; border-radius: 6px; background: linear-gradient(135deg, #f6d365, #fda085); display: grid; place-items: center; font-size: 16px; }
+.ill .m-app { width: 38px; height: 38px; border-radius: 10px; }
+.ill .m-liste { background: #f2f2f7; border-radius: 10px; display: grid; overflow: visible; }
+.ill .tel > .m-liste { margin: 6px 10px; background: #fff; }
+.ill .m-li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 10px; border-top: 1px solid #e5e5ea; border-radius: 0; }
+.ill .m-li:first-child { border-top: 0; }
+.ill .m-li i { display: flex; color: #333; }
+.ill .m-li i svg { width: 15px; height: 15px; }
+.ill .m-icon-li { justify-content: flex-start; }
+.ill .m-icon-li img { width: 36px; height: 36px; border-radius: 9px; }
+.ill .m-icon-li > span { display: grid; }
+.ill .m-schalter { width: 30px; height: 18px; border-radius: 9px; background: #34C759; position: relative; }
+.ill .m-schalter::after { content: ""; position: absolute; right: 2px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; }
+.ill .m-dim { flex: 1; position: relative; display: grid; place-items: center; background: rgba(0, 0, 0, .25); }
+.ill .m-dim.leicht { place-items: stretch; background: #fff; }
+.ill .m-dim.leicht::before { content: ""; position: absolute; inset: 0; background: rgba(0, 0, 0, .28); }
+.ill .m-alert { width: 172px; background: rgba(250, 250, 252, .97); border-radius: 13px; display: grid; justify-items: center; gap: 0; padding-top: 8px; text-align: center; font-size: 10px; box-shadow: 0 4px 16px rgba(0, 0, 0, .2); }
+.ill .m-alert .m-kachel { width: 24px; height: 24px; border-radius: 6px; margin-bottom: 4px; }
+.ill .m-alert .m-kachel svg { width: 14px; height: 14px; }
+.ill .m-alert > b { padding: 0 10px 6px; }
+.ill .m-btn { width: 100%; border-top: 1px solid #dcdce0; padding: 6px 4px; color: #0A84FF; text-align: center; }
+.ill .m-quer { position: absolute; left: 50%; top: 52px; margin-left: -86px; }
+.ill .m-zwei { display: flex; width: 100%; }
+.ill .m-zwei .m-btn { flex: 1; }
+.ill .m-zwei .m-btn + .m-btn { border-left: 1px solid #dcdce0; font-weight: 650; }
+.ill .m-banner { display: flex; align-items: center; gap: 6px; padding: 7px 8px; margin-top: 4px; background: #FFF0E2; border-radius: 10px; font-size: 10px; }
+.ill .m-banner > svg { width: 15px; height: 15px; color: #A34E00; }
+.ill .m-orange { background: #FF8A1F; color: #1A0E00; font-weight: 700; padding: 5px 9px; border-radius: 8px; margin-left: auto; }
+.ill .m-safari { display: flex; align-items: center; gap: 8px; padding: 8px 12px 10px; background: #f7f7f9; border-top: 1px solid #e5e5ea; font-size: 15px; }
+.ill .m-adresse { flex: 1; background: #e9e9ee; border-radius: 10px; padding: 5px 8px; font-size: 10px; text-align: center; }
+.ill .m-home { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px 8px; padding: 8px 12px; }
+.ill .m-homeicon { display: grid; justify-items: center; gap: 3px; font-size: 8.5px; color: #fff; border-radius: 10px; }
+.ill .m-homeicon i, .ill .m-homeicon img { width: 38px; height: 38px; border-radius: 10px; }
+.ill .m-homeicon .m-zeile { width: 26px; height: 5px; margin: 0; background: rgba(255, 255, 255, .7); }
+/* Die Stelle zum Antippen: leuchtet, ein Pfeil zeigt darauf */
+.ill .ziel { position: relative; cursor: pointer; pointer-events: auto; box-shadow: 0 0 0 2.5px #FF8A1F; animation: ziel-puls 1.6s ease-in-out infinite; z-index: 1; }
+.ill .m-li.ziel { border-radius: 8px; background: #FFF0E2; }
+@keyframes ziel-puls { 0%, 100% { box-shadow: 0 0 0 2.5px #FF8A1F, 0 0 0 2.5px rgba(255, 138, 31, .5); } 50% { box-shadow: 0 0 0 2.5px #FF8A1F, 0 0 0 9px rgba(255, 138, 31, 0); } }
+.ill .pfeil { position: absolute; width: 26px; height: 26px; color: #FF8A1F; pointer-events: none; z-index: 2; }
+.ill .pfeil svg { width: 100%; height: 100%; fill: currentColor; stroke: #fff; stroke-width: 1.6; stroke-linejoin: round; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .35)); }
+.ill .pfeil.u { top: calc(100% + 3px); left: 50%; margin-left: -13px; animation: pfeil-u .9s ease-in-out infinite alternate; }
+.ill .pfeil.o { bottom: calc(100% + 3px); left: 50%; margin-left: -13px; animation: pfeil-o .9s ease-in-out infinite alternate; }
+.ill .pfeil.o svg { transform: rotate(180deg); }
+.ill .pfeil.r { left: calc(100% + 4px); top: 50%; margin-top: -13px; animation: pfeil-r .9s ease-in-out infinite alternate; }
+.ill .pfeil.r svg, .ill .pfeil.in svg { transform: rotate(-90deg); }
+.ill .pfeil.in { right: 8px; top: 50%; margin-top: -13px; animation: pfeil-r .9s ease-in-out infinite alternate; }
+.ill .m-btn.ziel .pfeil.in { right: 4px; }
+.ill .m-li.ziel .pfeil.in { right: 36px; }
+@keyframes pfeil-u { to { transform: translateY(5px); } }
+@keyframes pfeil-o { to { transform: translateY(-5px); } }
+@keyframes pfeil-r { to { transform: translateX(5px); } }
+@media (prefers-reduced-motion: reduce) { .ill .ziel, .ill .pfeil { animation: none; } }
 .addrow .input { flex: 1; }
 .addrow .btn { width: auto; }
 .cook .foot2 { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; max-width: 640px; width: 100%; margin: 0 auto; }
@@ -325,7 +425,7 @@ a { color: var(--accent); }
   // iCloud-Link des fertigen Kurzbefehls („In die Kombüse“ → Teilen → „iCloud-Link kopieren“).
   // Sobald er hier steht, richten Nutzer den Kurzbefehl mit einem Tipp ein statt ihn selbst zu bauen.
   // iCloud-Links der beiden Kurzbefehl-Versionen (beide heißen „In die Kombüse“). Leer = Bauanleitung zeigen.
-  window.KURZBEFEHL_LINKS = { einfach: "", komplett: "" };
+  window.KURZBEFEHL_LINKS = { einfach: "https://www.icloud.com/shortcuts/c496725215fa42b18b1fb5b8631e4486", komplett: "" };
 </script>
 <script>
 (function () {
@@ -336,7 +436,7 @@ a { color: var(--accent); }
   var LERN_ERINNERUNG = 20;
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.20.1";
+  var APP_VERSION = "0.20.2";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0 (creativecommons.org/licenses/by/4.0). Werte unverändert übernommen; Stück- und Löffelgewichte sind eigene Richtwerte der App. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -584,7 +684,51 @@ a { color: var(--accent); }
     ohne: { t: "Zutat ausschließen", s: [["search", "Zutat eintippen und „Ausschließen“ antippen: Rezepte damit verschwinden aus der Liste."], ["gear", "Dauerhaft geht das in den Einstellungen unter „Zutaten, die du nie willst“."]] },
     woche: { t: "Wochenplan", s: [["clock", "Tage antippen, an denen du das Rezept kochen willst."], ["home", "Auf der Startseite steht dann „Diese Woche“."], ["bag", "Ein Tipp legt alle geplanten Rezepte auf die Einkaufsliste, ohne was du schon hast."]] },
     listen: { t: "Eigene Listen", s: [["plus", "Lege Listen an, zum Beispiel „Weihnachten“ oder „Meal-Prep“."], ["grid", "Du findest sie unter „Kategorien“ ganz oben."]] },
-    detail: { t: "Ein Rezept", s: [["scale", "Mit + und − rechnest du die Mengen auf deine Portionen um."], ["dot", "Ein grüner Punkt heißt: hast du schon zu Hause."], ["bag", "„Auf die Einkaufsliste“ legt nur das an, was dir noch fehlt."]] }
+    detail: { t: "Ein Rezept", s: [["scale", "Mit + und − rechnest du die Mengen auf deine Portionen um."], ["dot", "Ein grüner Punkt heißt: hast du schon zu Hause."], ["bag", "„Auf die Einkaufsliste“ legt nur das an, was dir noch fehlt."]] },
+    // Mit Bild: [Symbol, Text, Titel, Bild (ILL), Knopf]. Startet nicht von selbst, sondern über coachStarten()
+    teilen: { t: "Rezept aus Instagram holen", s: [
+      ["link", function () { return scLink() ? "Tippe unten auf „Kurzbefehl laden“. In der Kurzbefehle-App dann auf „Kurzbefehl hinzufügen“ tippen und zurück in die Kombüse wechseln." : "Lege den Kurzbefehl einmal in der Kurzbefehle-App an. Die Bauanleitung führt dich durch."; }, "1 · Kurzbefehl holen", "icloud", "sc"],
+      ["share", "Öffne in Instagram ein Rezept und tippe beim Beitrag auf das Teilen-Symbol (Papierflieger).", "2 · In Instagram teilen", "ig"],
+      ["more", "Unten in der Reihe „Teilen über …“ antippen. Steht es nicht da, die Reihe nach links wischen.", "3 · „Teilen über …“", "igteilen"],
+      ["bolt", "Im iPhone-Menü „{SC}“ wählen. Fehlt es, im Menü nach unten wischen.", "4 · „{SC}“ wählen", "sheet"],
+      ["check", "Nur beim ersten Mal fragt dein iPhone, ob instagram.com abgerufen werden darf. Tippe auf „Immer erlauben“.", "5 · Einmal erlauben", "erlauben"],
+      ["copy", "Öffne die Kombüse. Oben steht „Rezept aus Instagram geteilt?“ – tippe auf „Einfügen“.", "6 · In der Kombüse einfügen", "einfuegen"],
+      ["check", "Dein iPhone fragt, ob die Kombüse einsetzen darf: „Einsetzen erlauben“. Fertig – das Rezept ist gespeichert.", "7 · Einsetzen erlauben", "einsetzen"]] },
+    installieren: { t: "Kombüse als App", s: [
+      ["share", "Die Kombüse läuft als App auf deinem Home-Bildschirm. Tippe dazu unten in Safari auf Teilen – bei neueren iPhones erst auf „•••“.", "Auf den Home-Bildschirm legen", "safari"],
+      ["plus", "Im Menü nach unten wischen und „Zum Home-Bildschirm“ tippen.", "„Zum Home-Bildschirm“", "safarimenue"],
+      ["check", "„Als Web-App öffnen“ eingeschaltet lassen und oben rechts auf „Hinzufügen“ tippen.", "„Hinzufügen“", "hinzufuegen"],
+      ["home", "Öffne die Kombüse ab jetzt immer über dieses Symbol. Safari und App speichern getrennt: Was du in Safari einträgst, siehst du in der App nicht.", "Immer über das Symbol öffnen", "home"]] }
+  };
+  function imSafari() { return window.navigator.standalone === false; } // nur iOS-Safari kennt standalone; im Home-Bildschirm-Modus ist es true
+  function scLink() { return (window.KURZBEFEHL_LINKS || {})[scVersion() || "einfach"] || ""; }
+
+  // Kleine Handy-Bilder für die Anleitungen. Die leuchtende Stelle ist antippbar (= Weiter), ein Pfeil zeigt darauf.
+  function pfeil(r) { return '<span class="pfeil ' + r + '" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2l8 9h-5v11H9V11H4z"/></svg></span>'; }
+  function ziel(cls, inner, r) { return '<span class="ziel ' + cls + '" data-a="coach-next">' + inner + pfeil(r) + '</span>'; }
+  function svgL(d) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>'; }
+  var MK = {
+    flieger: svgL('<path d="M21 3L10 14"/><path d="M21 3l-6.5 18-4.5-7-7-4.5z"/>'),
+    herz: svgL('<path d="M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.3a4.2 4.2 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20z"/>'),
+    blase: svgL('<path d="M20.5 12a8.5 8.5 0 0 1-12.4 7.5L3.5 20.5l1-4.4A8.5 8.5 0 1 1 20.5 12z"/>'),
+    merken: svgL('<path d="M6.5 3.5h11v17l-5.5-4.5-5.5 4.5z"/>'),
+    plusq: svgL('<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8.5v7M8.5 12h7"/>')
+  };
+  function tel(lage, inhalt, grund) { return '<div class="ill" aria-hidden="true"><div class="tel ' + lage + '"' + (grund ? ' style="background:' + grund + '"' : '') + '>' + (lage === "oben" ? '<div class="sb"><b>9:41</b><i></i><span>▮▮</span></div>' : '') + inhalt + '</div></div>'; }
+  function scKachel() { return '<span class="m-kachel" style="background:linear-gradient(135deg,#FF9F45,#E8590C)">' + ic("bolt") + '</span>'; }
+  function kombueseSchirm(extra) { return '<div class="m-pad"><b class="m-h1">Hinzufügen</b>' + extra + '<span class="m-zeile"></span><span class="m-zeile kurz"></span><span class="m-zeile"></span></div>'; }
+  var ILL = {
+    icloud: function () { return tel("oben", '<div class="m-nav"><span class="m-blau">Abbrechen</span></div><div class="m-mitte"><span class="m-quelle">' + scKachel() + '<span><b>' + SC_NAME + '</b><span class="m-grau">Kurzbefehl</span></span></span>' + ziel("m-knopf", "Kurzbefehl hinzufügen", "u") + '</div>'); },
+    ig: function () { return tel("oben", '<div class="m-ig-kopf"><span class="m-avatar"></span><b>kochliebe</b><span class="m-grau">•••</span></div><div class="m-ig-bild">🥘</div><div class="m-ig-leiste">' + MK.herz + MK.blase + ziel("m-icon", MK.flieger, "r") + '<span class="m-rechts">' + MK.merken + '</span></div><span class="m-zeile"></span>'); },
+    igteilen: function () { return tel("unten", '<div class="m-blatt"><span class="m-griff"></span><span class="m-suche">Suchen</span><div class="m-reihe">' + [1, 2, 3, 4].map(function () { return '<span class="m-kontakt"><i></i><span class="m-zeile kurz"></span></span>'; }).join("") + '</div><div class="m-reihe m-aktionen"><span class="m-akt"><i>' + ic("plus") + '</i>Story</span><span class="m-akt"><i>' + ic("link") + '</i>Link kopieren</span>' + ziel("m-akt", '<i>' + ic("share") + '</i>Teilen über …', "o") + '<span class="m-akt"><i>' + ic("more") + '</i>Mehr</span></div></div>', "#8a8f98"); },
+    sheet: function () { return tel("unten", '<div class="m-blatt"><span class="m-griff"></span><div class="m-quelle"><span class="m-thumb">🥘</span><span><b>instagram.com</b><span class="m-grau">Optionen ›</span></span></div><div class="m-reihe">' + ["#34C759", "#0A84FF", "#FFCC00", "#AF52DE"].map(function (c) { return '<span class="m-app" style="background:' + c + '"></span>'; }).join("") + '</div><div class="m-liste"><span class="m-li">Kopieren<i>' + ic("copy") + '</i></span>' + ziel("m-li", SC_NAME + '<i>' + scKachel() + '</i>', "in") + '<span class="m-li m-blau">Aktionen bearbeiten …</span></div></div>', "#8a8f98"); },
+    erlauben: function () { return tel("oben", '<div class="m-dim"><div class="m-alert">' + scKachel() + '<b>Darf „' + SC_NAME + '“ auf „instagram.com“ zugreifen?</b><span class="m-btn">Einmal erlauben</span>' + ziel("m-btn", "Immer erlauben", "in") + '<span class="m-btn">Nicht erlauben</span></div></div>', "#c7c9cc"); },
+    einfuegen: function () { return tel("oben", kombueseSchirm('<div class="m-banner">' + ic("share") + '<span><b>Rezept aus Instagram geteilt?</b></span>' + ziel("m-orange", "Einfügen", "u") + '</div>')); },
+    einsetzen: function () { return tel("oben", '<div class="m-dim leicht">' + kombueseSchirm("") + '<div class="m-alert m-quer"><b>„Kombüse“ möchte aus „Kurzbefehle“ einsetzen</b><div class="m-zwei"><span class="m-btn">Nicht erlauben</span>' + ziel("m-btn", "Einsetzen erlauben", "u") + '</div></div></div>'); },
+    safari: function () { return tel("unten", '<div class="m-pad"><b class="m-h1">Kombüse</b><span class="m-zeile"></span><span class="m-zeile kurz"></span></div><div class="m-safari"><span class="m-grau">‹</span><span class="m-adresse">jakob1500.github.io</span>' + ziel("m-icon", ic("share"), "o") + '<span class="m-grau">•••</span></div>'); },
+    safarimenue: function () { return tel("unten", '<div class="m-blatt"><span class="m-griff"></span><div class="m-liste"><span class="m-li">Kopieren<i>' + ic("copy") + '</i></span><span class="m-li">Zur Leseliste hinzufügen<i>' + svgL('<circle cx="7" cy="12" r="3"/><circle cx="17" cy="12" r="3"/>') + '</i></span>' + ziel("m-li", 'Zum Home-Bildschirm<i>' + MK.plusq + '</i>', "in") + '<span class="m-li">Lesezeichen hinzufügen<i>' + ic("book") + '</i></span></div></div>', "#8a8f98"); },
+    hinzufuegen: function () { return tel("oben", '<div class="m-nav"><span class="m-blau">Abbrechen</span><b>Zum Home-Bildschirm</b>' + ziel("m-blau m-fett", "Hinzufügen", "u") + '</div><div class="m-liste"><span class="m-li m-icon-li"><img src="icon-180.png" alt=""><span><b>Kombüse</b><span class="m-grau">jakob1500.github.io</span></span></span><span class="m-li">Als Web-App öffnen<span class="m-schalter"></span></span></div>', "#f2f2f7"); },
+    home: function () { var k = []; for (var i = 0; i < 11; i++) k.push(i === 5 ? ziel("m-homeicon", '<img src="icon-180.png" alt=""><span>Kombüse</span>', "r") : '<span class="m-homeicon"><i style="background:hsl(' + (i * 37 % 360) + ',55%,70%)"></i><span class="m-zeile kurz"></span></span>'); return tel("oben", '<div class="m-home">' + k.join("") + '</div>', "linear-gradient(160deg,#9ec5e8,#e7b3c5)"); }
   };
   // Einführung als Fenster in Schritten: beim ersten Öffnen der App („start“) und jeder Seite bzw. Funktion
   var COACH = { q: [], key: null, i: 0 };
@@ -593,29 +737,39 @@ a { color: var(--accent); }
     if (!GUIDES[key] || S.meta.guides[key] || COACH.key === key || COACH.q.indexOf(key) >= 0) return;
     COACH.q.push(key); setTimeout(coachZeigen, 350);
   }
+  function coachStarten(key) { // auf Wunsch (wieder) zeigen
+    if (!GUIDES[key]) return; delete S.meta.guides[key]; closeSheet();
+    if (COACH.key === key) return;
+    COACH.q = COACH.q.filter(function (k) { return k !== key; }); COACH.q.unshift(key); setTimeout(coachZeigen, 200);
+  }
   function coachZeigen() {
-    if (COACH.key || !COACH.q.length || einwilligungFehlt()) return;
-    var iS = COACH.q.indexOf("start"); if (iS > 0) COACH.q.unshift(COACH.q.splice(iS, 1)[0]); // Willkommen immer zuerst
+    if (COACH.key || !COACH.q.length) return;
+    ["start", "installieren"].forEach(function (k) { var iS = COACH.q.indexOf(k); if (iS > 0) COACH.q.unshift(COACH.q.splice(iS, 1)[0]); }); // „Als App“, dann Willkommen zuerst
+    if (einwilligungFehlt() && COACH.q[0] !== "installieren") return;
     COACH.key = COACH.q.shift(); COACH.i = 0;
     if (S.meta.guides[COACH.key]) { COACH.key = null; return coachZeigen(); }
     coachMalen();
   }
   function coachMalen() {
     var g = GUIDES[COACH.key], n = g.s.length, st = g.s[COACH.i], last = COACH.i === n - 1;
-    var ende = last ? (COACH.key === "start" && !S.prefs.onboarded ? "Einrichten (3 Fragen)" : "Los geht’s") : "Weiter";
-    $("#coach").innerHTML = '<div class="coach" role="dialog" aria-modal="true" aria-labelledby="coach-t"><div class="card" tabindex="-1">' +
-      '<span class="gi">' + ic(st[0] === "dot" ? "check" : st[0]) + '</span>' +
+    var ende = last ? (COACH.key === "start" && !S.prefs.onboarded ? "Einrichten (3 Fragen)" : COACH.key === "installieren" ? "Verstanden" : COACH.key === "teilen" ? "Fertig" : "Los geht’s") : "Weiter";
+    var bild = st[3] && ILL[st[3]] ? ILL[st[3]]() : "", text = (typeof st[1] === "function" ? st[1]() : st[1]).replace(/\{SC\}/g, SC_NAME), titel = (st[2] || g.t).replace(/\{SC\}/g, SC_NAME);
+    var knopf = st[4] === "sc" ? '<button class="btn accent" data-a="coach-sc">' + ic(scLink() ? "link" : "book") + (scLink() ? 'Kurzbefehl laden' : 'Bauanleitung öffnen') + '</button>' : '';
+    $("#coach").innerHTML = '<div class="coach" role="dialog" aria-modal="true" aria-labelledby="coach-t"><div class="card' + (bild ? ' mitbild' : '') + '" tabindex="-1">' +
+      (bild || '<span class="gi">' + ic(st[0] === "dot" ? "check" : st[0]) + '</span>') +
       (st[2] ? '<p class="kopf">' + esc(g.t) + '</p>' : '') +
-      '<h2 id="coach-t">' + esc(st[2] || g.t) + '</h2><p>' + esc(st[1]) + '</p>' +
+      '<h2 id="coach-t">' + esc(titel) + '</h2><p>' + esc(text) + '</p>' +
+      (bild && COACH.i === 0 ? '<p class="small muted">Tipp: Im Bild kannst du auf die leuchtende Stelle tippen.</p>' : '') + knopf +
       (n > 1 ? '<div class="dots" role="img" aria-label="Schritt ' + (COACH.i + 1) + ' von ' + n + '">' + g.s.map(function (x, k) { return '<i' + (k === COACH.i ? ' class="on"' : '') + '></i>'; }).join("") + '</div>' : '') +
       '<div class="act">' + (last ? '<span></span>' : '<button class="btn ghost" data-a="coach-skip">Überspringen</button>') +
-      '<button class="btn accent" data-a="coach-next">' + ende + '</button></div></div></div>';
+      '<button class="btn ' + (knopf ? 'soft' : 'accent') + '" data-a="coach-next">' + ende + '</button></div></div></div>';
     var c = $("#coach .card"); if (c) try { c.focus({ preventScroll: true }); } catch (e) { /* egal */ }
   }
   function coachFertig(uebersprungen) {
     var key = COACH.key; if (!key) return;
-    S.meta.guides[key] = true; if (key === "start") S.meta.guides.rezepte = true; save("meta");
+    S.meta.guides[key] = true; if (key === "start") S.meta.guides.rezepte = true; if (key === "teilen") S.meta.setupAsked = true; save("meta");
     COACH.key = null; $("#coach").innerHTML = "";
+    if (key === "installieren" && einwilligungFehlt()) { setTimeout(einwilligungSheet, 250); return; }
     if (key === "start" && !S.prefs.onboarded && !uebersprungen) { onboardSheet(); return; }
     setTimeout(coachZeigen, 250);
   }
@@ -1077,7 +1231,7 @@ a { color: var(--accent); }
     if (!all.length) return head + guide("start") + '<div class="group empty">' + ic("book") + '<p><b>Noch keine Rezepte.</b></p><p class="muted small">Neue Rezepte kommen über den Reiter „Neu“ – aus Instagram oder als Text.</p><button class="btn soft" data-a="tab" data-t="neu">Zu „Neu“</button></div>';
     planAufraeumen();
     // Höchstens ein Hinweis, über der Woche (Übersetzen wird hier nicht angezeigt)
-    var geteilt = UI.shareBanner && !UEB.laeuft ? '<div class="banner">' + ic("share") + '<div class="main"><b>Rezept aus Instagram geteilt?</b> Unter „Neu“ einfügen.</div><button class="btn accent" data-a="tab" data-t="neu">Zu „Neu“</button></div>' : "";
+    var geteilt = UI.shareBanner && !UEB.laeuft ? '<div class="banner">' + ic("share") + '<div class="main"><b>Rezept aus Instagram geteilt?</b> Hier einfügen, dann ist es gespeichert.</div><button class="btn accent" data-a="share-paste">Einfügen</button></div>' : "";
     var banner = [geteilt, onboardBanner(), lernBanner(), kurzbefehlBanner(), backupBanner()].filter(Boolean)[0] || "";
     var kacheln = '<section class="sec"><div class="kacheln">' + SCHNELL.map(function (x) {
       var l = schnellListe(x[0], mine);
@@ -1640,7 +1794,9 @@ a { color: var(--accent); }
       '<section class="sec"><div class="sec-head"><h2>Instagram</h2></div><div class="group"><button class="row" data-a="setup">' + ic("share") + '<span class="main"><span class="title">Kurzbefehl einrichten</span><span class="sub">„In die Kombüse“ im Teilen-Menü' + (scVersion() ? ' · Version ' + (scVersion() === "komplett" ? "Komplett" : "Einfach") : '') + '</span></span>' + ic("chev", "chev") + '</button></div></section>' +
       '<section class="sec"><div class="sec-head"><h2>Sprache</h2></div><div class="group"><button class="row" data-a="translate">' + ic("lang") + '<span class="main"><span class="title">Zubereitung auf Deutsch übersetzen</span><span class="sub">' + englishEntries().length + ' Rezepte noch nicht auf Deutsch · Übersetzung auf dem iPhone (Bergamot)</span></span>' + ic("chev", "chev") + '</button></div></section>' +
       '<section class="sec"><div class="sec-head"><h2>Lernen</h2></div><div class="group"><button class="row" data-a="lern-show">' + ic("sparkle") + '<span class="main"><span class="title">Was die App gelernt hat</span><span class="sub">' + lernZahl() + ' Regeln · ansehen, löschen, an Jakob schicken</span></span>' + ic("chev", "chev") + '</button></div></section>' +
-      '<section class="sec"><div class="sec-head"><h2>Hilfe</h2></div><div class="group"><button class="row" data-a="guides-reset"><span class="main"><span class="title">Anleitungen wieder zeigen</span></span></button></div></section>' +
+      '<section class="sec"><div class="sec-head"><h2>Hilfe</h2></div><div class="group"><button class="row" data-a="coach-start" data-k="teilen">' + ic("share") + '<span class="main"><span class="title">So holst du ein Rezept aus Instagram</span><span class="sub">Schritt für Schritt mit Bildern</span></span>' + ic("chev", "chev") + '</button>' +
+        (imSafari() ? '<button class="row" data-a="coach-start" data-k="installieren">' + ic("home") + '<span class="main"><span class="title">Als App auf den Home-Bildschirm</span></span>' + ic("chev", "chev") + '</button>' : '') +
+        '<button class="row" data-a="guides-reset"><span class="main"><span class="title">Anleitungen wieder zeigen</span></span></button></div></section>' +
       '<section class="sec"><div class="sec-head"><h2>Datenschutz und Infos</h2></div><div class="group"><button class="row" data-a="info">' + ic("info") + '<span class="main"><span class="title">So funktioniert die App</span><span class="sub">Datenschutz, Quellen, Regeln von Instagram, Grenzen der Erkennung</span></span>' + ic("chev", "chev") + '</button></div></section>' +
       '<p class="foot"><span>' + esc(BLS_HINWEIS) + '</span><span>Kombüse ' + APP_VERSION + ' · Kern ' + esc(K.VERSION) + '</span></p>' +
       '<button class="btn soft" data-a="close-sheet">Fertig</button>');
@@ -1801,6 +1957,7 @@ a { color: var(--accent); }
     var ok = !!S.meta.shortcutOk;
     sheet('<h2>Aus Instagram in die Kombüse</h2>' +
       '<div class="row" style="padding:0 4px;min-height:0"><span class="main small muted">Version: <b>' + SC_VERSIONEN[ver] + '</b></span><button class="btn ghost" style="width:auto;min-height:36px;padding:0" data-a="sc-wahl">Ändern</button></div>' +
+      '<button class="btn soft" data-a="coach-start" data-k="teilen">' + ic("play") + 'Schritt für Schritt mit Bildern</button>' +
       (ok ? '<div class="note info"><b>Eingerichtet.</b><span>In Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“. Dann die Kombüse öffnen und oben auf „Einfügen“ tippen (iOS fragt einmal „Einsetzen erlauben?“).</span></div>' : '') +
       (ok && !UI.showBuild ? '<button class="btn soft" data-a="show-build">Bauanleitung anzeigen</button>' : link && !UI.showBuild ? '<p class="small">1. Tippe auf „Kurzbefehl hinzufügen“ und dort auf „Kurzbefehl hinzufügen“. 2. In Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“. 3. Beim ersten Mal fragt iOS, ob instagram.com abgerufen werden darf: „Immer erlauben“. 4. Kombüse öffnen → „Einfügen“.</p><a class="btn accent" href="' + esc(link) + '" target="_blank" rel="noopener">Kurzbefehl hinzufügen</a><button class="btn ghost" data-a="show-build">Selbst bauen (Bauanleitung)</button>' :
       '<p class="small">Einmal in der Kurzbefehle-App anlegen (ca. ' + (komplett ? 5 : 3) + ' Minuten). Danach in Instagram: Teilen → „Teilen über …“ → „' + SC_NAME + '“, dann die Kombüse öffnen und oben auf „Einfügen“ tippen.</p>' +
@@ -2117,7 +2274,7 @@ a { color: var(--accent); }
       '<div class="btnrow"><button class="btn" data-a="share-apply">Übernehmen</button><button class="btn soft" data-a="close-sheet">Abbrechen</button></div>');
   }
   // Wer „Einfach“ nutzt, bekommt einen Hinweis auf „Komplett“, sobald diese Version freigegeben ist und Rezepte aus Reels unvollständig sind
-  var WASNEU_VERSION = 1; // 1: neuer Kurzbefehl „In die Kombüse“ (App 0.20.0)
+  var WASNEU_VERSION = 2; // 1: neuer Kurzbefehl „In die Kombüse“ (App 0.20.0) · 2: Kurzbefehl mit einem Tipp laden (0.20.2)
   function wasNeuPruefen() {
     if (!S.prefs.onboarded || (S.meta.wasNeu || 0) >= WASNEU_VERSION || einwilligungFehlt()) return;
     var v = scVersion() || "einfach", link = (window.KURZBEFEHL_LINKS || {})[v];
@@ -2126,13 +2283,14 @@ a { color: var(--accent); }
     (function zeigen() {
       if (($("#layer").innerHTML || $("#coach").innerHTML) && versuche++ < 40) { setTimeout(zeigen, 1500); return; }
       var andere = v === "komplett" ? "einfach" : "komplett", linkAndere = (window.KURZBEFEHL_LINKS || {})[andere];
-      sheet('<p class="small" style="margin:0;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--brand-text)">Neue Version</p><h2>Zwei Dinge einmal erledigen</h2>' +
-        '<div class="group" style="padding:16px;display:grid;gap:10px"><b>1 · Neuen Kurzbefehl laden</b><span class="small muted">Er heißt jetzt „' + SC_NAME + '“' + (v === "komplett" ? ' und holt auch Ton und Blog.' : '.') + '</span>' +
+      sheet('<p class="small" style="margin:0;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--brand-text)">Neue Version</p><h2>Kurzbefehl jetzt mit einem Tipp</h2>' +
+        '<div class="group" style="padding:16px;display:grid;gap:10px"><b>1 · Alten Kurzbefehl löschen</b><span class="small muted">In der Kurzbefehle-App lange auf den alten Kurzbefehl drücken („Ins Rezeptbuch“ oder deinen selbst gebauten „' + SC_NAME + '“) → Löschen. Das geht nur von Hand – Apple lässt Apps keine Kurzbefehle löschen.</span>' +
+        '<a class="btn soft" href="shortcuts://">Kurzbefehle-App öffnen</a></div>' +
+        '<div class="group" style="padding:16px;display:grid;gap:10px"><b>2 · Neuen Kurzbefehl laden</b><span class="small muted">Fertig eingerichtet, kein Selbstbauen mehr. Er heißt „' + SC_NAME + '“' + (v === "komplett" ? ' und holt auch Ton und Blog.' : '.') + '</span>' +
         '<a class="btn accent" href="' + esc(link) + '" target="_blank" rel="noopener">Kurzbefehl laden</a>' +
         (linkAndere ? '<button class="btn ghost" data-a="wasneu-version" data-v="' + andere + '">Lieber „' + (andere === "komplett" ? "Komplett" : "Einfach") + '“</button>' : '') + '</div>' +
-        '<div class="group" style="padding:16px;display:grid;gap:10px"><b>2 · Alten Kurzbefehl löschen</b><span class="small muted">In der Kurzbefehle-App lange auf „Ins Rezeptbuch“ drücken → Löschen. Das geht nur von Hand – Apple lässt Apps keine Kurzbefehle löschen.</span>' +
-        '<a class="btn soft" href="shortcuts://">Kurzbefehle-App öffnen</a></div>' +
-        '<p class="small muted">Außerdem neu: Startseite mit deiner Woche und Schnellzugriffen · Suche auf „Rezepte“ und „Kategorien“ · Knopf „Gekocht“ im Rezept.</p>' +
+        '<button class="btn soft" data-a="coach-start" data-k="teilen" data-wn="1">' + ic("play") + 'So geht das Teilen – mit Bildern</button>' +
+        '<p class="small muted">Die Anleitung mit Bildern findest du jederzeit unter Einstellungen → Hilfe.</p>' +
         '<button class="btn" data-a="wasneu-ok">Erledigt</button><button class="btn ghost" data-a="close-sheet">Später erinnern</button>');
     })();
   }
@@ -2307,10 +2465,7 @@ a { color: var(--accent); }
         var nm = $("#pname"); if (nm) S.prefs.name = nm.value.trim().slice(0, 30);
         var scv = document.querySelector('input[name="scv"]:checked'); if (scv) S.prefs.kurzbefehl = scv.value;
         S.prefs.onboarded = true; S.meta.wasNeu = WASNEU_VERSION; save("prefs"); save("meta"); closeSheet(); render();
-        if (el.dataset.sc) {
-          var scLink = (window.KURZBEFEHL_LINKS || {})[scVersion()];
-          if (scLink) { try { window.open(scLink, "_blank", "noopener"); } catch (x) { location.href = scLink; } } else setTimeout(setupSheet, 250);
-        }
+        if (el.dataset.sc) coachStarten("teilen"); // Schritt für Schritt mit Bildern, Schritt 1 lädt den Kurzbefehl
         break;
       case "pref-persons": S.prefs.persons = Math.max(1, Math.min(12, (S.prefs.persons || 2) + (+el.dataset.d))); save("prefs"); el.parentNode.querySelector("output").textContent = S.prefs.persons; UI.servings = {}; render(); break;
       case "pref-diet": S.prefs.diet = el.dataset.v; save("prefs"); Array.prototype.forEach.call(el.parentNode.children, function (b) { b.setAttribute("aria-pressed", String(b === el)); }); render(); break;
@@ -2404,6 +2559,11 @@ a { color: var(--accent); }
         break;
       case "coach-next": if (COACH.key && COACH.i < GUIDES[COACH.key].s.length - 1) { COACH.i++; coachMalen(); } else coachFertig(); break;
       case "coach-skip": coachFertig(true); break;
+      case "coach-sc": S.meta.setupAsked = true; save("meta");
+        if (scLink()) { try { window.open(scLink(), "_blank", "noopener"); } catch (x) { location.href = scLink(); } }
+        else { COACH.key = null; $("#coach").innerHTML = ""; UI.showBuild = true; setupSheet(); }
+        break;
+      case "coach-start": if (el.dataset.wn) { S.meta.wasNeu = WASNEU_VERSION; save("meta"); } coachStarten(el.dataset.k); break;
         var gsh = el.closest && el.closest(".sheet"); if (gsh && (el.dataset.k === "woche" || el.dataset.k === "listen")) { var gx = gsh.querySelector("[data-id]"); if (gx) (el.dataset.k === "woche" ? planSheet : listenSheet)(gx.dataset.id); } break;
       case "info": infoSheet(); break;
       case "info-detail": UI.infoDetail = el.dataset.v === "1"; infoSheet(); break;
@@ -2584,8 +2744,9 @@ a { color: var(--accent); }
     var upd = reanalyseAll();
     readHashImport();
     render();
-    if (einwilligungFehlt()) setTimeout(einwilligungSheet, 300);
-    setTimeout(wasNeuPruefen, 1500);
+    if (imSafari() && !S.meta.guides.installieren) coachMerken("installieren");
+    else if (einwilligungFehlt()) setTimeout(einwilligungSheet, 300);
+    if (!imSafari()) setTimeout(wasNeuPruefen, 1500);
     if (upd) toast(upd + (upd === 1 ? " Rezept" : " Rezepte") + " mit der verbesserten Erkennung neu ausgewertet");
     setTimeout(meldeUnbekannte, 3000);
   });
