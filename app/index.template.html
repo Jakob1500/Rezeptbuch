@@ -275,6 +275,19 @@ a { color: var(--accent); }
 .coach .act .btn.accent { min-width: 132px; }
 .coach .card { max-height: calc(100dvh - 32px); overflow-y: auto; }
 .coach .card.mitbild { gap: 10px; }
+/* Anleitung in der echten App: Leuchtrahmen um die Stelle, Rest abgedunkelt, Pfeil zeigt darauf */
+.coach.spot { background: transparent; }
+.coach.oben { align-items: start; padding-top: calc(16px + env(safe-area-inset-top, 0px)); }
+.coach .card { position: relative; z-index: 1; }
+.spot-ring { position: fixed; border-radius: 14px; box-shadow: 0 0 0 3px var(--brand), 0 0 0 200vmax rgba(0, 0, 0, .5); cursor: pointer; animation: spot-puls 1.6s ease-in-out infinite; }
+@keyframes spot-puls { 50% { box-shadow: 0 0 0 3px var(--brand), 0 0 0 9px rgba(255, 138, 31, .35), 0 0 0 200vmax rgba(0, 0, 0, .5); } }
+.spot-pfeil { position: fixed; width: 30px; height: 30px; color: var(--brand); pointer-events: none; }
+.spot-pfeil svg { width: 100%; height: 100%; fill: currentColor; stroke: #fff; stroke-width: 1.5; stroke-linejoin: round; filter: drop-shadow(0 1px 3px rgba(0, 0, 0, .4)); }
+.spot-pfeil.u { animation: pfeil-u .9s ease-in-out infinite alternate; }
+.spot-pfeil.o { animation: pfeil-o .9s ease-in-out infinite alternate; }
+.spot-pfeil.o svg { transform: rotate(180deg); }
+.spot-ring[hidden], .spot-pfeil[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) { .spot-ring, .spot-pfeil { animation: none; } }
 /* Handy-Bilder in den Anleitungen: immer im hellen iOS-Look, damit sie wie das echte iPhone aussehen */
 .ill { position: relative; height: 200px; border-radius: 14px; background: linear-gradient(160deg, var(--brand-soft), var(--surface-2)); overflow: hidden; font: 500 11px/1.25 var(--font); color: #111; text-align: left; }
 .ill .tel { box-shadow: 0 0 0 1px rgba(255, 255, 255, .14); position: absolute; left: 50%; width: 226px; margin-left: -113px; background: #fff; border: 7px solid #1d1d1f; overflow: hidden; display: flex; flex-direction: column; }
@@ -436,7 +449,7 @@ a { color: var(--accent); }
   var LERN_ERINNERUNG = 20;
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.20.2";
+  var APP_VERSION = "0.20.3";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0 (creativecommons.org/licenses/by/4.0). Werte unverändert übernommen; Stück- und Löffelgewichte sind eigene Richtwerte der App. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -692,7 +705,7 @@ a { color: var(--accent); }
       ["more", "Unten in der Reihe „Teilen über …“ antippen. Steht es nicht da, die Reihe nach links wischen.", "3 · „Teilen über …“", "igteilen"],
       ["bolt", "Im iPhone-Menü „{SC}“ wählen. Fehlt es, im Menü nach unten wischen.", "4 · „{SC}“ wählen", "sheet"],
       ["check", "Nur beim ersten Mal fragt dein iPhone, ob instagram.com abgerufen werden darf. Tippe auf „Immer erlauben“.", "5 · Einmal erlauben", "erlauben"],
-      ["copy", "Öffne die Kombüse. Oben steht „Rezept aus Instagram geteilt?“ – tippe auf „Einfügen“.", "6 · In der Kombüse einfügen", "einfuegen"],
+      ["copy", "Zurück in der Kombüse tippst du auf „Einfügen“ – oben im Hinweis „Rezept aus Instagram geteilt?“ oder hier unter „Neu“.", "6 · In der Kombüse einfügen", "einfuegen"],
       ["check", "Dein iPhone fragt, ob die Kombüse einsetzen darf: „Einsetzen erlauben“. Fertig – das Rezept ist gespeichert.", "7 · Einsetzen erlauben", "einsetzen"]] },
     installieren: { t: "Kombüse als App", s: [
       ["share", "Die Kombüse läuft als App auf deinem Home-Bildschirm. Tippe dazu unten in Safari auf Teilen – bei neueren iPhones erst auf „•••“.", "Auf den Home-Bildschirm legen", "safari"],
@@ -700,6 +713,49 @@ a { color: var(--accent); }
       ["check", "„Als Web-App öffnen“ eingeschaltet lassen und oben rechts auf „Hinzufügen“ tippen.", "„Hinzufügen“", "hinzufuegen"],
       ["home", "Öffne die Kombüse ab jetzt immer über dieses Symbol. Safari und App speichern getrennt: Was du in Safari einträgst, siehst du in der App nicht.", "Immer über das Symbol öffnen", "home"]] }
   };
+  // Wohin der Pfeil in der echten App zeigt – je Schritt ein CSS-Selektor (null = ohne), {z, tab} wechselt vorher den Reiter.
+  // Gibt es die Stelle gerade nicht (z. B. leere Einkaufsliste), zeigt das Fenster wie bisher Symbol oder Bild.
+  var ZIELE = {
+    start: [null, '.tab[data-t="neu"]', null, '.tab[data-t="einkauf"]', '[data-a="settings"]'],
+    kategorien: ['#app .toolbar', '#app .catgrid .cat:not([disabled])', '[data-a="liste-zeigen"]'],
+    naehrwert: ['#nw-such', '[data-a="nw-tab"][data-t="eigen"]', null],
+    rezepte: ['.tab[data-t="neu"]', null, '[data-a="home-suche"]'],
+    einkauf: ['#app [data-a="copy-item"]', '#app .check[data-a="done"]', null],
+    vorrat: ['.tab[data-t="vorrat"]', '#app .toggle[data-a="pantry"]'],
+    neu: ['#app [data-a="setup"]', '#paste', '#app label[for="expfile"]'],
+    kochen: ['[data-a="timer-start"]', null, null],
+    extra: ['#extra-q', null],
+    ohne: ['#ohne-q', null],
+    woche: ['.sheet [data-a="plan-tag"]', null, null],
+    listen: ['#liste-neu', null],
+    detail: ['#app .sec-head .stepper', '#app .row.ing .dot.have', '#app [data-a="to-list"]'],
+    teilen: [null, null, null, null, null, { z: '#app [data-a="share-paste"]', tab: "neu" }, null]
+  };
+  function zielSpec() { var z = (ZIELE[COACH.key] || [])[COACH.i]; return !z ? null : typeof z === "string" ? { z: z } : z; }
+  function coachZiel() {
+    var sp = zielSpec(); if (!sp) return null;
+    var el = document.querySelector(sp.z); if (!el) return null;
+    var r = el.getBoundingClientRect(); return r.width && r.height ? el : null;
+  }
+  // Leuchtrahmen und Pfeil an die echte Stelle legen; das Fenster rückt auf die freie Seite
+  function coachPos() {
+    var c = $("#coach .coach"), ring = $("#coach .spot-ring"), pf = $("#coach .spot-pfeil");
+    if (!c || !ring || !COACH.key) return;
+    var el = coachZiel();
+    if (!el) { c.classList.remove("spot", "oben"); ring.hidden = true; pf.hidden = true; return; }
+    var r = el.getBoundingClientRect(), p = 6, vh = window.innerHeight, vw = window.innerWidth;
+    var top = Math.max(r.top - p, 6), bot = Math.min(r.bottom + p, vh - 6), left = Math.max(r.left - p, 4), right = Math.min(r.right + p, vw - 4);
+    if (bot - top < 16) bot = top + 16;
+    c.classList.add("spot"); ring.hidden = false; pf.hidden = false;
+    ring.style.cssText = "top:" + top + "px;left:" + left + "px;width:" + (right - left) + "px;height:" + (bot - top) + "px";
+    var unten = vh - bot >= top; // Fenster dorthin, wo mehr Platz ist
+    c.classList.toggle("oben", !unten);
+    var mx = Math.min(Math.max((left + right) / 2 - 15, 8), vw - 38);
+    pf.className = "spot-pfeil " + (unten ? "u" : "o");
+    pf.style.cssText = "left:" + mx + "px;top:" + (unten ? bot + 4 : top - 34) + "px";
+  }
+  window.addEventListener("resize", function () { if (COACH.key) coachPos(); });
+  document.addEventListener("scroll", function () { if (COACH.key) coachPos(); }, true);
   function imSafari() { return window.navigator.standalone === false; } // nur iOS-Safari kennt standalone; im Home-Bildschirm-Modus ist es true
   function scLink() { return (window.KURZBEFEHL_LINKS || {})[scVersion() || "einfach"] || ""; }
 
@@ -753,21 +809,28 @@ a { color: var(--accent); }
   function coachMalen() {
     var g = GUIDES[COACH.key], n = g.s.length, st = g.s[COACH.i], last = COACH.i === n - 1;
     var ende = last ? (COACH.key === "start" && !S.prefs.onboarded ? "Einrichten (3 Fragen)" : COACH.key === "installieren" ? "Verstanden" : COACH.key === "teilen" ? "Fertig" : "Los geht’s") : "Weiter";
-    var bild = st[3] && ILL[st[3]] ? ILL[st[3]]() : "", text = (typeof st[1] === "function" ? st[1]() : st[1]).replace(/\{SC\}/g, SC_NAME), titel = (st[2] || g.t).replace(/\{SC\}/g, SC_NAME);
+    var sp = zielSpec();
+    if (sp && sp.tab && (UI.tab !== sp.tab || UI.detail)) { closeSheet(); UI.detail = null; UI.tab = sp.tab; render(); window.scrollTo(0, 0); }
+    var zEl = coachZiel();
+    if (zEl && !zEl.closest(".tabbar")) try { zEl.scrollIntoView({ block: "center" }); } catch (e) { /* egal */ }
+    var bild = !zEl && st[3] && ILL[st[3]] ? ILL[st[3]]() : "", text = (typeof st[1] === "function" ? st[1]() : st[1]).replace(/\{SC\}/g, SC_NAME), titel = (st[2] || g.t).replace(/\{SC\}/g, SC_NAME);
     var knopf = st[4] === "sc" ? '<button class="btn accent" data-a="coach-sc">' + ic(scLink() ? "link" : "book") + (scLink() ? 'Kurzbefehl laden' : 'Bauanleitung öffnen') + '</button>' : '';
-    $("#coach").innerHTML = '<div class="coach" role="dialog" aria-modal="true" aria-labelledby="coach-t"><div class="card' + (bild ? ' mitbild' : '') + '" tabindex="-1">' +
-      (bild || '<span class="gi">' + ic(st[0] === "dot" ? "check" : st[0]) + '</span>') +
+    $("#coach").innerHTML = '<div class="coach" role="dialog" aria-modal="true" aria-labelledby="coach-t">' +
+      '<span class="spot-ring" data-a="coach-ring" hidden></span><span class="spot-pfeil" aria-hidden="true" hidden><svg viewBox="0 0 24 24"><path d="M12 2l8 9h-5v11H9V11H4z"/></svg></span>' +
+      '<div class="card' + (bild ? ' mitbild' : '') + '" tabindex="-1">' +
+      (bild || (zEl ? '' : '<span class="gi">' + ic(st[0] === "dot" ? "check" : st[0]) + '</span>')) +
       (st[2] ? '<p class="kopf">' + esc(g.t) + '</p>' : '') +
       '<h2 id="coach-t">' + esc(titel) + '</h2><p>' + esc(text) + '</p>' +
       (bild && COACH.i === 0 ? '<p class="small muted">Tipp: Im Bild kannst du auf die leuchtende Stelle tippen.</p>' : '') + knopf +
       (n > 1 ? '<div class="dots" role="img" aria-label="Schritt ' + (COACH.i + 1) + ' von ' + n + '">' + g.s.map(function (x, k) { return '<i' + (k === COACH.i ? ' class="on"' : '') + '></i>'; }).join("") + '</div>' : '') +
       '<div class="act">' + (last ? '<span></span>' : '<button class="btn ghost" data-a="coach-skip">Überspringen</button>') +
       '<button class="btn ' + (knopf ? 'soft' : 'accent') + '" data-a="coach-next">' + ende + '</button></div></div></div>';
+    coachPos();
     var c = $("#coach .card"); if (c) try { c.focus({ preventScroll: true }); } catch (e) { /* egal */ }
   }
   function coachFertig(uebersprungen) {
     var key = COACH.key; if (!key) return;
-    S.meta.guides[key] = true; if (key === "start") S.meta.guides.rezepte = true; if (key === "teilen") S.meta.setupAsked = true; save("meta");
+    S.meta.guides[key] = true; if (key === "start") S.meta.guides.rezepte = true; if (key === "teilen") { S.meta.setupAsked = true; S.meta.guides.neu = true; COACH.q = COACH.q.filter(function (k) { return k !== "neu"; }); } save("meta");
     COACH.key = null; $("#coach").innerHTML = "";
     if (key === "installieren" && einwilligungFehlt()) { setTimeout(einwilligungSheet, 250); return; }
     if (key === "start" && !S.prefs.onboarded && !uebersprungen) { onboardSheet(); return; }
@@ -1071,6 +1134,7 @@ a { color: var(--accent); }
     if (!UI.detail && UI.tab === "kategorien") coachMerken("kategorien");
     var html = UI.detail ? viewDetail(UI.detail) : ({ rezepte: viewRezepte, kategorien: viewKategorien, einkauf: viewEinkauf, vorrat: viewVorrat, neu: viewNeu })[UI.tab]();
     $("#app").innerHTML = html;
+    if (COACH.key) setTimeout(coachPos, 0);
   }
 
   // ------------------------------------------------------------------ Ansicht: Rezepte
@@ -2559,6 +2623,7 @@ a { color: var(--accent); }
         break;
       case "coach-next": if (COACH.key && COACH.i < GUIDES[COACH.key].s.length - 1) { COACH.i++; coachMalen(); } else coachFertig(); break;
       case "coach-skip": coachFertig(true); break;
+      case "coach-ring": if (COACH.key && COACH.i < GUIDES[COACH.key].s.length - 1) { COACH.i++; coachMalen(); } else coachFertig(); break;
       case "coach-sc": S.meta.setupAsked = true; save("meta");
         if (scLink()) { try { window.open(scLink(), "_blank", "noopener"); } catch (x) { location.href = scLink(); } }
         else { COACH.key = null; $("#coach").innerHTML = ""; UI.showBuild = true; setupSheet(); }
