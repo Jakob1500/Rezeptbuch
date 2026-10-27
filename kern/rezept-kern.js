@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.6.1";
+  var VERSION = "0.6.2";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -525,6 +525,7 @@
     var m = rest.match(/^\s*(?:-|–|—|bis|to)\s*(\d+(?:[.,]\d+)?)/i);
     var max = null;
     if (m) { max = parseFloat(m[1].replace(",", ".")); rest = rest.slice(m[0].length); }
+    else if ((m = rest.match(/^\s*(?:bis|to|oder|or)\s+([a-zäöü]+)\b/i)) && NUMBER_WORDS[m[1].toLowerCase()] > value) { max = NUMBER_WORDS[m[1].toLowerCase()]; rest = rest.slice(m[0].length); } // "drei bis vier"
     return { value: value, max: max, rest: rest, fromWord: !!fromWord };
   }
 
@@ -612,8 +613,8 @@
    * "200 g rote Linsen, gewaschen" -> {qty:200, unit:"g", name:"rote Linsen", note:"gewaschen"}
    * "Haferflocken 50g"            -> {qty:50, unit:"g", name:"Haferflocken"}
    */
-  var SIZE_WORDS = /^(gehäufte?[rnms]?|gestrichene?[rnms]?|kleine?[rnms]?|große?[rnms]?|mittelgroße?[rnms]?|mittlere?[rnms]?|dicke?[rnms]?|dünne?[rnms]?|knappe?[rnms]?|gute?[rnms]?|heaped|heaping|level|large|small|medium|big|thick|thin|generous|scant|good)\s+/i;
-  var TRAILING_NOTE = /\s+((?:zum|zur|für|zum servieren|für die deko|nach (?:geschmack|belieben)|to taste|to serve|for|optional|wenn gewünscht|if desired|plus (?:extra|more)|or more|as needed|if needed)\b.*)$/i;
+  var SIZE_WORDS = /^(daumengroße?[rnms]?|walnussgroße?[rnms]?|haselnussgroße?[rnms]?|fingerlange?[rnms]?|gehäufte?[rnms]?|gestrichene?[rnms]?|kleine?[rnms]?|große?[rnms]?|mittelgroße?[rnms]?|mittlere?[rnms]?|dicke?[rnms]?|dünne?[rnms]?|knappe?[rnms]?|gute?[rnms]?|heaped|heaping|level|large|small|medium|big|thick|thin|generous|scant|good)\s+/i;
+  var TRAILING_NOTE = /\s+((?:zum|zur|für|zum servieren|für die deko|nach (?:geschmack|belieben|bedarf)|to taste|to serve|for|optional|wenn gewünscht|if desired|plus (?:extra|more)|or more|as needed|if needed|insgesamt|in total|\+\s*(?:mehr|extra|etwas)|plus mehr)\b.*)$/i;
   // Wörter, die allein keine Zutat sind ("frischer, gehackter Koriander")
   var ADJ_ONLY = /^(frisch|frische[rsn]?|gehackte?[rsn]?|geröstete?[rsn]?|getrocknete?[rsn]?|geriebene?[rsn]?|gemahlene?[rsn]?|gekochte?[rsn]?|kleine?[rsn]?|große?[rsn]?|reife?[rsn]?|fresh|chopped|toasted|roasted|dried|grated|ground|cooked|small|large|ripe|fein|grob|finely|roughly)$/i;
 
@@ -712,6 +713,55 @@
     if (puffer || out.length < 2) return null;
     return out;
   }
+  // Mehrere Zutaten in einer Zeile mit Trennzeichen: "1 TL Kurkuma, 1 TL Paprikapulver, ½ TL Zimt", "1 EL Zucker & 1 TL Zimt",
+  // "85 g Erdnussbutterpulver + 300 ml Wasser", "Salz und Pfeffer", "Salz, Curry", "Salz/Pfeffer", "Gewürze: Salz, 2 TL Kurkuma".
+  // Mit Menge vorn wird nur vor einer neuen Menge getrennt ("1 TL Salz und Pfeffer" bleibt eine Zeile);
+  // ohne Menge nur, wenn jedes Teil eine bekannte Zutat ist ("Sweet and sour sauce" bleibt). Gibt Zeilen oder null zurück.
+  var MENGE_VORN = /^\s*(?:ca\.?\s*)?(?:\d+(?:[.,]\d+)?(?:\s*\/\s*\d+)?|[½¼¾⅓⅔])(?:\s*[-–]\s*\d+(?:[.,]\d+)?)?\s*[A-Za-zÄÖÜäöü(]/;
+  function zutatenZeileTeilen(line) {
+    var t = clean(stripEmoji(String(line || "")).replace(BULLET_RE, ""));
+    if (!t || t.length > 200) return null;
+    t = t.replace(/^(?:gewürze|spices|seasonings?)\s*:\s*/i, "").replace(/\s+(?:und\s*\/\s*oder|and\s*\/\s*or)\s+/gi, " oder ");
+    var schutz = [];
+    var tp = t.replace(/\([^)]*\)/g, function (m) { schutz.push(m); return "\u0002" + (schutz.length - 1) + "\u0003"; });
+    var zurueck = function (s) { return s.replace(/\u0002(\d+)\u0003/g, function (_, i) { return schutz[+i]; }); };
+    var mitMenge = function (x) { var p = parseIngredientLine(zurueck(x)); return MENGE_VORN.test(x) && p && p.qty != null && p.name && !/^[\d+]/.test(p.name) ? p : null; };
+    // bekannte Einzelzutat; kleingeschriebene deutsche Wörter sind meist Zubereitungshinweise ("halbiert", "gewürfelt")
+    var bekannt = function (x) { if (x.split(/\s+/).length > 3 || /\d/.test(x)) return false; var p = parseIngredientLine(zurueck(x)); return !!(p && zutatBekannt(p) && p.name.split(/\s+/).length <= 3 && (/(^|\s)[A-ZÄÖÜ][^\s]*$/.test(x) || /^[A-ZÄÖÜ]/.test(x) || p.nameOriginal || VAGE_VORN.test(x) || p.staple)); };
+    var VAGE_VORN = /^(etwas|some|a little|a pinch of|eine prise|prise|ein paar|a few)\s+/i;
+    var teile;
+    if (MENGE_VORN.test(tp)) {
+      // Komma trennt immer, "&", "+", "und" nur vor einer neuen Menge; Teile ohne Menge nur, wenn bekannt ("1 TL Kurkuma, Salz") oder vage ("etwas Butter")
+      teile = tp.split(/\s*(?:(?:,(?!\d)|(?<!\d),|;)\s*|(?:\s&\s|&|\s\+\s|\s(?:und|and)\s)\s*(?=(?:ca\.?\s*)?(?:\d|[½¼¾⅓⅔])))/i).map(clean).filter(Boolean);
+      if (teile.length < 2 || !teile.every(function (x) { return mitMenge(x) || (!/^(saft|abrieb|schale|zest|juice|peel|ganz|whole|oder|or)\b/i.test(x) && (bekannt(x) || VAGE_VORN.test(x) && parseIngredientLine(zurueck(x)))); })) return null;
+      return teile.map(zurueck);
+    }
+    var vorn = "", hinten = "";
+    var vm = tp.match(VAGE_VORN); if (vm) { vorn = vm[0]; tp = tp.slice(vm[0].length); }
+    var hm = tp.match(TRAILING_NOTE); if (hm) { hinten = " " + hm[1]; tp = tp.slice(0, hm.index); }
+    teile = tp.split(/\s*(?:,(?!\d)|(?<!\d),|[;\/]|\s&\s|&|\s(?:und|and)\s)\s*/i).map(clean).filter(Boolean);
+    if (teile.length < 2 || teile.length > 6) return null;
+    if (!teile.every(function (x) { return bekannt(x) || mitMenge(x) || VAGE_VORN.test(x) && parseIngredientLine(zurueck(x)) && zutatBekannt(parseIngredientLine(zurueck(x))); })) return null;
+    return teile.map(function (x) { return mitMenge(x) || VAGE_VORN.test(x) ? zurueck(x) + (mitMenge(x) ? "" : hinten) : vorn + zurueck(x) + hinten; });
+  }
+  // Zutatenliste ohne Trennzeichen: "2 große gefrorene Bananen 250 ml Kokosmilch (nur der feste Teil) 1 TL Vanilleextrakt Etwas Meersalz".
+  // Getrennt wird vor jeder Menge (nicht vor Zeiten, Maßen, Temperaturen) und vor "Etwas"/"Eine Prise". Gibt Zeilen oder null zurück.
+  function mengenListeTeilen(text) {
+    var t = clean(stripEmoji(String(text || "")).replace(BULLET_RE, "")), schutz = [];
+    var tp = t.replace(/\([^)]*\)/g, function (m) { schutz.push(m); return "\u0002" + (schutz.length - 1) + "\u0003"; });
+    var zurueck = function (s) { return s.replace(/\u0002(\d+)\u0003/g, function (_, i) { return schutz[+i]; }); };
+    var teile = tp.split(/\s+(?=(?:(?:\d+(?:[.,]\d+)?|\d+\/\d+|[½¼¾])(?:\s*[-–]\s*\d+(?:[.,]\d+)?)?\s*(?!(?:min|minuten|minutes|std|stunden?|hours?|sek|grad|°|cm|mm|%|x\b|×|tage?|days?)\b)[A-Za-zÄÖÜäöü])|(?:Etwas|Eine Prise|Prise|Some|A pinch of)\s|Salz(?:\s*[\/&,]\s*|\s+und\s+)Pfeffer\b)/).map(clean).filter(Boolean);
+    // "Saft von" + "1 Limette", "2 to" + "3 tbsp", "6 EL + ca." + "120 ml": wieder zusammenfügen
+    teile = teile.reduce(function (a, x) { if (a.length && (/\b(to|bis|oder|or|von|vom|of|aus|ca\.?|circa|etwa|je|each|und|and|mit|with)$|[+\-–x×\/]$/i.test(a[a.length - 1]) || !/[A-Za-zÄÖÜäöü]{3}/.test(a[a.length - 1].replace(/\b(g|kg|ml|l|el|tl|cups?|tbsp|tsp|oz)\b/gi, "")))) a[a.length - 1] += " " + x; else a.push(x); return a; }, []);
+    if (teile.length < 2) return null;
+    var vorn = /^(?:\d|[½¼¾])/;
+    var ok = teile.every(function (x, i) {
+      var p = parseIngredientLine(zurueck(x));
+      if (!p || !p.name || /^\d/.test(p.name) || p.name.split(/\s+/).length > 6) return false;
+      return vorn.test(x) ? p.qty != null : (/^(Etwas|Eine Prise|Prise|Some|A pinch of|Salz)\b/.test(x) || (i === 0 && (zutatBekannt(p) || teile.length >= 3 && x.split(/\s+/).length <= 4)));
+    });
+    return ok ? teile.map(zurueck) : null;
+  }
   function parseIngredientLine(line) {
     var raw = clean(stripEmoji(String(line || "")).replace(/[\u200b-\u200f\u2060-\u2064\ufeff]/g, "").replace(BULLET_RE, "").replace(/[„“”"«»]/g, ""));
     if (!raw) return null;
@@ -719,10 +769,21 @@
     var note = [];
     if (/\b(optional|nach belieben|nach geschmack|to taste)\b/i.test(raw)) res.optional = /optional/i.test(raw);
 
-    var rest = raw.replace(/^optional\s*:?\s*/i, "");
+    var rest = raw.replace(/^optional\s*:?\s*/i, "")
+      .replace(/\s+(?:und\s*\/\s*oder|and\s*\/\s*or)\s+/gi, " oder ")                      // "Salz und / oder Sojasauce"
+      .replace(/\bn\.\s?B\.?(?=\s|$)/g, "nach Belieben")                                    // "Chiliflocken n. B."
+      .replace(/^(?:(?:einen?|eine[mr]?)\s+(?:halbe[nrsm]?)|half\s+an?|a\s+half)\s+/i, "0.5 ")  // "einen halben Teelöffel", "half a cup"
+      .replace(/^(?:eineinhalb|anderthalb|one and a half)\s+/i, "1.5 ")
+      .replace(/^(\d+(?:[.,]\d+)?)\s*([A-Za-zäöü]+)\.?\s*[-–]\s*(\d+(?:[.,]\d+)?)\s*\2s?\b\.?/i, "$1-$3 $2"); // "1 cup - 2 cups water"
     // "etwas Öl", "some salt" – bewusst ohne Menge
     var vague = rest.match(/^(etwas|ein bisschen|ein paar|einige|wenig|some|a little|a few|few|a bit of|a handful of|eine handvoll|a squeeze of|squeeze of|a splash of|splash of|scheutje|snufje|beetje)\s+/i);
-    if (vague) { note.push(vague[1].toLowerCase()); rest = rest.slice(vague[0].length); }
+    if (vague) {
+      var VAGE_DE = { "some": "etwas", "a little": "etwas", "a bit of": "etwas", "a few": "ein paar", "few": "ein paar", "a handful of": "eine Handvoll", "a squeeze of": "ein Spritzer", "squeeze of": "ein Spritzer", "a splash of": "ein Schuss", "splash of": "ein Schuss" };
+      note.push(VAGE_DE[vague[1].toLowerCase()] || vague[1].toLowerCase()); rest = rest.slice(vague[0].length);
+      // "ein paar Blätter Basilikum", "few tbsp corn flour": Einheit ohne Menge gehört in die Notiz
+      var vu = readUnit(rest);
+      if (vu && /^\s*[A-Za-zÄÖÜäöü]/.test(vu.rest)) { var vw = clean(rest.slice(0, rest.length - vu.rest.length)); note[note.length - 1] += " " + (/[äöüß]/i.test(vw) || /^[A-ZÄÖÜ]/.test(vw) ? vw : vu.unit); rest = vu.rest; }
+    }
     // "Saft von 1 Zitrone", "juice of 2 limes", "Abrieb von 1 Zitrone", "juice and zest of 1 lemon"
     var juice = rest.match(/^(?:(\d+(?:[.,]\d+)?|½)\s+)?(saft und abrieb|abrieb und saft|juice and zest|zest and juice|saft|juice|abrieb|schale|zest|sap|rasp)\s+(?:von|of|van|einer|eines|aus)?\s*(\d+(?:[.,]\d+)?|½|¼|eine[rm]?|einer|a|an|one|half(?: a)?|1\/2|(?:einer\s+)?halben?)?\s*(?:bio[- ]|organic\s+)?(zitronen?|limetten?|orangen?|lemons?|limes?|oranges?|citroenen|citroen|limoenen|limoen|sinaasappel)\b/i);
     if (juice) {
@@ -756,8 +817,8 @@
       var size = afterQ.match(SIZE_WORDS);
       if (size) { note.push(size[1].toLowerCase()); afterQ = afterQ.slice(size[0].length); }
       // Packungsgröße vor der Einheit: "1 540ml can beans", "2 (400 g) Dosen Tomaten"
-      var can = afterQ.match(/^\(?\s*(\d+(?:[.,]\d+)?)\s*(ml|g|oz)\s*\)?\s+(?=(cans?|tins?|jars?|dosen?|gläser|glas|packs?|packungen?|pck)\b)/i);
-      if (can) { note.push(can[1] + " " + can[2].toLowerCase()); afterQ = afterQ.slice(can[0].length); }
+      var can = afterQ.match(/^\(?\s*(\d+(?:[.,]\d+)?)\s*-?\s*(ml|g|oz|ounces?)\.?\s*\)?\s+(?=(cans?|tins?|jars?|dosen?|gläser|glas|packs?|packungen?|pck)\b)/i);
+      if (can) { note.push(can[1] + " " + can[2].toLowerCase().replace(/^ounces?$/, "oz")); afterQ = afterQ.slice(can[0].length); }
       u = readUnit(afterQ);
       // Zahlwort ohne Einheit nur akzeptieren, wenn danach ein Nomen folgt ("zwei Zwiebeln")
       if (q.fromWord && !u && !/^\s*[A-ZÄÖÜ]/.test(afterQ)) q = null;
@@ -767,6 +828,16 @@
       res.qty = q.value; res.qtyMax = q.max;
       rest = u ? u.rest : q.rest;
       if (u) res.unit = u.unit;
+      // "1 TL + 1 EL Sojasauce" (Löffel zusammenzählen), "6 EL + ca. 120 ml Kokosmilch" (zweite Menge als Notiz)
+      var plus = u && rest.match(/^\s*(?:\+|plus)\s*(?:ca\.?\s*)?(\d+(?:[.,]\d+)?|[½¼¾])\s*([A-Za-zäöü]+)\.?\s+(?=[A-Za-zÄÖÜäöü(])/i);
+      if (plus) {
+        var pq = readQuantity(plus[1]), pu = readUnit(plus[2]), LOEF = { TL: 1, EL: 3 };
+        if (pq && pu) {
+          if (LOEF[res.unit] && LOEF[pu.unit] && res.qtyMax == null) { var tl = res.qty * LOEF[res.unit] + pq.value * LOEF[pu.unit]; if (tl % 3 === 0) { res.qty = tl / 3; res.unit = "EL"; } else { res.qty = tl; res.unit = "TL"; } }
+          else note.push("+ " + clean(plus[0].replace(/^\s*(?:\+|plus)\s*/i, "")));
+          rest = rest.slice(plus[0].length);
+        }
+      }
       // Zweite Mengenangabe entfernen: "200 g / 2 cups oats", "360 ml/ 1½ cups milk", "250 g (2 Tassen)"
       rest = rest.replace(/^\s*\/?\s*(?:\d+(?:[.,]\d+)?|[½¼¾⅓⅔])(?:\s*(?:\d+\/\d+|[½¼¾⅓⅔]))?\s*(?:[-–]\s*\d+(?:[.,]\d+)?\s*)?(cups?|tbsp|tsp|tablespoons?|teaspoons?|oz|ounces?|tassen?|el|tl|g|ml)\b\.?/i, function (m) { note.push(clean(m.replace(/^\s*\//, ""))); return ""; });
       rest = rest.replace(/^\s*\/\s*/, "");
@@ -806,7 +877,7 @@
     }
     // Alternativen: "Oats or spelt flakes", "Ahornsirup oder Honig" -> erste Wahl
     var alt = rest.match(/^(.{3,}?)\s+(?:oder|or|\/)\s+(.+)$/i);
-    if (alt && ADJ_ONLY.test(clean(alt[1])) && alt[2].split(/\s+/).length >= 2) {
+    if (alt && (ADJ_ONLY.test(clean(alt[1])) || ADJ_WORD.test(clean(alt[1]))) && alt[2].split(/\s+/).length >= 2) {
       // "frische oder gefrorene Mango" -> Mango (frische oder gefrorene)
       var w2 = alt[2].split(/\s+/); var noun = w2.pop();
       note.push(clean(alt[1]).toLowerCase() + " oder " + w2.join(" ")); rest = noun;
@@ -846,6 +917,7 @@
     if (!res.name || res.name.length < 2) return null;
     if (/^(fett|fat|kohlenhydrate|kh|carbs?|kalorien|kcal|calories|ballaststoffe|fibre|fiber|zucker gesamt|das rezept|rezept|toppings?|optional|deko|garnitur|makros?|nährwerte|step by step|zum servieren|to serve)$/i.test(res.name)) return null;
     if (/^(protein|eiweiß|eiweiss)$/i.test(res.name) && res.unit === "g") return null;
+    if (/^(portionen?|personen|servings?|stück pro)\b/i.test(res.name)) return null; // "2 Portionen und pro Portion 527 Kalorien"
     if (res.unit === "g" && /^((plant-based|pflanzliche[sn]?|vegane[sn]?)\s+)?(protein|eiweiß|eiweiss|fibre|fiber|ballaststoffe|carbs|kohlenhydrate|fett|fat|zucker gesamt)\b/i.test(res.nameOriginal || res.name)) return null;
     if (res.name.length > 25 && /\b(minuten|minutes|köcheln|lassen|anbraten|bis|until|stir|cook for|bake for)\b/i.test(res.name)) return null;
     if (!res.unit && /^(minuten|minute|min|stunden?|std|sekunden|minutes?|hours?|grad|°)\b/i.test(res.name)) return null;
@@ -880,7 +952,7 @@
   // Sieht eine Zeile wie ein Arbeitsschritt aus? ("Den Salat geben und alles gut vermengen")
   var STEP_VERBS = /\b(vermisch|vermeng|verrühr|unterrühr|unterheb|hineingeben|dazugeben|zugeben|gebt|gib|köcheln|anbraten|anbräun|schneid|hinzufüg|umrühr|rühr|servier|abschmeck|pürier|aufkoch|ziehen lassen|backen lassen)\w*|\b(?:mix|add|stir|cook|bake|place|serve|combine|pour|blend|heat|simmer|toss|whisk|fold|drizzle|sprinkle|transfer|bring|until)(?:es|s|ing)?\b|\bgeben\b|\bvermische\b|\blassen\b|\bbis (?:es|sie|alles|die|der|das)\b/i;
   function isStepLike(line) {
-    var l = clean(stripEmoji(String(line || "")).replace(BULLET_RE, ""));
+    var l = clean(stripEmoji(String(line || "")).replace(BULLET_RE, "").replace(/\([^)]*\)/g, " ")); // "Basilikum (nach dem Backen dazugeben)" ist eine Zutat
     var words = l.split(/\s+/).length;
     if (words < 3) return false;
     if (/\b(zum|zur|for)\s+[a-zäöü]/i.test(l) && words < 7) return false; // "Öl zum Anbraten"
@@ -929,7 +1001,7 @@
   // ---------------------------------------------------------------------------
 
   var HEAD_ING = /^(?:\W*)(zutaten|ingredients|du brauchst|ihr braucht|you need|you['’]?ll need|what you['’]?ll need|what you need|was du brauchst|was ihr braucht|was brauchen wir|was wir brauchen|das brauchst du|benötigt|einkaufsliste|für (?:den|die|das) [a-zäöüß]+\s*:?$)/i;
-  var HEAD_STEP = /^(?:\W*)(zubereitung|anleitung|so geht['’`]?s|so wird['’`]?s gemacht|instructions|method|directions|steps|how to make|preparation|schritte|vorgehen)(?![a-zäöüß])/i;
+  var HEAD_STEP = /^(?:\W*)(zubereitung|anleitung|so geht['’`]?s|so gelingt(?:['’`]?s| (?:das|es|der|die|dein|euer)\b[^:]{0,20})|so wird['’`]?s gemacht|instructions|method|directions|steps|how to make|preparation|schritte|vorgehen)(?![a-zäöüß])/i;
   // Reine Zeitzeilen ("Zubereitungszeit: 15 Minuten") sind weder Zutat noch Schritt
   var ZEIT_ZEILE = /^\W*(zubereitungszeit|vorbereitungszeit|arbeitszeit|gesamtzeit|kochzeit|backzeit|garzeit|ruhezeit|wartezeit|prep time|cook time|cooking time|total time|bake time|zeit|time|dauer)\s*:?\s*(ca\.?\s*|~\s*)?\d[^a-zäöüß]{0,3}\s*(min|minuten|minutes|mins?|std|stunden?|h|hours?)\b.{0,30}$/i;
   // Zeilen, die weder Zutat noch Schritt sind
@@ -1403,8 +1475,8 @@
     if (longest < 220) return t; // hat sonst schon echte Zeilen
     // Viele echte Zeilen und nur ein langer Absatz (Einleitung): nur die langen Zeilen zerlegen
     var echteZeilen = lines.length >= 8;
-    // Abschnitte
-    t = t.replace(new RegExp("\\s(" + SECTION_WORDS + ")\\s*:?\\s", "g"), "\n$1:\n");
+    // Abschnitte (ohne Doppelpunkt nur, wenn danach eine Menge oder ein großgeschriebenes Wort folgt – nicht "Mische die Zutaten direkt")
+    if (!echteZeilen) t = t.replace(new RegExp("(?<!\\b(?:die|der|das|den|alle|allen|restlichen|übrigen|the|all|remaining|other)\\s)\\s(" + SECTION_WORDS + ")(?:\\s*:\\s*|\\s+(?=[\\d½¼¾A-ZÄÖÜ•-]))", "g"), "\n$1:\n");
     // Nummerierte Schritte "1. Zwiebeln …"
     t = t.replace(/\s(\d{1,2})\.\s(?=[A-ZÄÖÜa-zäöü])/g, "\n$1. ");
     // Aufzählungspunkte
@@ -1437,7 +1509,7 @@
       return out.join("\n");
     }).join("\n");
     // Mengenlose Zutaten am Ende eines Stücks abtrennen ("… 200 g Frischkäse (v) Etwas Öl Salz, Pfeffer")
-    t = t.replace(/\s(Etwas|Some|Salz, Pfeffer|Salt, pepper|Salz und Pfeffer|Salt and pepper)\b/g, "\n$1");
+    if (!echteZeilen) t = t.replace(/\s(Etwas|Some|Salz, Pfeffer|Salt, pepper|Salz und Pfeffer|Salt and pepper)\b/g, "\n$1");
     return t;
   }
 
@@ -1593,6 +1665,9 @@
       });
       text = oj.join("\n");
     }
+    // Zeilenumbrüche als doppelte Leerzeichen (kopierte Einbettungstexte): "Was brauchen wir:  150g Seidentofu …  Das Rezept:  1: …"
+    var dopp = (String(text || "").match(/\S {2,}(?=\S)/g) || []).length, textVorDopp = null;
+    if (dopp >= 4 && dopp > (String(text || "").match(/\n/g) || []).length) { textVorDopp = String(text); text = textVorDopp.replace(/(\S) {2,}(?=\S)/g, "$1\n"); }
     text = resegment(preferGerman(normalizeFancy(text)));
     // "Salmon Sushi Bowl #sushibowl #sushi …": Text vor den Hashtags behalten
     var rawLines = splitLines(text).map(function (l) {
@@ -1615,9 +1690,14 @@
     var stepHeadingSeen = false;
     var ingredients = [], steps = [], loose = [];
 
-    lines.forEach(function (line) {
+    lines.forEach(function (line, li) {
       var plain = clean(stripEmoji(line).replace(/(^|\s)#[^\s#]+/g, " "));
       if (!plain || NOISE.test(plain) || /^[\W_]+$/.test(plain)) return;
+      // "Das Rezept:" / "REZEPT:" allein: Überschrift der Schritte nur, wenn nummerierte Schritte folgen
+      if (/^\W*(?:das\s+)?(?:rezept|recipe)\s*:?\s*$/i.test(plain)) {
+        if (/^\s*\d{1,2}\s*[.):]\s*\S/.test(stripEmoji(lines[li + 1] || ""))) { mode = "step"; stepHeadingSeen = true; }
+        return;
+      }
       if (HEAD_ING.test(plain) && (plain.length < 50 || /^\W*[a-zäöüß' ]+\s*(\([^)]*\))?\s*:/i.test(plain))) {
         mode = "ing";
         if (/^\W*für (den|die|das) /i.test(plain)) ingredients.push(GROUP_MARK + groupName(plain));
@@ -1648,6 +1728,19 @@
           ingredients.push(line); return;
         }
         if (/^(für|for)\b.{0,30}:$/i.test(plain)) { ingredients.push(GROUP_MARK + groupName(plain)); return; } // Unterüberschrift "Für die Sauce:"
+        // Lange Zeile mit mehreren Zutaten: "500 g Mehl, 14 Äpfel, 150 g Creme Fraiche, …" oder "Eiscreme-Schicht: 2 Bananen 250 ml Kokosmilch 1 TL Vanille"
+        var labM = plain.match(/^([^:\d]{2,30}):\s*(.+)$/), labOhne = false;
+        if (!labM && (labM = plain.match(/^([A-ZÄÖÜ][a-zäöüß]+(?:-[A-ZÄÖÜa-zäöüß]+)?)\s+(\d.+)$/))) { // "Crunch 60 g geröstete Erdnüsse"
+          var ganz = parseIngredientLine(plain);
+          if (zutatBekannt(parseIngredientLine(labM[1])) || ganz && ganz.qty != null && zutatBekannt(ganz)) labM = null; else labOhne = true; // "Saft 1/2 Zitrone" ist eine Zutat
+        }
+        var labRest = labM ? labM[2] : plain;
+        var viele = zutatenZeileTeilen(labRest) || mengenListeTeilen(labRest);
+        if (!viele && labOhne) { var einz = parseIngredientLine(labRest); if (einz && einz.qty != null && zutatBekannt(einz)) viele = [labRest]; }
+        if (viele && (viele.length >= 2 || labOhne) && (labM || plain.length > 45)) {
+          if (labM && !/^(gewürze|spices|seasonings?)$/i.test(clean(labM[1]))) ingredients.push(GROUP_MARK + groupName(labM[1]));
+          viele.forEach(function (x) { ingredients.push(x); }); return;
+        }
         // Kommaliste kurzer Namen: "herbs, chili flakes, olive oil, salt & pepper"
         var segs = plain.split(/\s*,\s*/);
         if (!startsQty && segs.length >= 2 && segs.every(function (x) { return x && x.split(/\s+/).length <= 4; }) && !isStepLike(plain) && !segs.slice(1).some(function (x) { return /\b(chopped|diced|sliced|minced|grated|torn|roughly|finely|peeled|drained|rinsed|gehackt|geschnitten|gewürfelt|gerieben|geschält|fein|grob|abgetropft)\b/i.test(x); })) {
@@ -1657,7 +1750,7 @@
         if (plain.length < 80 && !/[.!?]$/.test(plain) && /,\s*[^,]*\b(chopped|diced|sliced|minced|grated|torn|peeled|drained|rinsed|gehackt|geschnitten|gewürfelt|gerieben|geschält|abgetropft)\b/i.test(plain)) { ingredients.push(line); return; }
         // Zeile mit Menge am Anfang bleibt Zutat ("2-3 Hände voll Himbeeren (gefrorene …)")
         if (startsQty && plain.length < 110 && !/^\d+\s*[.):]\s/.test(plain)) { ingredients.push(line); return; }
-        if (plain.length > 45 || /^\d+\s*[.):]\s*[A-ZÄÖÜa-zäöü]/.test(plain)) { mode = "step"; steps.push(line); return; }
+        if (plain.replace(/\s*\([^)]*\)/g, "").length > 45 || /^\d+\s*[.):]\s*[A-ZÄÖÜa-zäöü]/.test(plain)) { mode = "step"; steps.push(line); return; }
         ingredients.push(line); return;
       }
       if (mode === "step") { steps.push(line); return; }
@@ -1690,8 +1783,14 @@
         lastIng = false;
         if (/^\s*(?:\d+\s*[.)]|[-•]\s*\S.{30,})/.test(stripEmoji(l)) || p.length > 50 || (ingredients.length && (isStepLike(p) || (/[a-zäöüß](en|ern|eln)[.!]$/.test(p) && p.split(/\s+/).length >= 3 && !/^(ich|wir|du|ihr|man)\b/i.test(p))))) { kopfSetzen("step"); steps.push(l); }
       });
-    } else if (!steps.length) {
-      loose.forEach(function (l) { if (/^\s*\d+\s*[.)]/.test(stripEmoji(l))) steps.push(l); });
+    } else {
+      // Nummerierte Schritte vor der Zutatenliste ("REZEPT: 1️⃣ … 2️⃣ … ZUTATEN: …"): vorn einreihen, samt Folgezeilen
+      var nummeriert = function (l) { return /^\s*\d+\s*[.):]/.test(stripEmoji(l)); };
+      if (loose.filter(nummeriert).length >= 2 && !steps.some(function (s) { return nummeriert(s) || isStepLike(s); })) {
+        var block = [], drin = false;
+        loose.forEach(function (l) { if (nummeriert(l)) drin = true; if (drin) block.push(l); });
+        steps = block.concat(steps);
+      } else if (!steps.length) loose.forEach(function (l) { if (nummeriert(l)) steps.push(l); });
     }
 
     // Mehrere nummerierte Schritte in einer Zeile aufteilen
@@ -1720,6 +1819,8 @@
     r.ingredients = [];
     ingredients.forEach(function (l) {
       if (String(l).indexOf(GROUP_MARK) === 0) { grp = String(l).slice(GROUP_MARK.length); return; }
+      var zeilen = zutatenZeileTeilen(l) || mengenListeTeilen(l);
+      if (zeilen) { zeilen.forEach(function (z) { var x = parseIngredientLine(z); if (x) { if (grp) x.group = grp; r.ingredients.push(x); } }); return; }
       var ing = parseIngredientLine(l);
       var teile = ing && !zutatBekannt(ing) ? klebeZutatenTrennen(l) : null;
       (teile || [ing]).forEach(function (x) { if (x) { if (grp) x.group = grp; r.ingredients.push(x); } });
@@ -1739,6 +1840,23 @@
     r.steps = cs.steps;
     if (cs.description.length) r.description = cs.description.slice(0, 3).join(" ");
     cs.ingredients.forEach(function (l) { var ing = parseIngredientLine(l); if (ing && !r.ingredients.some(function (x) { return x.key === ing.key; })) r.ingredients.push(ing); });
+    // Zutat steht nur im Schritt: "Guss: ca. 100 g Puderzucker mit dem Saft ½ Zitrone vermengen"
+    if (r.ingredients.length >= 3 && !r.ingredientsFromSteps) {
+      var namen = r.ingredients.map(function (x) { return lower(x.name + " " + (x.key || "")); }).join(" | ");
+      r.steps.forEach(function (st) {
+        if (/^## /.test(st)) return;
+        var lab = st.match(/^([A-ZÄÖÜ][\wäöüß-]+(?:\s[\wäöüß-]+)?)\s*:\s/);
+        extractInlineIngredients(st).forEach(function (i) {
+          // "120 ml weitere flüssige Kokosmilch einrühren" -> ohne Verb am Ende
+          var ohneVerb = i.raw.replace(/(?:\s+(?:[a-zäöüß]+(?:en|ern|eln)|weitere[nrs]?|mehr))+\s*$/, "");
+          if (ohneVerb !== i.raw && langOfText(st) !== "en") { i = parseIngredientLine(ohneVerb); if (!i) return; i.fromSteps = true; }
+          var kern = lower(i.key || i.name).split(/\s+/).pop();
+          if (!i.unit || !zutatBekannt(i) || kern.length < 3 || namen.indexOf(kern) !== -1 || namen.indexOf(lower(i.name)) !== -1) return;
+          if (lab && lab[1].split(/\s+/).length <= 2 && SUBHEAD_WORD.test(lab[1]) || lab && /^(guss|glasur|topping|soße|sauce|dressing|creme|füllung|teig|boden|streusel)$/i.test(lab[1])) i.group = capFirst(lower(lab[1]));
+          r.ingredients.push(i); namen += " | " + lower(i.name + " " + i.key);
+        });
+      });
+    }
     r.nutritionDeclared = findDeclaredNutrition(text);
     if (!r.servings) r.servings = findServings(text);
     var times = findTimes(text);
@@ -1752,9 +1870,11 @@
     r.creatorClaims = findClaims(text);
     r.elsewhere = findElsewhere(text, r);
     {
-      var prose = String(text || "").split(/\n/).filter(function (l) { var c = clean(stripEmoji(l)); return c && !looksLikeIngredient(c) && !(readQuantity(c) && !readQuantity(c).fromWord) && !/^\s*\d+\s*[.)]/.test(c); }).join("\n");
+      // Fließtext; lange Zeilen mit Zahl vorn ("15 Minuten und eine Handvoll Zutaten – …") sind Text, keine Zutat
+      var istProsa = function (l) { var c = clean(stripEmoji(l)), q = readQuantity(c); return c && !looksLikeIngredient(c) && !(q && !q.fromWord && (c.length < 80 || readUnit(q.rest))) && !/^\s*\d+\s*[.)]/.test(c); };
+      var prose = String(text || "").split(/\n/).filter(istProsa).join("\n");
       var dp = dishPhrase(prose); if (dp) { r.dishTitle = dp; }
-      r.introZeile = prose.split("\n").map(function (l) { return clean(stripEmoji(l)); }).filter(Boolean)[0] || "";
+      r.introZeile = (textVorDopp != null ? resegment(preferGerman(normalizeFancy(textVorDopp))).split(/\n/).filter(istProsa).join("\n") : prose).split("\n").map(function (l) { return clean(stripEmoji(l)); }).filter(Boolean)[0] || "";
       // erste erwähnte Zutat im Text (für "Eintopf" -> "Linsen-Eintopf")
       var fw = prose.slice(0, 600).split(/[^A-Za-zÄÖÜäöüß-]+/);
       for (var fi = 0; fi < fw.length && !r.textFood; fi++) {
@@ -1806,7 +1926,7 @@
       if (ing && ing.unit && !seen[ing.key]) { seen[ing.key] = 1; ing.fromSteps = true; out.push(ing); }
     }
     // Zahl + Zutat ohne Einheit ("juice of 1/2 lemon", "2 Zwiebeln")
-    var re2 = /(?:juice of|saft von|zest of|abrieb von)\s+(?:\d+(?:\/\d+)?|½|a|an|one|half(?: a)?|einer?)\s+(?:organic\s+|bio[- ])?(?:lemons?|limes?|oranges?|zitronen?|limetten?|orangen?)/gi;
+    var re2 = /(?:juice of|saft von|saft|zest of|abrieb von)\s+(?:\d+(?:\/\d+)?|½|a|an|one|half(?: a)?|einer?|einer halben|1\/2)\s+(?:organic\s+|bio[- ])?(?:lemons?|limes?|oranges?|zitronen?|limetten?|orangen?)/gi;
     while ((m = re2.exec(t)) !== null) {
       var j = parseIngredientLine(m[0]);
       if (j && !seen[j.key]) { seen[j.key] = 1; j.fromSteps = true; out.push(j); }
@@ -2681,7 +2801,7 @@
     var steps = r.steps || [], ings = r.ingredients || [];
     var heads = ings.map(function (i) {
       var names = [i.name, i.nameOriginal || ""].concat(i.key ? [i.key] : []).join(" ").toLowerCase().replace(/[()]/g, " ");
-      var w = names.split(/[\s,\/]+/).filter(function (x) { return x.length >= 3 && !ADJ_WORD.test(x) && !/^(und|oder|and|or|mit|with|von|für|frisch|frische|gehackt|getrocknet|gemahlen|gekocht|gekochte|braune|rote|grüne|weiße|schwarze|dunkle|helle|vegane|veganer|veganes|pflanzliche|pflanzlicher|neutrales|extra|fein|grob)$/.test(x); });
+      var w = names.split(/[\s,\/]+/).reduce(function (a, x) { a.push(x); var hy = x.split("-").pop(); if (hy !== x && hy.length >= 5) a.push(hy); return a; }, []).filter(function (x) { return x.length >= 3 && !ADJ_WORD.test(x) && !/^(und|oder|and|or|mit|with|von|für|frisch|frische|gehackt|getrocknet|gemahlen|gekocht|gekochte|braune|rote|grüne|weiße|schwarze|dunkle|helle|vegane|veganer|veganes|pflanzliche|pflanzlicher|neutrales|extra|fein|grob)$/.test(x); });
       return w.map(function (x) { return x.replace(/(e|en|n|s|er)$/, "").replace(/-$/, ""); }).filter(function (x) { return x.length >= 3 && !/^(aus|dem|der|die|das|den|vom|zum|glas|dose|pck|packung|koro|bio|light)$/.test(x); });
     });
     var used = {};
@@ -2971,7 +3091,7 @@
     // c) Zutat, die die erste Zeile betont („Endlich wieder Kürbis Zeit“) -> „Kürbis-Feta-Pasta“
     var intro = lower(r.introZeile || "");
     if (intro && r.title.split(/\s+/).length <= 2 && !/ mit /.test(r.title)) {
-      var betont = [].concat.apply([], r.ingredients.map(function (i) { return i.name.split(/[\s-]+/).filter(function (w) { return w.length >= 4 && /^[A-ZÄÖÜ]/.test(w) && !/^(gekocht|frisch|braun|rote?|grüne?|weiße?|große?|kleine?|kekse|plätzchen|vegan|pflanzlich|bio|light|tk|zarte?|feine?)/i.test(w); }); }))
+      var betont = [].concat.apply([], r.ingredients.map(function (i) { return ((i.nameOriginal && /^[A-Z]/.test(i.nameOriginal) ? i.nameOriginal + " " : "") + i.name).split(/[\s-]+/).filter(function (w) { return w.length >= 4 && /^[A-ZÄÖÜ]/.test(w) && !/^(gekocht|frisch|braun|rote?|grüne?|weiße?|große?|kleine?|kekse|plätzchen|vegan|pflanzlich|bio|light|tk|zarte?|feine?)/i.test(w); }); }))
         .filter(function (w) { var lw = lower(w).replace(/(e?n|s)$/, ""); return lw.length >= 4 && intro.indexOf(lw) !== -1 && tl.indexOf(lw) === -1 && !/^(wasser|salz|pfeffer|zucker|mehl|öl)/.test(lw); })[0];
       if (betont) { r.title = /^(soße|sosse|sauce|käsesoße|käsesauce|dip|pesto|dressing|[a-zäöüß]+(soße|sauce))$/i.test(r.title) ? betont + " mit " + r.title : betont + "-" + r.title; return; }
     }

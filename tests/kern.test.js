@@ -61,7 +61,7 @@ Zubereitung:
 let a = K.analyse({ caption: capDE, url: "https://www.instagram.com/p/ABC123/", account: "@kochmitlisa" });
 let r = a.recipe;
 check("DE Titel", r.title === "Cremiges Linsen-Curry in 30 Minuten", r.title);
-check("DE Zutaten", r.ingredients.length === 9, r.ingredients.map(x => x.raw));
+check("DE Zutaten", r.ingredients.length === 10 && r.ingredients.some(x => x.name === "Salz") && r.ingredients.some(x => x.name === "Pfeffer"), r.ingredients.map(x => x.raw)); // "Salz & Pfeffer" -> zwei Zutaten
 check("DE Schritte", r.steps.length === 4, r.steps);
 check("DE Portionen", r.servings === 4, r.servings);
 check("DE Zeit aus Titel", r.timeTotal === 30, r.timeTotal);
@@ -613,6 +613,25 @@ const tonLeer = K.analyse({
 });
 check("Ton: fehlende Zutaten kommen aus dem Ton", tonLeer.recipe.ingredients.length >= 3 && tonLeer.recipe.provenance.ingredients === "speech", tonLeer.recipe.ingredients.map(x => x.name));
 check("Ton: fehlende Schritte kommen aus dem Ton", tonLeer.recipe.steps.length >= 2 && tonLeer.recipe.provenance.steps === "speech", tonLeer.recipe.steps);
+
+// Paket 1 (App-Vergleich C2/C3): Zutatenzeilen und Beschreibungen
+{
+  const z = l => K.parseIngredientLine(l);
+  check("C2: 1 TL + 1 EL zusammengezählt", z("1 TL + 1 EL Sojasauce").qty === 4 && z("1 TL + 1 EL Sojasauce").unit === "TL", z("1 TL + 1 EL Sojasauce"));
+  check("C2: + mehr zum Braten ist Notiz", z("2 EL Öl + mehr zum Braten").name === "Öl", z("2 EL Öl + mehr zum Braten").name);
+  check("C2: n. B. -> nach Belieben", z("Chiliflocken n. B.").name === "Chiliflocken", z("Chiliflocken n. B."));
+  check("C2: 1 cup - 2 cups", z("1 cup - 2 cups water") && z("1 cup - 2 cups water").qtyMax != null, z("1 cup - 2 cups water"));
+  check("C2: 1 (14-ounce) can", z("1 (14-ounce) can chickpeas").name === "Kichererbsen", z("1 (14-ounce) can chickpeas").name);
+  check("C2: einen halben Teelöffel", z("einen halben Teelöffel Salz").qty === 0.5 && z("einen halben Teelöffel Salz").unit === "TL", z("einen halben Teelöffel Salz"));
+  check("C2: drei bis vier", z("drei bis vier Tomaten").qty === 3 && z("drei bis vier Tomaten").qtyMax === 4, z("drei bis vier Tomaten"));
+  check("C2: ein paar Blätter Basilikum", z("ein paar Blätter Basilikum").name === "Basilikum", z("ein paar Blätter Basilikum").name);
+  check("C2: helle oder dunkle Sojasoße", z("2 EL helle oder dunkle Sojasoße").name === "Sojasoße", z("2 EL helle oder dunkle Sojasoße").name);
+  check("C2: daumengroßes Stück Ingwer", z("ein daumengroßes Stück Ingwer").name === "Ingwer", z("ein daumengroßes Stück Ingwer"));
+  const cap = "Zutaten:\n1 TL Kurkuma, 1 TL Paprikapulver, ½ TL Zimt\nSalz/Pfeffer\n500 g Weizenmehl, 14 mittelgroße Äpfel, 150 g Creme Fraiche, 1 EL Rapsöl, etwas Butter & etwas Puderzucker, Prise Salz\nEiscreme-Schicht: 2 große Bananen 250 ml Kokosmilch 1 TL Vanilleextrakt 2,5 EL Ahornsirup\n\nZubereitung:\n1. Alles verrühren.\n2. Guss: 100 g Puderzucker mit Zitronensaft verrühren.";
+  const rc = K.parseText(cap), nm = rc.ingredients.map(i => i.name);
+  check("C3: Kommalisten werden getrennt", ["Kurkuma", "Paprikapulver", "Zimt", "Salz", "Pfeffer", "Äpfel", "Rapsöl", "Butter", "Puderzucker"].every(n => nm.includes(n)), nm);
+  check("C3: Zeile ohne Trennzeichen wird an Mengen getrennt", nm.includes("Ahornsirup") && rc.ingredients.find(i => i.name === "Ahornsirup").qty === 2.5, nm);
+}
 
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);
