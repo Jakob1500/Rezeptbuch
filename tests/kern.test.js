@@ -524,14 +524,14 @@ const zt = (cap) => K.analyse({ caption: cap, url: "https://example.org/p/1" }).
 let z = zt("Linsen-Curry\n\nZutaten\n1 Zwiebel\n2 Knoblauchzehen\n200 g rote Linsen\n400 ml Kokosmilch\n1 EL Currypaste\n200 g Reis\n\nZubereitung\nZwiebel und Knoblauch fein würfeln und in Öl glasig dünsten.\nCurrypaste dazugeben und kurz anrösten.\nLinsen und Kokosmilch dazugeben und 25 Minuten köcheln lassen.\nDen Reis in 10 Minuten garen.\nMit Koriander servieren.");
 check("Zeit A: „in 10 Minuten“ im Schritt ist nicht die Gesamtzeit", z.timeTotal >= 45 && z.timeTotal <= 60, z.timeTotal);
 z = zt("Pilz-Orzotto\n\nIngredients\n250g mushrooms\n2 leeks\n200g orzo\n750ml vegetable stock\n\nMethod\n1. Prep – Tear the mushrooms. Slice the leeks.\n2. Fry mushrooms until golden. Cook the leeks for 5–6 mins until soft. Add garlic and fry for 1 min. Add orzo and toast for 2 mins.\n3. Add stock and simmer for 10 mins, stirring regularly.\n4. Serve with chives.");
-check("Zeit B: alle Zeiten eines Schritts zählen", z.timeTotal >= 35 && z.timeTotal <= 45, z.timeTotal);
+check("Zeit B: alle Zeiten eines Schritts zählen", z.timeTotal >= 25 && z.timeTotal <= 45, z.timeTotal); // 28.10.: Schritte ohne Zeit kürzer, wenn das Rezept Zeiten nennt
 z = zt("Ofengemüse mit Feta\n\nZubereitungszeit: 15 Minuten\n\nZutaten\n2 Paprika\n1 Zucchini\n200 g Feta\n\nZubereitung\nGemüse in Stücke schneiden und mit Öl mischen.\nFeta in die Mitte legen und 40 Minuten bei 200 °C backen.\nMit Kräutern servieren.");
 check("Zeit C: nur Arbeitszeit angegeben → Backzeit kommt dazu", z.timeTotal >= 55 && z.timeTotal <= 65 && z.timePrep === 15, z.timeTotal);
 check("Zeit C: „Zubereitungszeit: 15 Minuten“ ist kein Schritt", !z.steps.some(s => /szeit|15 Minuten/.test(s)), z.steps);
 z = zt("Over-Night-Brötchen\n\nZutaten\n500 g Mehl\n350 ml Wasser\n5 g Hefe\n10 g Salz\n\nZubereitung\nAlle Zutaten 5 Minuten verkneten.\nDen Teig über Nacht im Kühlschrank gehen lassen.\nAm nächsten Morgen 8 Brötchen formen und 30 Minuten ruhen lassen.\nBei 230 °C 20 Minuten backen.");
 check("Zeit D: „über Nacht“ als Hinweis, Rest gezählt", z.timeOvernight === true && z.timeTotal >= 50 && z.timeTotal <= 70, [z.timeTotal, z.timeOvernight]);
 z = zt("Bunter Salat\n\nZutaten\n1 Gurke\n3 Tomaten\n1 rote Zwiebel\n1 Paprika\n2 Möhren\n1 Avocado\n1 Bund Petersilie\n100 g Feta\n1 Dose Kichererbsen\n\nZubereitung\nGurke, Tomaten, Zwiebel, Paprika und Möhren klein schneiden. Avocado würfeln, Petersilie hacken.\nKichererbsen abspülen.\nAlles mit dem Dressing vermengen und Feta darüberbröseln.");
-check("Zeit E: Schneiden zählt je Zutat", z.timeTotal >= 20 && z.timeTotal <= 35, z.timeTotal);
+check("Zeit E: Schneiden zählt je Zutat", z.timeTotal >= 15 && z.timeTotal <= 30, z.timeTotal); // 28.10.: 2 Min. je Zutat (Messung an 411 Blog-Rezepten)
 z = zt("Schnelle Blechpizza\n\nZutaten\n450 g Mehl\n240 g Wasser\n50 g Olivenöl\n1 TL Backpulver\n100 g passierte Tomaten\n1 Mozzarella\n\nZubereitung\nMehl, Wasser, Öl und Backpulver zu einem Teig verkneten und abgedeckt 20 Minuten ruhen lassen. Währenddessen den Ofen auf 220 °C vorheizen.\nTeig ausrollen und aufs Blech legen.\nMit Tomaten und Mozzarella belegen und 20–25 Minuten backen.");
 check("Zeit: Pizza mit Ruhe- und Backzeit ≈ 1 Std. (wie Cookidoo)", z.timeTotal >= 55 && z.timeTotal <= 70, z.timeTotal);
 z = zt("Ofenlachs\n\nGesamtzeit: 20 Minuten\n\nZutaten\n2 Lachsfilets\n1 Zitrone\n\nZubereitung\nLachs würzen und 45 Minuten bei 180 °C backen.");
@@ -669,5 +669,18 @@ check("Ton: fehlende Schritte kommen aus dem Ton", tonLeer.recipe.steps.length >
   check("C11: gebeugte Form", K.kochbegriffeIn("Den Brokkoli blanchiert servieren.").length === 1);
 }
 
+// 28.10.: Übersetzung (Bergamot) in Rezeptsprache, Fehlübersetzungen, Zuordnung über das Original, Zeit nicht zu lang
+check("Ü: Sie-Form mit Partikel", K.rezeptStil("Fügen Sie Knoblauch hinzu und rühren Sie gut um.") === "Knoblauch hinzufügen und gut umrühren.", K.rezeptStil("Fügen Sie Knoblauch hinzu und rühren Sie gut um."));
+check("Ü: Nebensatz bleibt hinten", K.rezeptStil("Kochen Sie die Nudeln in Salzwasser, bis sie al dente sind.") === "Die Nudeln in Salzwasser kochen, bis sie al dente sind.", K.rezeptStil("Kochen Sie die Nudeln in Salzwasser, bis sie al dente sind."));
+check("Ü: Natron statt Backpulver", /Natron/.test(K.nachUebersetzung("Add the flour, baking soda and salt", "Mehl, Backpulver und Salz hinzufügen")));
+check("Ü: Natron und Backpulver an der richtigen Stelle", K.nachUebersetzung("whisk flour, baking powder, baking soda and salt", "Mehl, Backpulver, Backpulver und Salz verquirlen") === "Mehl, Backpulver, Natron und Salz verquirlen");
+check("Ü: Brüche vor der Übersetzung", K.vorUebersetzung("Add 3½ cups water") === "Add 3 1/2 cups water");
+{
+  const ru = K.analyse({ caption: "Cake\n\nIngredients:\n200 g flour\n1 tsp baking soda\n2 eggs\n\nMethod:\n1. Whisk the flour and baking soda.\n2. Beat in the eggs.", url: "" }).recipe;
+  K.uebersetzeSchritte(ru, ["Mehl und Backpulver verquirlen.", "Die Eier einschlagen."]);
+  const m = K.stepIngredients(ru);
+  check("Ü: Zutaten bleiben nach der Übersetzung ihrem Schritt zugeordnet", m[0].length === 2 && m[1].length === 1, m);
+  check("Ü: englische Zusätze werden abgetrennt", K.parseIngredientLine("2 cups kosher salt").name === "Salz" && K.parseIngredientLine("1 cup unsalted butter").name === "Butter" && K.parseIngredientLine("1 cup granulated sugar").name === "Zucker");
+}
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

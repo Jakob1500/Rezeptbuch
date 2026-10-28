@@ -81,6 +81,7 @@ const check = (name, cond, info) => { if (cond) ok++; else { bad++; console.log(
   // ---- Kochmodus: Vorheizen und Timer
   const t2 = await page.$('text=Blechpizza'); if (t2) { await t2.click(); await page.waitForTimeout(400); }
   await klick('[data-a="cook"]');
+  if (/Vorbereitung/.test(await page.innerText(".cook"))) await klick('[data-a="cook-next"]'); // 28.10.: Kochmodus beginnt mit „Alles bereitlegen“
   let koch = await page.innerText(".cook");
   check("Kochmodus: Anleitung und Vorheiz-Hinweis im ersten Schritt", /Kochmodus/.test(gesehen.join("\n")) && /Ofen jetzt vorheizen auf 220 °C/.test(koch), koch.slice(0, 300));
   check("Kochmodus: Timer-Knopf „20 Min. starten“", /20 Min\. starten/.test(koch));
@@ -149,7 +150,8 @@ const check = (name, cond, info) => { if (cond) ok++; else { bad++; console.log(
   if (await klick('[data-a="ersatz"]')) { check("Ersatz-Vorschlag mit Nährwerten", /ersetzen[\s\S]*je 100 g/i.test(await page.innerText(".sheet")), await page.innerText(".sheet")); await page.keyboard.press("Escape"); await page.waitForTimeout(200); }
   check("Herkunft sichtbar", /Zutaten aus der Beschreibung/.test(await page.innerText("body")));
   const geteilt = await page.evaluate(() => { let t = ""; navigator.share = (d) => { t = d.text; return Promise.resolve(); }; document.querySelector('[data-a="more"]').click(); document.querySelector('[data-a="share-recipe"]').click(); return t; });
-  check("Teilen mit Kombüse-Link", /#u=.*&t=.*&g=1/.test(geteilt) && /Original/.test(geteilt), geteilt.slice(0, 160));
+  check("Teilen mit Kombüse-Link", /#k=[A-Za-z0-9_-]{100,}/.test(geteilt) && /Original/.test(geteilt), geteilt.slice(0, 160));
+  const kLink = (geteilt.match(/#k=[A-Za-z0-9_-]+/) || [""])[0];
   await page.keyboard.press("Escape"); await page.waitForTimeout(200);
   await coachWeg(); await page.click('.tabbar [data-t="einkauf"]'); await page.waitForTimeout(300); await coachWeg();
   for (const w of ["Klopapier", "Chips"]) { await page.fill("#extra-q", w); await page.keyboard.press("Enter"); await page.waitForTimeout(200); }
@@ -159,7 +161,14 @@ const check = (name, cond, info) => { if (cond) ok++; else { bad++; console.log(
   await klick('[data-a="gang"][data-n="Chips"]'); await klick('.sheet [data-g="Getränke"]');
   check("Gang gelernt", /Getränke[\s\S]*Chips/.test(await page.innerText("body")) && (await page.evaluate(() => JSON.stringify(window.localStorage) + "")).length >= 0);
   await coachWeg(); await page.click('.tabbar [data-t="rezepte"]'); await page.waitForTimeout(300);
-  await klick('[data-a="reste"]'); await page.fill("#reste-q", "Mozzarella, Mehl"); await page.keyboard.press("Enter"); await page.waitForTimeout(300);
+  // Kacheln: langes Drücken -> anpassen, „Ich habe …“ hinzufügen
+  check("Startseite: 4 Kacheln", (await page.$$(".kacheln .kachel")).length === 4, (await page.$$(".kacheln .kachel")).length);
+  const k0 = await page.$(".kacheln .kachel"); const bb = await k0.boundingBox();
+  await page.mouse.move(bb.x + 20, bb.y + 20); await page.mouse.down(); await page.waitForTimeout(800); await page.mouse.up(); await page.waitForTimeout(300);
+  check("Langes Drücken: Kacheln anpassen", /Kacheln anpassen/.test(await page.innerText("body")));
+  await klick('[data-a="kachel-dazu"][data-k="reste"]'); await klick('[data-a="kachel-fertig"]');
+  check("Kachel hinzugefügt", !!(await page.$('.kacheln [data-k="reste"]')));
+  await coachWeg(); await page.evaluate(() => document.querySelector(".kacheln [data-k=reste]").click()); await page.waitForTimeout(300); await page.fill("#reste-q", "Mozzarella, Mehl"); await page.keyboard.press("Enter"); await page.waitForTimeout(300);
   check("Reste-Suche findet Rezept", /Blechpizza/.test(await page.innerText(".sheet")), await page.innerText(".sheet"));
   await page.keyboard.press("Escape"); await page.waitForTimeout(200);
   await klick('[data-a="woche-vorschlag"]');
@@ -170,6 +179,26 @@ const check = (name, cond, info) => { if (cond) ok++; else { bad++; console.log(
   let hin = ""; for (let k = 0; k < 4; k++) { const t = await page.$(".sheet"); if (!t) break; hin += await t.innerText(); if (/Original auf Instagram öffnen/.test(hin)) break; await page.keyboard.press("Escape"); await page.waitForTimeout(600); }
   if (!/Original auf Instagram öffnen/.test(hin)) { const t = await page.$('text=Bananenbrot'); if (t) { await t.click(); await page.waitForTimeout(900); const s2 = await page.$(".sheet"); if (s2) hin += await s2.innerText(); } }
   check("Geteiltes Rezept: Hinweis aufs Original", /Original auf Instagram öffnen/.test(hin), hin.slice(0, 200));
+  // Kombüse-Form: eigener Titel kommt beim Empfänger an (wie geschickt)
+  await page.keyboard.press("Escape"); await page.waitForTimeout(200);
+  await page.evaluate((h) => { localStorage.clear(); }, kLink);
+  const p2 = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true });
+  p2.on("pageerror", e => errors.push(String(e)));
+  await p2.goto("http://127.0.0.1:8765/index.html" + kLink); await p2.waitForTimeout(1800);
+  check("Empfänger: Rezept in Kombüse-Form angekommen", /Blechpizza/.test(await p2.innerText("body")) && /Mehl/.test(await p2.innerText("body")), (await p2.innerText("body")).slice(0, 300));
+  await p2.close();
+  // Kochmodus: Vorbereitung mit allen Zutaten
+  await coachWeg(); await page.click('.tabbar [data-t="rezepte"]'); await page.waitForTimeout(300); await coachWeg();
+  const bp = await page.$('text=Blechpizza'); if (bp) { await bp.click(); await page.waitForTimeout(400); }
+  await coachWeg(); await klick('[data-a="cook"]');
+  const koch0 = await page.innerText(".cook");
+  check("Kochmodus beginnt mit „Alles bereitlegen“ und allen Zutaten", /Vorbereitung[\s\S]*Alles bereitlegen[\s\S]*Mehl[\s\S]*Mozzarella/.test(koch0), koch0.slice(0, 200));
+  await klick('[data-a="cook-close"]');
+  // Zeit eintragen
+  await klick('[data-a="zeit"]'); await page.fill("#zeit-q", "35"); await klick('[data-a="zeit-ok"]');
+  check("Eigene Zeit wird angezeigt", /35[\s\S]{0,40}bei dir/.test(await page.innerText("body")));
+  // Label antippen
+  if (await klick('[data-a="label-info"]')) { check("Label erklärt mit Melden-Knopf", /Stimmt nicht – melden/.test(await page.innerText(".sheet"))); await page.keyboard.press("Escape"); }
   check("keine JavaScript-Fehler", errors.length === 0, errors);
   await page.screenshot({ path: path.join(require("os").tmpdir(), "einstellungen.png") });
   await browser.close(); srv.close();

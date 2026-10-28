@@ -218,6 +218,11 @@ a { color: var(--accent); }
 .wkarte.erste .btn.soft { background: #2A302C; color: #F3F1EC; }
 .kacheln { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .kachel { border: 0; background: var(--surface); border-radius: 18px; padding: 16px; min-height: 120px; display: flex; flex-direction: column; justify-content: space-between; gap: 14px; text-align: left; color: var(--ink); }
+.kachel { position: relative; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.kachel.wackel { animation: wackel .28s ease-in-out infinite alternate; }
+@keyframes wackel { from { transform: rotate(-1deg); } to { transform: rotate(1deg); } }
+@media (prefers-reduced-motion: reduce) { .kachel.wackel { animation: none; outline: 2px dashed var(--line); } }
+.kachel .kweg { position: absolute; top: -6px; left: -6px; width: 26px; height: 26px; border-radius: 50%; background: var(--ink); color: var(--bg); display: grid; place-items: center; font-weight: 700; line-height: 1; }
 .kachel .ki { width: 44px; height: 44px; border-radius: 12px; background: var(--brand-soft); color: var(--brand-text); display: grid; place-items: center; }
 .kachel .ki svg { width: 24px; height: 24px; }
 .kachel .title { font-weight: 650; font-size: 1.05rem; line-height: 1.2; }
@@ -461,7 +466,7 @@ a { color: var(--accent); }
   var LERN_ERINNERUNG = 20;
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.20.6";
+  var APP_VERSION = "0.20.7";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0 (creativecommons.org/licenses/by/4.0). Werte unverändert übernommen; Stück- und Löffelgewichte sind eigene Richtwerte der App. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -860,7 +865,7 @@ a { color: var(--accent); }
     S.recipes[id] = { id: id, recipe: r, input: extra.input || null, addedAt: Date.now(), updatedAt: Date.now(), example: !!extra.example, typ: extra.typ || null };
     if (UI.geteiltNext && !extra.example) { S.recipes[id].geteilt = true; UI.geteiltNext = false; }
     save("recipes");
-    if (!extra.example && extra.input && S.lernen) lerneNeu(S.recipes[id]);
+    if (!extra.example && extra.input && !extra.input.paket && S.lernen) lerneNeu(S.recipes[id]);
     return { id: id, dupe: false };
   }
   // Nach jedem neuen Rezept lernen; neue Creator-Floskeln gleich bei dessen anderen Rezepten anwenden
@@ -1333,6 +1338,38 @@ a { color: var(--accent); }
     ids.forEach(function (id, k) { var t = frei[k]; if (!t) return; (S.plan[t.key] = S.plan[t.key] || []).push(id); n++; });
     UI.wocheLetzte = ids; save("plan"); closeSheet(); render(); toast(n ? n + " Rezepte eingeplant · „Alles auf die Einkaufsliste“ steht bei „Diese Woche“" : "Diese Woche ist schon voll");
   }
+  // Kacheln auf der Startseite: Auswahl per langem Drücken anpassen (wie auf dem iPhone-Home-Bildschirm)
+  var KACHEL_EXTRA = [["reste", "Ich habe …", "search", "Reste verwerten", "reste"], ["woche", "Woche vorschlagen", "clock", "mit gemeinsamen Zutaten", "woche-vorschlag"]];
+  var KACHEL_STANDARD = ["fav", "schnell", "vorrat", "woche"];
+  function kachelAlle() { return SCHNELL.map(function (x) { return { k: x[0], titel: x[1], icon: x[2], schnell: true }; }).concat(KACHEL_EXTRA.map(function (x) { return { k: x[0], titel: x[1], icon: x[2], sub: x[3], a: x[4] }; })); }
+  function kachelAktiv() { var alle = kachelAlle().map(function (x) { return x.k; }); return (S.prefs.kacheln || KACHEL_STANDARD).filter(function (k) { return alle.indexOf(k) !== -1; }); }
+  function kachelBlock(mine) {
+    var alle = kachelAlle(), aktiv = kachelAktiv(), edit = !!UI.kachelEdit;
+    var kachel = function (x) {
+      var sub = x.schnell ? schnellSub(x.k, schnellListe(x.k, mine)) : x.sub;
+      return '<button class="kachel' + (edit ? ' wackel' : '') + '" data-kachel="' + x.k + '" data-a="' + (edit ? 'kachel-weg' : x.schnell ? 'schnell' : x.a) + '" data-k="' + x.k + '"' + (edit ? ' aria-label="' + esc(x.titel) + ' entfernen"' : '') + '>' +
+        (edit ? '<span class="kweg" aria-hidden="true">−</span>' : '') + '<span class="ki">' + ic(x.icon) + '</span><span><span class="title" style="display:block">' + esc(x.titel) + '</span><span class="sub">' + esc(sub) + '</span></span></button>';
+    };
+    var html = '<section class="sec">' + (edit ? '<div class="sec-head"><h2>Kacheln anpassen</h2><button class="link" data-a="kachel-fertig">Fertig</button></div>' : '') +
+      '<div class="kacheln">' + aktiv.map(function (k) { return kachel(alle.filter(function (x) { return x.k === k; })[0]); }).join("") + '</div>';
+    if (edit) {
+      var weg = alle.filter(function (x) { return aktiv.indexOf(x.k) === -1; });
+      html += weg.length ? '<p class="small muted" style="margin:12px 4px 6px">Hinzufügen:</p><div class="wrapchips">' + weg.map(function (x) { return '<button class="chip" data-a="kachel-dazu" data-k="' + x.k + '">＋ ' + esc(x.titel) + '</button>'; }).join("") + '</div>' : '<p class="small muted" style="margin:12px 4px">Alle Kacheln sind auf der Startseite.</p>';
+    } else if (!S.meta.kachelTipp) html += '<p class="small muted" style="margin:8px 4px 0">Tipp: Kachel lange drücken, um die Auswahl anzupassen.</p>';
+    return html + '</section>';
+  }
+  // Langes Drücken (0,55 s) startet das Anpassen; der Klick danach wird geschluckt
+  (function () {
+    var tm = null, lang = false;
+    var weg = function () { clearTimeout(tm); tm = null; };
+    document.addEventListener("pointerdown", function (ev) {
+      var k = ev.target.closest && ev.target.closest("[data-kachel]"); if (!k || UI.kachelEdit) return;
+      lang = false; weg(); tm = setTimeout(function () { lang = true; UI.kachelEdit = true; S.meta.kachelTipp = true; save("meta"); try { if (navigator.vibrate) navigator.vibrate(20); } catch (e) { /* egal */ } render(); }, 550);
+    });
+    ["pointerup", "pointercancel", "pointerleave", "scroll"].forEach(function (t) { document.addEventListener(t, function () { weg(); if (lang) setTimeout(function () { lang = false; }, 450); }, true); });
+    document.addEventListener("click", function (ev) { if (lang) { lang = false; ev.stopPropagation(); ev.preventDefault(); } }, true);
+    document.addEventListener("contextmenu", function (ev) { if (ev.target.closest && ev.target.closest("[data-kachel]")) ev.preventDefault(); });
+  })();
   function viewRezepte() {
     var all = entries();
     var mine = all.filter(function (e) { return dietOk(e.recipe); });
@@ -1346,12 +1383,7 @@ a { color: var(--accent); }
     // Höchstens ein Hinweis, über der Woche (Übersetzen wird hier nicht angezeigt)
     var geteilt = UI.shareBanner && !UEB.laeuft ? '<div class="banner">' + ic("share") + '<div class="main"><b>Rezept aus Instagram geteilt?</b> Hier einfügen, dann ist es gespeichert.</div><button class="btn accent" data-a="share-paste">Einfügen</button></div>' : "";
     var banner = [geteilt, onboardBanner(), lernBanner(), kurzbefehlBanner(), backupBanner()].filter(Boolean)[0] || "";
-    var kacheln = '<section class="sec"><div class="kacheln">' + SCHNELL.map(function (x) {
-      var l = schnellListe(x[0], mine);
-      return '<button class="kachel" data-a="schnell" data-k="' + x[0] + '"><span class="ki">' + ic(x[2]) + '</span><span><span class="title" style="display:block">' + esc(x[1]) + '</span><span class="sub">' + esc(schnellSub(x[0], l)) + '</span></span></button>';
-    }).join("") +
-      '<button class="kachel" data-a="reste"><span class="ki">' + ic("search") + '</span><span><span class="title" style="display:block">Ich habe …</span><span class="sub">Reste verwerten</span></span></button>' +
-      '<button class="kachel" data-a="woche-vorschlag"><span class="ki">' + ic("clock") + '</span><span><span class="title" style="display:block">Woche vorschlagen</span><span class="sub">mit gemeinsamen Zutaten</span></span></button>' + '</div></section>';
+    var kacheln = kachelBlock(mine);
     var neu = mine.slice(0, 3);
     var neuBlock = neu.length ? '<section class="sec"><div class="sec-head"><h2>Neu gespeichert</h2><button class="link" data-a="schnell" data-k="alle">Alle Rezepte</button></div><div class="group">' + neu.map(recipeRow).join("") + '</div></section>' : "";
     return head + banner + guide("start") + wocheBlock() + kacheln + neuBlock;
@@ -1391,7 +1423,7 @@ a { color: var(--accent); }
     var badge = e.example ? '<span class="badge">Beispiel</span>' : (!K.completeness(r).enough ? '<span class="badge warn">unvollständig</span>' : (m.total >= 3 && m.missing <= 2 ? '<span class="badge ok">' + (m.missing ? m.missing + " fehlt" + (m.missing > 1 ? "en" : "") : "alles da") + '</span>' : ''));
     return '<button class="row" data-a="open" data-id="' + esc(e.id) + '">' + glyph(r, e) +
       '<span class="main"><span class="title">' + esc(t) + (e.fav ? ' <span class="sr">Favorit</span>' : '') + '</span><span class="sub">' + esc(sub.join(" · ")) + '</span>' + (badge ? '<span>' + badge + '</span>' : '') + '</span>' +
-      '<span class="end"><span class="big">' + (r.timeTotal ? fmtMin(r.timeTotal) : "–") + '</span><span class="tiny muted">' + (r.timeTotal ? (r.timeTotal < 60 ? "Min." : "Std.") : "Zeit") + '</span></span></button>';
+      (function () { var zm = zeitAnzeige(e).min; return '<span class="end"><span class="big">' + (zm ? fmtMin(zm) : "–") + '</span><span class="tiny muted">' + (zm ? (zm < 60 ? "Min." : "Std.") : "Zeit") + '</span></span></button>'; })();
   }
   function filterSheet() {
     var all = entries(), counts = {};
@@ -1493,7 +1525,7 @@ a { color: var(--accent); }
   }
   function uebersetze(tr, lang, text) {
     // kleine Vorbereitung, die dem Modell hilft ("Rinse + drain" -> "Rinse and drain", Szene-Wörter ausschreiben)
-    var vor = String(text).replace(/\s\+\s/g, " and ").replace(/\s&\s/g, " and ").replace(/\bnooch\b/gi, "nutritional yeast").replace(/\bevoo\b/gi, "extra virgin olive oil");
+    var vor = K.vorUebersetzung ? K.vorUebersetzung(text) : String(text);
     return tr.translate({ from: lang, to: "de", text: vor, html: false, qualityScores: false }).then(function (res) { return res && res.target && res.target.text ? res.target.text : text; });
   }
   function uebersetzeRezept(tr, e) {
@@ -1570,6 +1602,16 @@ a { color: var(--accent); }
     hits.forEach(function (h) { out += esc(text.slice(pos, h.start)) + '<button class="begriff" data-a="begriff" data-b="' + esc(h.begriff) + '" aria-label="' + esc(h.wort) + ' – Erklärung">' + esc(h.wort) + '</button>'; pos = h.ende; });
     return out + esc(text.slice(pos));
   }
+  // Label antippen: wie die App es bestimmt hat; falsch -> melden (Jakob, 28.10.)
+  function labelSheet(id, gruppe, label) {
+    var e = S.recipes[id], r = e.recipe, l = (r.labels || []).filter(function (x) { return x.gruppe === gruppe && x.label === label; })[0] || { basis: "" };
+    var info = gruppe === "Nährwert-Fokus" && K.FOKUS_INFO ? K.FOKUS_INFO[label] : null, n = r.nutrition, v = n && n.values, wert = "";
+    if (info && v && v[info.feld] != null) wert = "Dieses Rezept: " + String(Math.round(v[info.feld] * 10) / 10).replace(".", ",") + " " + info.einheit + (n.perServing ? " je Portion" : " im ganzen Rezept") + (info.anteil ? " · " + info.anteil(v) : "") + ".";
+    var wie = info ? info.regel + " Berechnet aus den Zutaten mit dem Bundeslebensmittelschlüssel (BLS 4.0)" + (n && !n.reliable ? " – nur teilweise, weil nicht alle Zutaten bekannt sind." : ".") + (l.basis === "laut Blog" || /creator|blog/i.test(l.basis || "") ? " Angabe vom Creator oder Blog." : "")
+      : (l.basis ? "Grundlage: " + l.basis + "." : "Die App leitet das aus Titel, Zutaten und Schritten ab.");
+    sheet('<h2>' + esc(label) + '</h2><p class="small muted">' + esc(gruppe) + '</p><p>' + esc(wie) + '</p>' + (wert ? '<p class="small">' + esc(wert) + '</p>' : '') +
+      '<button class="btn soft" data-a="label-falsch" data-id="' + esc(id) + '" data-g="' + esc(gruppe) + '" data-l="' + esc(label) + '">Stimmt nicht – melden</button><button class="btn ghost" data-a="close-sheet">Schließen</button>');
+  }
   function begriffSheet(b) {
     var e = (K.KOCHBEGRIFFE || []).filter(function (x) { return x[0] === b; })[0];
     if (!e) return;
@@ -1610,11 +1652,21 @@ a { color: var(--accent); }
       '<a class="btn accent" href="' + esc(e.recipe.source.url) + '" target="_blank" rel="noopener" data-a="original-auf" data-id="' + esc(id) + '">' + ic("share") + 'Original auf Instagram öffnen</a>' +
       '<button class="btn soft" data-a="close-sheet">Später</button><p class="small muted">Der Hinweis kommt beim nächsten Öffnen wieder, bis du das Original einmal angeschaut hast.</p>');
   }
+  // Kombüse-Link: das fertige Rezept (eigener Titel, Bearbeitungen, Übersetzung) hinter „#k=“ – geht an keinen Server
   function kombueseLink(e) {
-    var r = e.recipe, inp = e.input || {};
-    var t = inp.caption || K.toCookidoo(r).fullText;
     var basis = location.origin + location.pathname.replace(/index\.html$/, "");
-    return basis + "#u=" + encodeURIComponent(r.source.url || inp.url || "") + "&t=" + encodeURIComponent(String(t).slice(0, 5000)) + (inp.transcript ? "&s=" + encodeURIComponent(String(inp.transcript).slice(0, 3000)) : "") + "&g=1";
+    return basis + "#k=" + K.paketKodieren(K.rezeptPaket(e.recipe, titleOf(e)));
+  }
+  function paketImport(code) {
+    var p = K.paketLesen(code);
+    if (!p) { toast("Der geteilte Link ist unvollständig – bitte noch einmal schicken lassen"); return false; }
+    var res = A({ paket: p });
+    var out = addRecipe(res, { input: { paket: p, url: p.u || "", account: p.a || "" }, geteilt: true });
+    if (out.dupe) { UI.tab = "rezepte"; UI.detail = out.id; setTimeout(function () { toast("Das Rezept hast du schon"); }, 300); return true; }
+    S.recipes[out.id].geteilt = true; save("recipes");
+    UI.tab = "rezepte"; UI.detail = out.id;
+    setTimeout(function () { toast("Geschicktes Rezept gespeichert"); }, 300);
+    return true;
   }
 
   function viewDetail(id) {
@@ -1653,7 +1705,7 @@ a { color: var(--accent); }
     var labelGroups = {};
     visibleLabels(r).forEach(function (l) { if (l.gruppe === "Gang") return; (labelGroups[l.gruppe] = labelGroups[l.gruppe] || []).push(l); });
     var labels = Object.keys(labelGroups).map(function (g) {
-      return '<div class="lg"><span>' + esc(g) + '</span><span class="tags">' + labelGroups[g].map(function (l) { return '<span class="tag" title="' + esc(l.basis) + '">' + esc(l.label) + '</span>'; }).join("") + '</span></div>';
+      return '<div class="lg"><span>' + esc(g) + '</span><span class="tags">' + labelGroups[g].map(function (l) { return '<button class="tag" style="font:inherit;border:0" data-a="label-info" data-id="' + esc(id) + '" data-g="' + esc(l.gruppe) + '" data-l="' + esc(l.label) + '" title="' + esc(l.basis) + '">' + esc(l.label) + '</button>'; }).join("") + '</span></div>';
     }).join("");
     var nut = "";
     var offen = (n && n.coverage && n.coverage.offen) || [];
@@ -1693,7 +1745,7 @@ a { color: var(--accent); }
       '<section class="hero">' + '<div class="tags">' + (r.labels || []).filter(function (l) { return l.gruppe === "Gang"; }).map(function (l) { return '<span class="tag">' + esc(l.label) + '</span>'; }).join("") +
       (r.titleGuessed ? '<span class="badge warn">Titel vorgeschlagen</span>' : '') + (e.example ? '<span class="badge">Beispiel</span>' : '') + (orig ? '<span class="badge">Original</span>' : '') + '</div>' +
       '<h1>' + esc(orig && r.titleOriginal ? r.titleOriginal : titleOf(e)) + '</h1>' + (meta.length ? '<p class="small muted">' + esc(meta.join(" · ")) + '</p>' : '') + '</section>' +
-      '<div class="facts"><div class="fact"><b>' + (r.timeTotal && r.timeEstimated ? '<span class="tiny">ca. </span>' : '') + fmtMin(r.timeTotal) + '</b><span>' + (r.timeTotal ? minUnit(r.timeTotal) + (r.timeOvernight ? " + über Nacht" : "") : (r.timeOvernight ? "über Nacht" : "Zeit unbekannt")) + '</span></div>' +
+      (function () { var za = zeitAnzeige(e); return '<div class="facts"><button class="fact" style="border:0;font:inherit;color:inherit;background:none" data-a="zeit" data-id="' + esc(id) + '" aria-label="Zeit: ' + (za.min ? za.min + ' Minuten, ' + za.art : 'unbekannt') + '. Antippen, um deine Zeit einzutragen"><b>' + (za.min && /geschätzt/.test(za.art) ? '<span class="tiny">ca. </span>' : '') + fmtMin(za.min) + '</b><span>' + (za.min ? minUnit(za.min) + (r.timeOvernight ? " + über Nacht" : "") + (za.art === "bei dir" ? " bei dir" : "") : (r.timeOvernight ? "über Nacht" : "Zeit unbekannt")) + '</span></button>'; })() +
       (showNutri() ? '<div class="fact"><b>' + (n && n.reliable && n.perServing ? n.values.kcal : "–") + '</b><span>kcal pro ' + (n && n.perUnit === "Stück" ? "Stück" : "Portion") + '</span></div>' :
         '<div class="fact"><b>' + esc(r.difficulty || "–") + '</b><span>Aufwand</span></div>') +
       '<div class="fact"><b class="num">' + (m.total ? (m.total - m.missing) + "/" + m.total : "–") + '</b><span>Zutaten da</span></div></div>' +
@@ -1757,7 +1809,9 @@ a { color: var(--accent); }
     }).map(function (i) { return clean2((i.qty != null ? sq(i, i.qty, f) + " " : "") + unitText(i.unit) + " " + i.name); });
   }
   // Schritte ohne Zwischenüberschriften; die Überschrift steht über dem Schritt
+  // Kochmodus: „Alles bereitlegen“ + alle Schritte; jede Zutat kommt in mindestens einem Schritt vor (K.kochAblauf)
   function cookList(r) {
+    if (K.kochAblauf) return K.kochAblauf(r);
     var out = [], head = "";
     (r.steps || []).forEach(function (st, k) { if (/^## /.test(st)) { head = st.slice(3); return; } out.push({ t: st, h: head, k: k }); head = ""; });
     return out;
@@ -1766,14 +1820,14 @@ a { color: var(--accent); }
     var c = UI.cook; if (!c) { $("#layer").innerHTML = ""; return; }
     var e = S.recipes[c.id], r = e.recipe, cl = cookList(r), k = c.step, last = k === cl.length - 1;
     var serv = UI.servings[c.id] || defaultServings(r), f = r.servings ? serv / r.servings : 1;
-    var sMap = K.stepIngredients(r), seenC = {};
-    var ings = (sMap[cl[k].k] || []).map(function (n) { var i = r.ingredients[n]; if (!i || seenC[i.name]) return null; seenC[i.name] = 1; return clean2((i.qty != null ? (i.qtyEstimated ? "≈ " : "") + sq(i, i.qty, f) + " " : "") + unitText(i.unit) + " " + i.name); }).filter(Boolean);
+    var seenC = {}, idx = cl[k].zutaten || (K.stepIngredients(r)[cl[k].k] || []);
+    var ings = idx.map(function (n) { var i = r.ingredients[n]; if (!i || seenC[n]) return null; seenC[n] = 1; return clean2((i.qty != null ? (i.qtyEstimated ? "≈ " : "") + sq(i, i.qty, f) + " " : "") + unitText(i.unit) + " " + i.name) + ((cl[k].ergaenzt || []).indexOf(n) !== -1 ? " · im Rezept ohne eigenen Schritt" : ""); }).filter(Boolean);
     $("#layer").innerHTML = '<div class="cook" role="dialog" aria-modal="true" aria-label="Kochmodus"><div class="bar"><button class="iconbtn" data-a="cook-close" aria-label="Kochmodus beenden">' + ic("x") + '</button>' +
-      '<span class="stepno">Schritt ' + (k + 1) + ' von ' + cl.length + '</span><span style="width:44px"></span></div>' +
+      '<span class="stepno">' + (cl[k].bereitlegen ? 'Vorbereitung' : 'Schritt ' + (cl[0].bereitlegen ? k : k + 1) + ' von ' + (cl[0].bereitlegen ? cl.length - 1 : cl.length)) + '</span><span style="width:44px"></span></div>' +
       '<div class="body"><div class="timers" id="timers" aria-live="polite"></div><div class="dots" aria-hidden="true">' + cl.map(function (_, j) { return '<i class="' + (j <= k ? "on" : "") + '"></i>'; }).join("") + '</div>' +
       guide("kochen") +
-      (function () { var vh = K.vorheizHinweis(r); return vh && vh.schritt === cl[k].k ? '<div class="note info"><b>' + ic("flame") + ' ' + esc(vh.text) + '</b><span>Ein späterer Schritt braucht den Ofen.</span></div>' : ''; })() +
-      (cl[k].h ? '<p class="stephead">' + esc(cl[k].h) + '</p>' : '') + '<p class="steptext">' + esc(cl[k].t) + '</p>' +
+      (function () { var vh = K.vorheizHinweis(r); return vh && (vh.schritt === cl[k].k || cl[k].bereitlegen && cl[1] && vh.schritt === cl[1].k) ? '<div class="note info"><b>' + ic("flame") + ' ' + esc(vh.text) + '</b><span>Ein späterer Schritt braucht den Ofen.</span></div>' : ''; })() +
+      (cl[k].h ? '<p class="stephead">' + esc(cl[k].h) + '</p>' : '') + '<p class="steptext">' + esc(cl[k].t) + '</p>' + (cl[k].bereitlegen ? '<p class="small muted">Alle Zutaten für ' + serv + ' ' + (serv === 1 ? 'Portion' : 'Portionen') + '. In den nächsten Schritten steht jeweils, was du gerade brauchst.</p>' : '') +
       (function () { var tm = K.schrittTimer(cl[k].t); return tm.length ? '<div class="timerrow">' + tm.map(function (t) { return '<button class="btn soft" data-a="timer-start" data-min="' + t.min + '" data-t="' + esc(t.text + " · Schritt " + (k + 1)) + '">' + ic("clock") + t.text + ' starten</button>'; }).join("") + '</div>' : ''; })() +
       (ings.length ? '<div class="group">' + ings.map(function (t) { return '<div class="row"><span class="main"><span>' + esc(t) + '</span></span></div>'; }).join("") + '</div>' : '') + '</div>' +
       '<div class="foot2"><button class="btn soft" data-a="cook-prev"' + (k === 0 ? ' disabled style="opacity:.4"' : '') + '>Zurück</button>' +
@@ -1818,8 +1872,40 @@ a { color: var(--accent); }
       '<div class="btnrow"><button class="btn soft" data-a="nochmal" data-id="' + esc(id) + '" data-v="nein">Lieber nicht</button><button class="btn accent" data-a="nochmal" data-id="' + esc(id) + '" data-v="ja">Ja, gerne</button></div>' +
       '<button class="btn ghost" data-a="close-sheet">Später</button>');
   }
+  // Zeit lernen (28.10.): echte Dauer aus dem Kochmodus oder von Hand; die App passt ihre Schätzungen an dich an
+  function zeitMerken(e, min, wie) {
+    if (!e || !min || min < 5 || min > 360) return;
+    var r = e.recipe;
+    e.zeiten = (e.zeiten || []).concat([{ min: min, wie: wie, at: Date.now() }]).slice(-5);
+    if (r.timeTotal && r.timeEstimated && !r.timeOvernight) {
+      S.lernen.zeitFaktor = S.lernen.zeitFaktor || [];
+      S.lernen.zeitFaktor.push(Math.round(min / r.timeTotal * 100) / 100);
+      S.lernen.zeitFaktor = S.lernen.zeitFaktor.slice(-30); save("lernen");
+    }
+  }
+  // Persönlicher Faktor: Median aus „echt / geschätzt“, erst ab 3 Rezepten, begrenzt auf 0,5–1,5
+  function zeitFaktor() {
+    var a = ((S.lernen && S.lernen.zeitFaktor) || []).slice().sort(function (x, y) { return x - y; });
+    if (a.length < 3) return 1;
+    return Math.max(0.5, Math.min(1.5, a[Math.floor(a.length / 2)]));
+  }
+  function zeitAnzeige(e) {
+    var r = e.recipe, eigen = (e.zeiten || []).slice(-1)[0];
+    if (eigen) return { min: eigen.min, art: "bei dir" };
+    if (!r.timeTotal) return { min: null, art: "" };
+    if (!r.timeEstimated) return { min: r.timeTotal, art: "laut Rezept" };
+    var f = zeitFaktor(), m = r.timeTotal * f;
+    return { min: m <= 120 ? Math.round(m / 5) * 5 : Math.round(m / 15) * 15, art: f !== 1 ? "geschätzt, an dich angepasst" : "geschätzt" };
+  }
+  function zeitSheet(id) {
+    var e = S.recipes[id], r = e.recipe, za = zeitAnzeige(e);
+    sheet('<h2>Wie lange hat es gedauert?</h2><p class="small muted">' + (za.min ? esc(za.art.charAt(0).toUpperCase() + za.art.slice(1)) + ': ' + fmtMin(za.min) + ' ' + minUnit(za.min) + '. ' : '') +
+      (r.timeEstimated ? 'Die App schätzt die Zeit aus den Schritten. ' : '') + 'Trag ein, wie lange du gebraucht hast – die App merkt es sich für dieses Rezept und passt ihre Schätzungen nach drei Rezepten an dich an. Im Kochmodus misst sie die Zeit automatisch.</p>' +
+      '<div class="addrow"><input class="input" id="zeit-q" type="number" inputmode="numeric" min="5" max="360" placeholder="Minuten" value="' + (za.min || "") + '" aria-label="Minuten"><button class="btn accent" style="width:auto" data-a="zeit-ok" data-id="' + esc(id) + '">Merken</button></div>' +
+      '<button class="btn soft" data-a="close-sheet">Abbrechen</button>');
+  }
   function startCook(id) {
-    UI.cook = { id: id, step: 0 }; renderCook();
+    UI.cook = { id: id, step: 0, start: Date.now() }; renderCook();
     try { if (navigator.wakeLock) navigator.wakeLock.request("screen").then(function (w) { wakeLock = w; }, function () {}); } catch (x) { /* optional */ }
   }
   function endCook() { UI.cook = null; renderCook(); try { if (wakeLock) wakeLock.release(); } catch (x) { /* egal */ } wakeLock = null; }
@@ -2374,6 +2460,8 @@ a { color: var(--accent); }
   }
   function readHashImport() {
     var h = location.hash.replace(/^#/, "");
+    var km = h.match(/(?:^|&)k=([A-Za-z0-9_-]+)/);
+    if (km) { try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* egal */ } return paketImport(km[1]); }
     if (h === "uebersetzt") { try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* egal */ } return false; } // alter Kurzbefehl „Rezeptbuch übersetzen“
     if (!/(^|&)(t|u|o|s)=/.test(h)) return false;
     try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* egal */ }
@@ -2428,6 +2516,8 @@ a { color: var(--accent); }
   function importFromClipboard() {
     var go = function (txt) {
       txt = String(txt || "");
+      var kp = txt.match(/#k=([A-Za-z0-9_-]+)/);
+      if (kp) { S.meta.awaitShortcut = null; UI.shareBanner = false; save("meta"); paketImport(kp[1]); render(); return; }
       var pf = payloadFields(txt);
       S.meta.awaitShortcut = null; UI.shareBanner = false; save("meta");
       if (!pf) {
@@ -2667,6 +2757,15 @@ a { color: var(--accent); }
       case "einwilligung-ok": S.prefs.testEinwilligung = { version: EINWILLIGUNG_VERSION, am: new Date().toISOString() }; save("prefs"); closeSheet(); render(); setTimeout(coachZeigen, 300); setTimeout(wasNeuPruefen, 800); break;
       case "einwilligung-zeigen": einwilligungSheet(); break;
       case "begriff": begriffSheet(el.dataset.b); break;
+      case "kachel-weg": S.prefs.kacheln = kachelAktiv().filter(function (k) { return k !== el.dataset.k; }); save("prefs"); render(); break;
+      case "kachel-dazu": S.prefs.kacheln = kachelAktiv().concat([el.dataset.k]); save("prefs"); render(); break;
+      case "kachel-fertig": UI.kachelEdit = false; render(); break;
+      case "label-info": labelSheet(id, el.dataset.g, el.dataset.l); break;
+      case "label-falsch": var le = S.recipes[id], lr = le.recipe, lv = lr.nutrition && lr.nutrition.values;
+        merkeFehler("label", null, { link: (lr.source && lr.source.url) || "", notiz: "Label falsch: " + el.dataset.g + " – " + el.dataset.l + (lv ? " · kcal " + lv.kcal + ", Eiweiß " + lv.protein + " g" : ""), rezept: { titel: titleOf(le), zutaten: lr.ingredients.map(function (i) { return i.raw; }).slice(0, 40) } });
+        save("lernen"); closeSheet(); toast("Gemeldet – geht gesammelt mit „An Jakob schicken“ raus"); break;
+      case "zeit": zeitSheet(id); break;
+      case "zeit-ok": var zm = parseInt((($("#zeit-q") || {}).value || ""), 10); if (zm >= 5 && zm <= 360) { zeitMerken(S.recipes[id], zm, "eingetragen"); save("recipes"); closeSheet(); render(); toast("Gemerkt: " + zm + " Minuten"); } else toast("Bitte Minuten zwischen 5 und 360"); break;
       case "ersatz": ersatzSheet(id, +el.dataset.n); break;
       case "ersatz-nehmen": ersatzNehmen(id, +el.dataset.n, +el.dataset.k); break;
       case "original-auf": if (S.recipes[id]) { S.recipes[id].originalGeoeffnet = true; save("recipes"); } if (el.closest("#layer")) setTimeout(closeSheet, 300); break;
@@ -2705,7 +2804,9 @@ a { color: var(--accent); }
       case "cook-next": UI.cook.step++; renderCook(); break;
       case "cook-prev": if (UI.cook.step > 0) { UI.cook.step--; renderCook(); } break;
       case "cook-close": endCook(); break;
-      case "cook-done": var cid = UI.cook.id, ce = S.recipes[cid]; ce.cooked = (ce.cooked || 0) + 1; ce.lastCooked = Date.now(); save("recipes"); endCook(); render();
+      case "cook-done": var cid = UI.cook.id, ce = S.recipes[cid]; ce.cooked = (ce.cooked || 0) + 1; ce.lastCooked = Date.now();
+        zeitMerken(ce, Math.round((Date.now() - (UI.cook.start || Date.now())) / 60000), "kochmodus");
+        save("recipes"); endCook(); render();
         if (ce.nochmal == null) nochmalSheet(cid); else toast("Guten Appetit!"); break;
       case "nochmal-frage": nochmalSheet(id); break;
       case "nochmal": S.recipes[id].nochmal = el.dataset.v === "ja"; save("recipes"); closeSheet(); render(); toast(el.dataset.v === "ja" ? "Gemerkt: kommt wieder in die Vorschläge" : "Gemerkt: taucht in Vorschlägen nicht mehr auf"); break;
