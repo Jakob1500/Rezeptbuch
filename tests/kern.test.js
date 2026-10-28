@@ -633,5 +633,19 @@ check("Ton: fehlende Schritte kommen aus dem Ton", tonLeer.recipe.steps.length >
   check("C3: Zeile ohne Trennzeichen wird an Mengen getrennt", nm.includes("Ahornsirup") && rc.ingredients.find(i => i.name === "Ahornsirup").qty === 2.5, nm);
 }
 
+// Paket 1 (A5): gesprochene Rezepte
+{
+  const t = K.parseTranscript("Heute machen wir eine schnelle Pasta. Zuerst kommt eine halbe Zwiebel in die Pfanne mit zwei Esslöffeln Olivenöl. Dann drei bis vier Knoblauchzehen dazu. Dann den Saft von einer Zitrone und eine Prise Salz. Oben drauf kommen Parmesan und frisches Basilikum.");
+  const g = n => t.ingredients.find(i => i.name === n);
+  check("A5: eine halbe Zwiebel", g("Zwiebel") && g("Zwiebel").qty === 0.5, t.ingredients.map(i => i.raw));
+  check("A5: zwei Esslöffeln", g("Olivenöl") && g("Olivenöl").unit === "EL", t.ingredients.map(i => i.raw));
+  check("A5: drei bis vier", g("Knoblauchzehen") && g("Knoblauchzehen").qtyMax === 4, t.ingredients.map(i => i.raw));
+  check("A5: Saft von einer Zitrone", !!g("Zitronensaft"), t.ingredients.map(i => i.name));
+  check("A5: Toppings am Satzende", !!g("Parmesan"), t.ingredients.map(i => i.name));
+  check("A5: Gericht im Einstieg ist keine Zutat", !t.ingredients.some(i => /pasta/i.test(i.name)), t.ingredients.map(i => i.name));
+  const e = K.parseTranscript("Add half a cup of oats, then two to three tablespoons of maple syrup. Top it with blueberries and chopped almonds.");
+  check("A5: half a cup / two to three", e.ingredients.some(i => i.name === "Haferflocken") && e.ingredients.some(i => i.qtyMax === 3), e.ingredients.map(i => i.raw));
+}
+
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

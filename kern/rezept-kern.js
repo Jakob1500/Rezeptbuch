@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.6.2";
+  var VERSION = "0.6.3";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -39,8 +39,8 @@
     "milliliter": "ml", "ml": "ml",
     "zentiliter": "cl", "cl": "cl",
     "liter": "l", "ltr": "l", "l": "l", "litres": "l", "litre": "l", "liters": "l",
-    "esslöffel": "EL", "essl": "EL", "el": "EL", "tbsp": "EL", "tablespoons": "EL", "tablespoon": "EL", "tbs": "EL",
-    "teelöffel": "TL", "teel": "TL", "tl": "TL", "tsp": "TL", "teaspoons": "TL", "teaspoon": "TL",
+    "esslöffeln": "EL", "esslöffel": "EL", "essl": "EL", "el": "EL", "tbsp": "EL", "tablespoons": "EL", "tablespoon": "EL", "tbs": "EL",
+    "teelöffeln": "TL", "teelöffel": "TL", "teel": "TL", "tl": "TL", "tsp": "TL", "teaspoons": "TL", "teaspoon": "TL",
     "messerspitze": "Msp", "msp": "Msp",
     "prisen": "Prise", "prise": "Prise", "pinch": "Prise", "pinches": "Prise",
     "stücke": "Stk", "stück": "Stk", "stk": "Stk", "pcs": "Stk", "pieces": "Stk", "piece": "Stk",
@@ -1941,16 +1941,32 @@
   // oft ohne Zeilen und mit Füllwörtern: Mengenangaben werden zu Zutaten, Koch-Sätze zu Schritten.
   function parseTranscript(text) {
     var r = emptyRecipe();
-    var t = String(text || "").replace(/\s+/g, " ").trim();
+    // Gesprochene Mengen vereinheitlichen: "eine halbe Zwiebel", "half a cup", "anderthalb Tassen"
+    var t = String(text || "").replace(/\s+/g, " ").trim()
+      .replace(/\b(?:(?:eine[nrm]?|ein)\s+halbe[nrsm]?|half\s+an?|a\s+half)\b/gi, "0.5")
+      .replace(/\b(?:eineinhalb|anderthalb|one and a half)\b/gi, "1.5");
     var sentences = t.split(/(?<=[.!?])\s+|\s+(?=(?:then|next|now|after that|dann|danach|jetzt|anschließend|als nächstes)\b)/i).map(clean).filter(Boolean);
-    var numWords = "(?:\\d+(?:[.,]\\d+)?(?:\\s*(?:-|–|to|bis)\\s*\\d+)?|½|¼|¾|(?:a|an)(?=\\s+(?:handful|pinch|can|tin|cup|bunch|clove|splash|dash))|" + Object.keys(NUMBER_WORDS).filter(function (w) { return w.length > 2; }).join("|") + ")";
+    var zahlW = Object.keys(NUMBER_WORDS).filter(function (w) { return w.length > 2 && !/^halb/.test(w); }).join("|");
+    var einZahl = "(?:\\d+(?:[.,]\\d+)?|" + zahlW + ")";
+    // "drei bis vier", "two to three", "2-3"
+    var numWords = "(?:" + einZahl + "(?:\\s*(?:-|–|to|bis|oder|or)\\s*" + einZahl + "(?=\\s))?|½|¼|¾|(?:a|an)(?=\\s+(?:handful|pinch|can|tin|cup|bunch|clove|splash|dash)))";
     var unitWords = "(?:" + UNIT_KEYS.filter(function (k) { return k.length > 1; }).map(escapeRe).join("|") + ")";
     var re = new RegExp("\\b(" + numWords + "\\s*(?:" + unitWords + "\\.?\\s+)?(?:of\\s+|an\\s+)?(?:(?:the|some|frische[nrs]?|fresh)\\s+)?[A-Za-zÄÖÜäöüß-]{3,}(?:\\s+(?!and|und|then|dann|into|in|to|with|mit|for|für|until|bis)[A-Za-zÄÖÜäöüß-]{3,}){0,2})", "gi");
     var seen = {}, m;
+    // "den Saft von einer Zitrone", "the juice of one lemon"
+    t = t.replace(/\b(?:(?:den|dem|the)\s+)?(saft|juice|abrieb|zest)\s+(?:von|of|aus)\s+(\d+(?:[.,]\d+)?|einer|eine|einem|one|a|an|two|zwei)\s+((?:bio[- ]|organic\s+)?(?:zitronen?|limetten?|orangen?|lemons?|limes?|oranges?))\b/gi, function (m0, art, n, frucht) {
+      var j = parseIngredientLine(art + " von " + (/^(einer|eine|einem|one|a|an)$/i.test(n) ? "1" : /^(two|zwei)$/i.test(n) ? "2" : n) + " " + frucht);
+      if (j && !seen[j.key]) { seen[j.key] = 1; r.ingredients.push(j); }
+      return " ";
+    });
     while ((m = re.exec(t)) !== null) {
-      var phrase = m[1].replace(/\s+(and|und|then|dann|into|to|in|with|mit|for|für|until|bis)\b.*$/i, "");
-      // Zahlwort -> Ziffer ("one onion" -> "1 onion", "a handful" -> "1 handful")
-      phrase = phrase.replace(/^([A-Za-zäöü]+)\b/, function (w) { var v = NUMBER_WORDS[lower(w)]; return v != null && !/^(a|an)$/i.test(w) || /^(a|an)$/i.test(w) ? String(v != null ? v : 1) : w; });
+      // "eine schnelle Pasta" in "Heute machen wir eine schnelle Pasta" ist das Gericht, keine Zutat
+      if (/\b(machen wir|we(?:'re| are) making|gibt es|gibt's|rezept für|recipe for|i(?:'m| am) making|today)\s+(?:heute\s+|today\s+)?$/i.test(t.slice(Math.max(0, m.index - 30), m.index))) continue;
+      // Zahlwort -> Ziffer ("one onion" -> "1 onion", "a handful" -> "1 handful", "drei bis vier" -> "3-4")
+      var zw = function (w) { return /^\d/.test(w) ? w : NUMBER_WORDS[lower(w)]; };
+      var phrase = m[1].replace(/^([A-Za-zäöü]+|\d+(?:[.,]\d+)?)\s*(?:bis|to|oder|or|-|–)\s*([A-Za-zäöü]+|\d+(?:[.,]\d+)?)\b/i, function (m0, a, b) { var va = zw(a), vb = zw(b); return va != null && vb != null ? va + "-" + vb : m0; })
+        .replace(/\s+(and|und|then|dann|into|to|in|with|mit|for|für|until|bis)\b.*$/i, "")
+        .replace(/^([A-Za-zäöü]+)\b/, function (w) { var v = NUMBER_WORDS[lower(w)]; return v != null && !/^(a|an)$/i.test(w) || /^(a|an)$/i.test(w) ? String(v != null ? v : 1) : w; });
       // Deutsch: nach dem letzten Nomen abschneiden ("Feta darüber bröseln" -> "Feta")
       var pw = phrase.split(/\s+/), lastCap = -1;
       pw.forEach(function (w, i) { if (i > 0 && /^[A-ZÄÖÜ]/.test(w)) lastCap = i; });
@@ -1962,6 +1978,17 @@
       if (!(ing.nameOriginal || (ing.aisle && ing.aisle !== "Sonstiges"))) continue;
       seen[ing.key] = 1; r.ingredients.push(ing);
     }
+    // Toppings ohne Menge am Satzende: "Oben drauf kommen Parmesan und Basilikum", "Top it with blueberries", "mit Sesam toppen"
+    sentences.forEach(function (s) {
+      var liste = (s.match(/\b(?:oben\s*drauf\s+(?:kommen?|gebe ich|geben wir)?|on top(?:\s+of\s+that)?|top (?:it|them|everything)?\s*(?:off\s+)?with|garnish (?:it\s+)?with|sprinkle (?:it\s+)?with|garniert? mit|bestreut? mit)\s+(.+)$/i) || [])[1]
+        || (s.match(/\bmit\s+(.+?)\s+(?:toppen|garnieren|bestreuen|bestreut|getoppt)\b/i) || [])[1];
+      if (!liste) return;
+      liste.replace(/[.!?]+$/, "").split(/\s*,\s*|\s+(?:und|and|oder|or)\s+/).forEach(function (w) {
+        var j = parseIngredientLine(w.replace(/^(?:etwas|some|noch|frische[mnrs]?|fresh|the|den|die|das)\s+/i, function (x) { return /frisch|fresh/i.test(x) ? x : ""; }));
+        if (!j || seen[j.key] || j.name.split(/\s+/).length > 3 || !(j.nameOriginal || (j.aisle && j.aisle !== "Sonstiges"))) return;
+        j.note = j.note ? j.note + ", zum Toppen" : "zum Toppen"; seen[j.key] = 1; r.ingredients.push(j);
+      });
+    });
     r.steps = sentences.filter(function (s) {
       if (s.length < 12 || CTA.test(s) || /^(hey|hi|hallo|welcome|willkommen|so guys|okay so|ok so|heute|today|this is|das ist)\b/i.test(s) || /\b(gibt es|we are making|we're making|machen wir heute)\b/i.test(s)) return false;
       return EN_IMP.test(s.replace(/^(so|and|now|okay|ok|then|next)\s+/i, "")) || STEP_VERBS.test(s) || DE_VERBS.test(s) || DE_INF_END.test(s) || /\b(we're going to|i'm going to|you want to|wir geben|ich gebe|kommt rein|kommen rein|dazu|hinzu)\b/i.test(s);
@@ -2079,6 +2106,8 @@
     r.servings = num(y);
     var ings = node.recipeIngredient || node.ingredients || [];
     if (!Array.isArray(ings)) ings = [ings];
+    // Mehrere Zutaten in einem Eintrag, getrennt durch Zeilenumbrüche ("200 g Mehl\n2 Eier")
+    ings = [].concat.apply([], ings.map(function (s) { return typeof s === "string" && /\n|<br\s*\/?>/i.test(s) ? s.split(/\s*(?:\n|<br\s*\/?>)\s*/i) : [s]; }));
     r.ingredients = ings.map(function (s) { return parseIngredientLine(textOf(s)); }).filter(Boolean);
     r.steps = flattenInstructions(node.recipeInstructions);
     r.timePrep = parseDuration(textOf(node.prepTime));
@@ -4080,10 +4109,49 @@
    * Rezept-HTML ohne schema.org-Daten lesen (Rezeptkarten von WP Recipe Maker und Tasty Recipes),
    * z. B. aus content.rendered der WordPress-Schnittstelle. Gibt Teil-Rezept oder null.
    */
+  // Rezept als schema.org-Microdata (itemprop="recipeIngredient" …) statt JSON-LD
+  function parseMicrodata(html, pageUrl) {
+    var s = String(html || "");
+    if (!/itemtype=["']https?:\/\/schema\.org\/Recipe/i.test(s)) return null;
+    var grab = function (prop) {
+      var out = [], m, re = new RegExp("<([a-z0-9]+)[^>]*itemprop=[\"']" + prop + "[\"'][^>]*>([\\s\\S]*?)</\\1>", "gi");
+      while ((m = re.exec(s))) out.push(clean(stripTags(m[2])));
+      var re2 = new RegExp("<meta[^>]*itemprop=[\"']" + prop + "[\"'][^>]*content=[\"']([^\"']*)", "gi");
+      while ((m = re2.exec(s))) out.push(clean(decodeEntities(m[1])));
+      return out.filter(Boolean);
+    };
+    var ings = grab("recipeIngredient"); if (!ings.length) ings = grab("ingredients");
+    if (!ings.length) return null;
+    var r = emptyRecipe();
+    r.title = grab("name")[0] || "";
+    r.ingredients = ings.map(parseIngredientLine).filter(Boolean);
+    r.steps = [].concat.apply([], grab("recipeInstructions").map(function (x) { return x.split(/\n+/); })).map(cleanStep).filter(function (x) { return x.length > 2; });
+    r.servings = num(grab("recipeYield")[0] || "");
+    r.timeTotal = parseDuration(grab("totalTime")[0] || "") || null;
+    r.source.blogUrl = pageUrl || "";
+    markProvenance(r, "blog");
+    return r;
+  }
+  // Schritte unter einer Überschrift "Zubereitung"/"Instructions" (wenn die Rezeptdaten keine Schritte haben)
+  function stepsAusUeberschrift(html) {
+    var m = String(html || "").match(/<h[1-4][^>]*>\s*(?:<[^>]+>\s*)*(?:Zubereitung|Anleitung|So geht['’]?s|Instructions|Directions|Method|Preparation|Bereiding|Préparation)\b[\s\S]*?<\/h[1-4]>([\s\S]{0,20000}?)(?=<h[1-4][\s>]|$)/i);
+    if (!m) return [];
+    var li = (m[1].match(/<li[^>]*>([\s\S]*?)<\/li>/gi) || []).map(function (x) { return clean(stripTags(x)); });
+    if (li.length < 2) li = (m[1].match(/<p[^>]*>([\s\S]*?)<\/p>/gi) || []).map(function (x) { return clean(stripTags(x)); });
+    return li.filter(function (x) { return x.length > 15 && !CTA.test(x); }).slice(0, 40);
+  }
   function parseRecipeHtml(html, pageUrl) {
     var s = String(html || "");
-    var viaSchema = parseSchemaOrg(s, pageUrl);
-    if (viaSchema && viaSchema.ingredients.length) return viaSchema;
+    var viaSchema = parseSchemaOrg(s, pageUrl) || parseMicrodata(s, pageUrl);
+    if (viaSchema && viaSchema.ingredients.length) {
+      if (!viaSchema.steps.length) viaSchema.steps = stepsAusUeberschrift(s);
+      // Rezeptdaten ohne Mengen: Rezeptkarte im HTML hat sie oft ("200 g" steht nur sichtbar auf der Seite)
+      if (viaSchema.ingredients.length >= 3 && !viaSchema.ingredients.some(function (i) { return i.qty != null; })) {
+        var karte = (s.match(/<li[^>]*class="[^"]*ingredient[^"]*"[^>]*>([\s\S]*?)<\/li>/gi) || []).map(function (x) { return clean(stripTags(x)); }).filter(function (x) { return /^\s*[\d½¼¾⅓]/.test(x); });
+        if (karte.length >= 3) viaSchema.ingredients = karte.map(parseIngredientLine).filter(Boolean);
+      }
+      return viaSchema;
+    }
     function all(re) { var out = [], m; while ((m = re.exec(s)) !== null) out.push(clean(stripTags(m[1]))); return out.filter(Boolean); }
     var ings = all(/<li[^>]*class="[^"]*(?:wprm-recipe-ingredient|tasty-recipes-ingredients?-item)[^"]*"[^>]*>([\s\S]*?)<\/li>/gi);
     if (!ings.length) {
