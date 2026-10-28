@@ -423,6 +423,9 @@ a { color: var(--accent); }
 .cat b { font-size: 1rem; font-weight: 650; display: block; }
 .cat span.c { font-size: 0.82rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .cat[disabled] { opacity: .45; }
+.katzeile { display: grid; }
+.katzeile .row { border-bottom: 0; }
+.katzeile > .btn.small { justify-self: start; margin: 0 16px 12px 64px; padding: 8px 14px; min-height: 0; font-size: .88rem; }
 @media (min-width: 560px) { .catgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .tab span { white-space: nowrap; }
 @media (max-width: 360px) { .tab { font-size: 0.62rem; } }
@@ -459,7 +462,7 @@ a { color: var(--accent); }
 
 <script>(function (root) {
 "use strict";
-var VERSION = "0.6.5";
+var VERSION = "0.6.6";
 var SCHEMA_VERSION = 1;
 var AISLES = ["Obst & Gemüse", "Kühlregal", "Fleisch & Fisch", "Brot & Backwaren",
 "Trockenware & Konserven", "Gewürze, Öle & Saucen", "Tiefkühl", "Getränke", "Süßes & Snacks", "Drogerie & Haushalt", "Sonstiges"];
@@ -547,6 +550,7 @@ var EN_DE = {
 "sojadrink": "sojamilch", "mandeldrink": "mandelmilch", "kokosjoghurt": "pflanzlicher joghurt", "pflanzlichen joghurt": "pflanzlicher joghurt"
 };
 var EN_NAMES_RAW = [
+"bulb of garlic=Knoblauchknolle", "head of garlic=Knoblauchknolle", "garlic bulb=Knoblauchknolle", "garlic head=Knoblauchknolle", "white miso paste=Helle Misopaste", "white miso=Helle Misopaste", "miso=Misopaste", "silken tofu=Seidentofu", "firm tofu=Fester Tofu", "tofu=Tofu", "cherry tomatoes on the vine=Rispen-Cherrytomaten", "balsamic glaze=Balsamico-Creme", "thick balsamic vinegar=Balsamico-Creme",
 "buttermilk=Buttermilch", "evaporated milk=Kondensmilch", "sweetened condensed milk=Gezuckerte Kondensmilch", "condensed milk=Gezuckerte Kondensmilch", "heavy whipping cream=Schlagsahne", "whipping cream=Schlagsahne", "double cream=Sahne", "single cream=Sahne",
 "half and half=Kaffeesahne", "sour cream=Saure Sahne", "creme fraiche=Crème fraîche", "ghee=Ghee", "clarified butter=Butterschmalz", "shortening=Pflanzenfett", "margarine=Margarine",
 "parmesan cheese=Parmesan", "cheddar cheese=Cheddar", "mozzarella cheese=Mozzarella", "ricotta cheese=Ricotta", "feta cheese=Feta", "goat cheese=Ziegenkäse", "cream cheese=Frischkäse", "monterey jack cheese=Monterey Jack", "pepper jack cheese=Pepper Jack",
@@ -704,7 +708,7 @@ var EN_WORDS = {
 "active dry": "Trocken-", "instant": "Trocken-", "plain": "natur", "unbleached": "", "all-purpose": "", "full fat": "vollfett", "full-fat": "vollfett", "non dairy": "pflanzlich", "non-dairy": "pflanzlich", "dairy-free": "pflanzlich",
 "organic": "Bio", "quality": "", "good quality": "", "homemade": "selbst gemacht", "store-bought": "gekauft", "petite": "klein", "old-fashioned": "", "coarse": "grob", "table": "", "crumbled": "zerbröselt",
 "yellow": "gelb", "sweet": "süß", "mini": "Mini-", "baby": "Baby-", "seedless": "kernlos", "skin-on": "mit Haut", "bone-in": "mit Knochen", "thick-cut": "dick geschnitten", "sliced into rounds": "in Scheiben",
-"super firm": "extra fest", "extra firm": "extra fest", "leftover": "vom Vortag", "day-old": "vom Vortag", "firm": "fest", "light": "hell", "dark": "dunkel", "extra virgin": "nativ extra"
+"super firm": "extra fest", "extra firm": "extra fest", "extra-firm": "extra fest", "thick": "dick", "leftover": "vom Vortag", "day-old": "vom Vortag", "firm": "fest", "light": "hell", "dark": "dunkel", "extra virgin": "nativ extra"
 };
 var EN_WORD_KEYS = Object.keys(EN_WORDS).sort(function (a, b) { return b.length - a.length; });
 var NUMBER_WORDS = {
@@ -846,6 +850,17 @@ var AISLE_DICT = [
 "chia", "leinsamen", "rosinen", "datteln", "schokolade", "kakao", "kokosmilch", "passierte tomaten",
 "gehackte tomaten", "polenta", "grieß", "semmelbrösel", "panko", "proteinpulver"]]
 ];
+var TITEL_KATEGORIE = [
+["Suppe & Eintopf", /\b(gazpacho|chowder|bisque|borscht|soljanka|consommé|velouté|suppe|soup|eintopf|stew|ramen|pho|laksa|minestrone|dal|dhal|chili)\b/],
+["Getränk", /\b(margaritas?|mojito|coquito|bahama mama|gin fizz|spritz|punsch|glühwein|bowle|hot chocolate|hot cocoa|cocoa|kakao|heiße schokolade|juice|saft|lemonade|limonade|cold brew|kaffee|coffee|chai|matcha latte|tee\b|tea\b|eistee|iced tea|milkshake|smoothies?|lassi|kombucha|sirup)\b/],
+["Frühstück", /\b(oatmeal|oats|haferflocken|haferbrei|porridge|overnight|toast|frittata|omelet\w*|crepes?|crêpes?|pfannkuchen|pancakes?|pandekager|waffles?|waffeln|shakshuka|eggs benedict|spiegelei|rührei|granola|müsli|bircher|chia pudding|breakfast|frühstück\w*|brunch)\b/],
+["Dessert", /\b(pies?|cobbler|galette|posset|trifl\w*|fudge|brittle|donuts?|doughnuts?|churros|ice ?cream|eis\b|eiscreme|shortbread|snickerdoodles?|blondies?|pizzelles?|turnovers?|caramel\w*|karamell\w*|buckle|crisp\b|whipped cream|sahnehäubchen|chokladboll\w*|truffles?|trüffel|pralinen?|bonbons?|kompott|grütze|tiramisu|brownies?|baklava|cremes?\b|crème|creme brul\w*|milchreis|grießbrei|kaiserschmarrn|dampfnudeln|germknödel|apfelstrudel|zimtsterne|lebkuchen|marzipan|dumplings? sweet|sweet rice|applesauce|apfelmus)\b/],
+["Backen", /\b(bread|breads|buns?|cornbread|bagels?|brioche|baguette|ciabatta|biscuits?|brot|brote|brötchen|semmeln?|zopf|mantou|sourdough|sauerteig\w*|rolls?\b|croissants?|hörnchen|cinnamon rolls?|zimtschnecken?|loaf|kastenkuchen|gugelhupf|guglhupf|stollen|plätzchen|kekse?|cookies?|scones?|muffins?|cupcakes?|tarte|tartes|quiche)\b/],
+["Sauce & Dip", /\b(sauce|soße|sosse|mayo|mayonnaise|aioli|ranch|preserves?|jam|marmelade|konfitüre|gelee|curd|pickles?|eingelegt\w*|pickled|chutney|relish|ketchup|senf|mustard|dressing|vinaigrette|gravy|bratensoße|pesto|hummus|dip|salsa|aufstrich|butter\b|creme fraiche)$|\b(pickling|einlegen)\b/],
+["Beilage", /\b(mashed potato\w*|kartoffelpüree|püree|stampf|fries|pommes|wedges|bratkartoffeln|kartoffelsalat|mac(aroni)? (and|&|n) cheese|slaw|coleslaw|krautsalat|polenta|corn on the cob|maiskolben|rotkohl|blaukraut|knödel|klöße|spätzle|reis\b|rice\b|quinoa|couscous|ofengemüse|roasted (brussels|broccoli|carrots|potatoes|vegetables|veggies)|sautéed|baby potatoes|rosenkohl|grillgemüse|beilage|paratha|naan|fladenbrot)\b/],
+["Snack", /\b(bites|bällchen|balls|energy|meatballs|wings|nuggets|strips|lollipops?|skewers?|spieße|stuffed dates|datteln|pumpkin seeds|kürbiskerne|nüsse|nuts|crackers?|chips|popcorn|board|platte|appetizer|vorspeise|fingerfood|häppchen|bruschetta|crostini|dumplings|gyoza|fritters|puffer|frühlingsrollen|spring rolls|samosas?|pakoras?)\b/]
+];
+var TITEL_HAUPT = /\b(pot pie|shepherd'?s pie|cottage pie|chicken pie|meat pie|pizza|burger|tacos?|lasagne|lasagna|curry|bowl|pasta|risotto|bake\b|auflauf|gratin|casserole|stir[- ]fry|pfanne|sandwich|wraps?|burrito|enchiladas?|sushi)\b/;
 var CAT_WORD_START = { latte: 1, dip: 1, drink: 1, shake: 1, bars: 1, pho: 1, poke: 1, bake: 1, rolls: 1, chips: 1, tee: 1, salsa: 1, beans: 1, riegel: 1, snack: 1, cake: 1, pudding: 1 };
 var CATEGORY_KEYWORDS = [
 ["Frühstück", ["frühstück", "breakfast", "porridge", "overnight oats", "müsli", "granola", "pancake",
@@ -1018,12 +1033,9 @@ return base;
 return n;
 }
 function guessAisle(name) {
-var n = lower(name);
-for (var i = 0; i < AISLE_DICT.length; i++) {
-var hit = matchWithExceptions(n, AISLE_DICT[i][1], AISLE_DICT[i][0] === "Kühlregal" ? ["kokosmilch", "eisberg"] : null);
-if (hit)
-return AISLE_DICT[i][0];
-}
+var t = gangTreffer(lower(name));
+if (t)
+return t.gang;
 return "Sonstiges";
 }
 function isStaple(name) {
@@ -1092,9 +1104,58 @@ break;
 }
 hit = lookup(s);
 }
+if (!hit && !translateIngredient.korr) {
+var korr = lower(orig).replace(/[^a-z'\s-]/g, " ").split(/\s+/).filter(Boolean).map(function (w) { return w.length < 5 ? w : vokabelKorrektur(w) || w; }).join(" ");
+if (korr !== lower(orig).replace(/[^a-z'\s-]/g, " ").replace(/\s+/g, " ").trim()) {
+translateIngredient.korr = true;
+try {
+var tk = translateIngredient(korr);
+if (tk) {
+tk.korrigiert = korr;
+return tk;
+}
+}
+finally {
+translateIngredient.korr = false;
+}
+}
+}
 if (!hit)
 return null;
 return { display: hit, notes: notes.filter(function (n) { return n !== "nativ extra"; }) };
+}
+var EN_VOKABEL = null;
+function vokabelKorrektur(w) {
+if (!EN_VOKABEL || !EN_VOKABEL.__) {
+EN_VOKABEL = { __: 1 };
+Object.keys(EN_NAMES).concat(EN_WORD_KEYS).forEach(function (k) { k.split(/[\s-]+/).forEach(function (x) { if (x.length >= 4 && /^[a-z']+$/.test(x))
+EN_VOKABEL[x] = 1; }); });
+}
+if (EN_VOKABEL[w])
+return null;
+var treffer = [];
+Object.keys(EN_VOKABEL).forEach(function (v) { if (v.length >= 5 && Math.abs(v.length - w.length) <= 1 && abstand1(w, v))
+treffer.push(v); });
+return treffer.length === 1 ? treffer[0] : null;
+}
+function abstand1(a, b) {
+if (a === b)
+return false;
+if (a.length === b.length) {
+var d = 0;
+for (var i = 0; i < a.length; i++)
+if (a[i] !== b[i] && ++d > 1)
+return false;
+return d === 1;
+}
+var k = a.length < b.length ? a : b, l = a.length < b.length ? b : a, j = 0, sprung = 0;
+for (var m = 0; m < l.length; m++) {
+if (k[j] === l[m])
+j++;
+else if (++sprung > 1)
+return false;
+}
+return true;
 }
 function chooseDisplay(display, qty, unit) {
 var p = display.split("~");
@@ -1139,6 +1200,21 @@ return ti ? chooseDisplay(ti.display) : seg;
 }
 return out.replace(/\band\b/g, "und").replace(/\bwith\b/g, "mit");
 }).join("").replace(/\s*,\s*/g, ", ").replace(/\s*;\s*/g, "; ");
+}
+var NOTIZ_EN = { "from a can": "aus der Dose", "from a tin": "aus der Dose", "on the vine": "an der Rispe", "on the vine if possible": "an der Rispe, wenn möglich", "if possible": "wenn möglich",
+"water": "Wasser", "boiling water": "kochendes Wasser", "kochend water": "kochendes Wasser", "store-bought": "gekauft", "or homemade": "oder selbst gemacht", "any kind": "beliebige Sorte", "any": "beliebig", "approximately": "ca." };
+function notizAufraeumen(note) {
+return String(note).split(/\s*[,;]\s*/).map(function (seg) {
+var low = lower(seg).trim();
+if (NOTIZ_EN[low])
+return NOTIZ_EN[low];
+seg = seg.replace(/\b(kochend|warm|kalt|heiß) water\b/i, function (m0, w) { return w + "es Wasser"; });
+var w = low.split(/\s+/).length;
+var englisch = /\b(i|i'm|i've|you|your|if|as|it|this|that|is|are|was|depending|important|used|go for|like|want|prefer|will|can|should|here|which|power|consistency)\b/.test(low) && !/[äöüß]/.test(low);
+if (englisch && w >= 3)
+return "";
+return seg;
+}).filter(Boolean).join(", ");
 }
 function zutatBekannt(i) { return !!(i && (i.nameOriginal || i.aisle !== "Sonstiges" || i.staple)); }
 function klebeZutatenTrennen(line) {
@@ -1239,9 +1315,10 @@ var rest = raw.replace(/^optional\s*:?\s*/i, "")
 .replace(/^(?:eineinhalb|anderthalb|one and a half)\s+/i, "1.5 ")
 .replace(/^(\d+(?:[.,]\d+)?)\s*([A-Za-zäöü]+)\.?\s*[-–]\s*(\d+(?:[.,]\d+)?)\s*\2s?\b\.?/i, "$1-$3 $2")
 .replace(/^(\d+(?:[.,]\d+)?(?:\s*[½¼¾])?|[½¼¾])\s*-?\s*(inch|inches|in\.|cm|zoll)\s+(?:(?:piece|knob|chunk|stück)\s+)?(?:of\s+)?/i, function (m0, n, u) { note.push(n + (/cm/i.test(u) ? " cm" : " Zoll")); return "1 Stk "; });
-var vague = rest.match(/^(etwas|ein bisschen|ein paar|einige|wenig|some|a little|a few|few|a bit of|a handful of|eine handvoll|a squeeze of|squeeze of|a splash of|splash of|scheutje|snufje|beetje)\s+/i);
+var vague = rest.match(/^(etwas|ein bisschen|ein paar|einige|wenig|some|a little|a few|few|a bit of|a handful of|eine handvoll|a squeeze of|squeeze of|a splash of|splash of|a drizzle of|drizzle of|a dash of|dash of|lots of|plenty of|a knob of|knob of|a sprinkle of|sprinkle of|scheutje|snufje|beetje)\s+/i);
 if (vague) {
-var VAGE_DE = { "some": "etwas", "a little": "etwas", "a bit of": "etwas", "a few": "ein paar", "few": "ein paar", "a handful of": "eine Handvoll", "a squeeze of": "ein Spritzer", "squeeze of": "ein Spritzer", "a splash of": "ein Schuss", "splash of": "ein Schuss" };
+var VAGE_DE = { "some": "etwas", "a little": "etwas", "a bit of": "etwas", "a few": "ein paar", "few": "ein paar", "a handful of": "eine Handvoll", "a squeeze of": "ein Spritzer", "squeeze of": "ein Spritzer", "a splash of": "ein Schuss", "splash of": "ein Schuss",
+"a drizzle of": "zum Beträufeln", "drizzle of": "zum Beträufeln", "a dash of": "ein Spritzer", "dash of": "ein Spritzer", "lots of": "reichlich", "plenty of": "reichlich", "a knob of": "ein Stück", "knob of": "ein Stück", "a sprinkle of": "zum Bestreuen", "sprinkle of": "zum Bestreuen" };
 note.push(VAGE_DE[vague[1].toLowerCase()] || vague[1].toLowerCase());
 rest = rest.slice(vague[0].length);
 var vu = readUnit(rest);
@@ -1410,6 +1487,13 @@ res.note = tr.notes.concat(res.note ? [res.note] : []).join(", ");
 }
 if (res.note && /[a-z]/i.test(res.note))
 res.note = translateNote(res.note);
+if (res.note) {
+var na = notizAufraeumen(res.note);
+if (na !== res.note) {
+res.noteOriginal = res.note;
+res.note = na;
+}
+}
 if (/^Knoblauchzehen?$/.test(res.name) && res.unit === "Zehe")
 res.name = "Knoblauch";
 if (res.qty != null && UNIT_CONVERT[res.unit]) {
@@ -1450,7 +1534,7 @@ if (/^[:\-–]/.test(res.name) || /^(vermischen|verrühren|genießen|servieren|f
 return null;
 if (ADJ_ONLY.test(res.name) || /^(fein|grob) gehackt$/i.test(res.name))
 return null;
-if (isStepLike(res.raw) && !res.unit)
+if (isStepLike(res.qty != null ? res.raw.split(",")[0] : res.raw) && !res.unit)
 return null;
 if (res.qty == null && !res.unit) {
 var rw = res.raw.replace(/^[-–•*\s]+/, "").replace(/[.!:]+$/, "").split(/\s+/), lw = rw[rw.length - 1] || "";
@@ -1489,6 +1573,8 @@ return false;
 if (/\b(zum|zur|for)\s+[a-zäöü]/i.test(l) && words < 7)
 return false;
 if (/\bto (serve|garnish|taste|top|dust|decorate|finish|sprinkle)\b/i.test(l) && words < 8 && !/[.!]$/.test(l))
+return false;
+if (/^(a\s+)?(drizzle|splash|pinch|handful|squeeze|dash|sprinkle|knob|glug|lots|plenty|dollop) of\b/i.test(l) && !/[.!]$/.test(l))
 return false;
 return STEP_VERBS.test(l) && (words >= 4 || /[.!]$/.test(l));
 }
@@ -1659,10 +1745,10 @@ var ARBEIT = [
 var KEIN_ARBEITSSCHRITT = /\b(baking (?:soda|powder|sheet|sheets|dish|pan|pans|tray|paper|spray|mat)|back(?:pulver|papier|blech|form|ofen|matte|rost|zeit|röhre)\w*|brown(?:ed)? (?:sugar|rice|butter|bread)|brauner? zucker|(?:the )?rest of|der rest|cooked|gekocht\w*|cooking (?:spray|oil|time)|cookies?|cool (?:water|place)|kühlschrank\w*|cold water|kaltem wasser|frozen|tiefgekühlt\w*|roasted|geröstet\w*|fried|gebraten\w*|whisked|geschlagen\w*|kochend\w*|boiling water|sautéed)\b/gi;
 function schrittArbeiten(s) { var t = String(s).replace(KEIN_ARBEITSSCHRITT, " "), o = []; ARBEIT.forEach(function (a) { if (a[1].test(t))
 o.push(a[0]); }); return o; }
-function zeitangaben(s) {
+function zeitangaben(s, oben) {
 var out = [], re = /(\d+(?:[.,]\d+)?)\s*(?:-|–|bis|to)?\s*(\d+(?:[.,]\d+)?)?\s*(min\.?|minuten|minute|minutes|mins?|std\.?|stunden?|hours?|hrs?|h)(?![a-zäöü])/gi, m;
 while ((m = re.exec(String(s)))) {
-var v = parseFloat((m[2] || m[1]).replace(",", "."));
+var v = m[2] ? (oben ? parseFloat(m[2].replace(",", ".")) : (parseFloat(m[1].replace(",", ".")) + parseFloat(m[2].replace(",", "."))) / 2) : parseFloat(m[1].replace(",", "."));
 if (!isFinite(v) || v <= 0)
 continue;
 out.push(/^(std|stunde|hour|hr|h)/i.test(m[3]) ? v * 60 : v);
@@ -1692,7 +1778,7 @@ var ZEIT_FAKTOR = { ohneZeit: function (mitZeiten) { return mitZeiten >= 1 ? 0.2
 function zeitAnalyse(r, gelernt) {
 var steps = (r && r.steps) || [], ings = (r && r.ingredients) || [];
 var map = ings.length ? stepIngredients(r) : [];
-var sum = 0, passiv = 0, explizit = 0, ueberNacht = false, frei = 0, n = 0, inSchritt = {};
+var sum = 0, passiv = 0, explizit = 0, ueberNacht = false, frei = 0, n = 0, inSchritt = {}, teile = [];
 var mitZeiten = steps.filter(function (st) { return !/^## /.test(st) && zeitangaben(st).length; }).length;
 var ohneZeitFaktor = ZEIT_FAKTOR.ohneZeit(mitZeiten);
 steps.forEach(function (st, si) {
@@ -1700,13 +1786,14 @@ if (/^## /.test(st))
 return;
 n++;
 var imSchritt = (map[si] || []).filter(function (k) { return schneidbar(ings[k]); });
-var saetze = String(st).replace(/([.!?;])\s+(?=[A-ZÄÖÜ„"0-9])/g, "$1\u0002").split("\u0002");
+var saetze = String(st).replace(/(\S*)([.!?;])\s+(?=[A-ZÄÖÜ„"0-9])/g, function (m0, wort, z) { return /^(ca|bzw|ggf|evtl|z\.\s?b|zB|min|max|std|el|tl|gr|stk|pck|approx|ca\.|etc|vs|nr)$/i.test(wort) || /^\d+$/.test(wort) && z === "." ? m0 : wort + z + "\u0002"; }).split("\u0002");
 saetze.forEach(function (s) {
 if (/über nacht|overnight/i.test(s)) {
 ueberNacht = true;
+teile.push({ schritt: n, text: s, min: 0, art: "über Nacht (nicht mitgezählt)" });
 return;
 }
-var zt = 0, warte = 0;
+var zt = 0, warte = 0, warum = [];
 var ang = zeitangaben(s);
 if (SCHNEIDEN.test(s)) {
 var low = lower(s), k = imSchritt.filter(function (x) {
@@ -1715,25 +1802,33 @@ return lower(ings[x].name + " " + (ings[x].nameOriginal || "")).split(/[\s,()-]+
 if (!k.length)
 k = imSchritt;
 k.forEach(function (x) { inSchritt[x] = 1; });
-zt += Math.max(ZEIT_FAKTOR.schneidenMin, ZEIT_FAKTOR.schneidenJe * k.length);
+var zs = Math.max(ZEIT_FAKTOR.schneidenMin, ZEIT_FAKTOR.schneidenJe * k.length);
+zt += zs;
+warum.push("schneiden " + (k.length > 1 ? k.length + " Zutaten " : "") + fmtQty(zs) + " Min.");
 }
 if (ang.length) {
 var a = 0;
 ang.forEach(function (v) { a += v; });
 zt += a;
 explizit += a;
+warum.push("im Rezept angegeben " + fmtQty(a) + " Min.");
 if (PASSIV.test(s))
 warte = a;
-if (schrittArbeiten(s).indexOf("formen") !== -1)
-zt += (gelernt && gelernt.formen && gelernt.formen.n >= 3) ? gelernt.formen.summe / gelernt.formen.n : 5;
+["formen", "kneten"].forEach(function (w) { if (schrittArbeiten(s).indexOf(w) !== -1 && !(w === "kneten" && /\b(knet|knead)\w*\s+(?:für\s+|for\s+)?(?:ca\.?\s*)?\d/i.test(s))) {
+var dh = (gelernt && gelernt[w] && gelernt[w].n >= 3) ? gelernt[w].summe / gelernt[w].n : 5;
+zt += dh;
+warum.push(w + " ≈ " + fmtQty(Math.round(dh)) + " Min.");
+} });
 }
 else {
 schrittArbeiten(s).forEach(function (w) {
 if (w === "schneiden")
 return;
 var g = gelernt && gelernt[w], def = ARBEIT.filter(function (x) { return x[0] === w; })[0][2];
-var d = (g && g.n >= 3 ? g.summe / g.n : def) * (/\b(until|bis)\b/i.test(s) && !/\b(until|bis) (ready|zum servieren|serving)\b/i.test(s) ? 1 : ohneZeitFaktor);
+var hand = /^(kneten|formen)$/.test(w);
+var d = (g && g.n >= 3 ? g.summe / g.n : def) * (hand || /\b(until|bis)\b/i.test(s) && !/\b(until|bis) (ready|zum servieren|serving)\b/i.test(s) ? 1 : ohneZeitFaktor);
 zt += d;
+warum.push(w + " ≈ " + fmtQty(Math.round(d * 10) / 10) + " Min." + (g && g.n >= 3 ? " (gelernt)" : ""));
 if (PASSIV.test(s) && /^(backen|rösten|köcheln|kochen|marinieren|quellen|ruhen|kühlen)$/.test(w))
 warte += d;
 });
@@ -1745,26 +1840,34 @@ if (PARALLEL.test(s) && frei > 0) {
 var rest = Math.max(0, zt - frei);
 frei = Math.max(0, frei - zt);
 sum += rest;
+teile.push({ schritt: n, text: s, min: Math.round(rest * 10) / 10, art: (warum.join(", ") || "kurz") + " – läuft parallel zur Wartezeit davor" });
 }
 else {
 sum += zt;
 frei = warte;
+teile.push({ schritt: n, text: s, min: Math.round(zt * 10) / 10, art: warum.join(", ") || "kurzer Handgriff" });
 }
 passiv += warte;
 });
 });
 if (!n)
 return null;
-ings.forEach(function (i, k) { if (!inSchritt[k] && schneidbar(i) && ZUTAT_GESCHNITTEN.test((i.raw || "") + " " + (i.note || "")))
-sum += 2; });
+var vorbereiten = [];
+ings.forEach(function (i, k) { if (!inSchritt[k] && schneidbar(i) && ZUTAT_GESCHNITTEN.test((i.raw || "") + " " + (i.note || ""))) {
+sum += 2;
+vorbereiten.push(i.name);
+} });
+if (vorbereiten.length)
+teile.push({ schritt: 0, text: "Zutaten laut Liste vorbereiten (" + vorbereiten.join(", ") + ")", min: 2 * vorbereiten.length, art: "2 Min. je Zutat" });
 var t = sum + ZEIT_FAKTOR.bereitlegen;
-return { total: rundeZeit(t), roh: t, passiv: Math.round(passiv), explizit: Math.round(explizit), ueberNacht: ueberNacht };
+teile.push({ schritt: 0, text: "Bereitlegen und Kleinkram", min: ZEIT_FAKTOR.bereitlegen, art: "fester Zuschlag" });
+return { total: rundeZeit(t), roh: t, passiv: Math.round(passiv), explizit: Math.round(explizit), ueberNacht: ueberNacht, teile: teile };
 }
 function schrittTimer(text) {
 if (/über nacht|overnight/i.test(text))
 return [];
 var seen = {};
-return zeitangaben(text).filter(function (m) { var k = Math.round(m); if (k < 1 || k > 600 || seen[k])
+return zeitangaben(text, true).filter(function (m) { var k = Math.round(m); if (k < 1 || k > 600 || seen[k])
 return false; seen[k] = 1; return true; }).slice(0, 3).map(function (m) {
 var k = Math.round(m), h = Math.floor(k / 60), mi = k % 60;
 return { min: k, text: (h ? h + " Std." + (mi ? " " : "") : "") + (mi ? mi + " Min." : "") };
@@ -2186,6 +2289,10 @@ return;
 }
 if (/^(gewürze|spices|toppings?|optional)\s*:/i.test(t) && t.length < 120) {
 ings.push.apply(ings, t.replace(/^[^:]+:\s*/, "").split(/\s*,\s*/));
+return;
+}
+if (/^(a\s+)?(drizzle|splash|pinch|handful|squeeze|dash|sprinkle|knob|glug|lots|plenty|dollop) of\b/i.test(t) && !/[.!]$/.test(t) && t.length < 140) {
+ings.push.apply(ings, t.split(/\s*,\s*/));
 return;
 }
 if (caps)
@@ -2989,11 +3096,15 @@ allergens = allergens.filter(function (a) { return a !== "Gluten"; });
 r.allergens = allergens;
 var best = null, bestScore = 0, scores = {};
 var title = lower(r.title + " " + (r.titleOriginal || ""));
+var kopfTeil = function (t) { return t.split(/\s+(?:mit|with|on|auf|over|über|served with|dazu)\s+/)[0]; };
+var titleKopf = kopfTeil(lower(r.title || "")) + " " + kopfTeil(lower(r.titleOriginal || ""));
 CATEGORY_KEYWORDS.forEach(function (c) {
 var score = 0;
 c[1].forEach(function (k) {
-if (title.indexOf(k) !== -1)
+if (titleKopf.indexOf(k) !== -1)
 score += 3;
+else if (title.indexOf(k) !== -1)
+score += 1.5;
 else if (CAT_WORD_START[k] ? new RegExp("(^|[^a-zäöüß])" + k).test(allText) : allText.indexOf(k) !== -1)
 score += (c[0] === "Hauptgericht" ? 0.6 : c[0] === "Sauce & Dip" || c[0] === "Suppe & Eintopf" || c[0] === "Getränk" ? 0.4 : 1);
 });
@@ -3003,9 +3114,51 @@ bestScore = score;
 best = c[0];
 }
 });
+var titelRein = title.replace(/\([^)]*\)/g, " ").replace(/\b(the )?(best|easy|homemade|perfect|ultimate|simple|quick|recipes?|rezepte?|selbstgemacht\w*|einfache?r?s?|schnelle?r?s?)\b/g, " ").replace(/[!.:,;–-]+\s*$/, "").replace(/\s+/g, " ").trim();
+var titelRein = kopfTeil(titelRein), titelHaupt = TITEL_HAUPT.test(titelRein), titelKat = null;
+if (/[a-zäöüß](soße|sosse|sauce|dip|pesto|dressing|aufstrich)$/.test(titelRein.split(" ").pop() || ""))
+titelRein += " sauce";
+var titelEiweiss = /\b(chicken|salmon|beef|pork|lamb|shrimp|prawns?|turkey|sausage|tofu|tempeh|seitan|hähnchen|huhn|lachs|rind\w*|schwein\w*|lamm|garnelen|pute|wurst|fisch|fish|ragu|ragout|steak)\b/.test(titelRein);
+if (!titelHaupt || bestScore < 3)
+TITEL_KATEGORIE.forEach(function (c) {
+if (titelKat || !c[1].test(titelRein))
+return;
+if (titelHaupt && c[0] !== "Suppe & Eintopf" && c[0] !== "Sauce & Dip")
+return;
+if (c[0] === "Sauce & Dip" && (r.ingredients.length > 12 || r.titleGuessed && /^(soße|sosse|sauce|dip|dressing|topping|marinade)\b/.test(lower(r.title || ""))))
+return;
+if (titelEiweiss && (c[0] === "Beilage" || c[0] === "Sauce & Dip" && !/\bdip$/.test(titelRein)))
+return;
+titelKat = c[0];
+scores[c[0]] = Math.max(scores[c[0]] || 0, 0) + 4;
+if (scores[c[0]] > bestScore) {
+bestScore = scores[c[0]];
+best = c[0];
+}
+});
+if (!best && r.ingredients.length >= 3 && /(zucker|sugar|schokolade|chocolate|kakao|cocoa|vanille|vanilla|sirup|syrup|honig|honey|zimt|cinnamon|marzipan|sahne|whipped|kondensmilch|condensed)/.test(ingText) && !/(zwiebel|onion|knoblauch|garlic|schalotte|shallot|hähnchen|chicken|rind|beef|schwein|pork|speck|bacon|fisch|fish|lachs|thunfisch|tofu|tempeh|brühe|broth|stock|sojasauce|soy sauce|pfeffer|pepper|käse|cheese|parmesan|cheddar|tomate|tomato|kartoffel|potato|nudel|pasta|reis\b|rice\b)/.test(ingText)) {
+best = /(mehl|flour)/.test(ingText) && /(ofen|oven|backen|bake)/.test(allText) ? "Backen" : "Dessert";
+bestScore = 2;
+}
+if (r.blogCategory && bestScore < 4) {
+var bk = lower(r.blogCategory), BLOG_KAT = [[/dessert|sweets|nachspeise|nachtisch|postre|dolci/, "Dessert"], [/breakfast|brunch|frühstück/, "Frühstück"], [/side|beilage/, "Beilage"], [/soup|suppe|stew|eintopf/, "Suppe & Eintopf"], [/salad|salat/, "Salat & Bowl"], [/drink|beverage|getränk|cocktail|smoothie/, "Getränk"], [/sauce|dip|condiment|dressing|soße/, "Sauce & Dip"], [/bread|baking|backen|kuchen|cake|cookie|gebäck/, "Backen"], [/snack|appetizer|starter|vorspeise|fingerfood/, "Snack"], [/main|dinner|lunch|entr[eé]e|hauptgericht|hauptspeise/, "Hauptgericht"]];
+for (var bi = 0; bi < BLOG_KAT.length; bi++)
+if (BLOG_KAT[bi][0].test(bk)) {
+if (best && best !== BLOG_KAT[bi][1])
+scores[best] = Math.max(scores[best] || 0, 3);
+best = BLOG_KAT[bi][1];
+bestScore = 4;
+scores[best] = 4;
+break;
+}
+}
+if (best === "Beilage" && bestScore < 3) {
+best = null;
+bestScore = 0;
+}
 if (bestScore < 3 && /mehl|flour/.test(ingText) && /(backpulver|natron|hefe|baking powder|yeast)/.test(ingText) && /(ofen|oven|backen|bake)/.test(allText) && /zucker|sugar|sirup|honig/.test(ingText))
 best = "Backen";
-var tEnd = lower(r.title || "").match(/(suppe|soup|eintopf|stew|schmortopf|salat|salad|bowl|kuchen|cake|muffins?|brot|brote|brötchen|strudel|cookies|smoothie|dip|pesto|hummus|-eis|eiscreme|nicecream)$/);
+var tEnd = kopfTeil(lower(r.title || "")).match(/(suppe|soup|eintopf|stew|schmortopf|salat|salad|bowl|kuchen|cake|muffins?|brot|brote|brötchen|strudel|cookies|smoothie|dip|pesto|hummus|-eis|eiscreme|nicecream)$/);
 if (tEnd) {
 best = /suppe|soup|eintopf|stew|schmortopf/.test(tEnd[1]) ? "Suppe & Eintopf" : /salat|salad|bowl/.test(tEnd[1]) ? "Salat & Bowl" : /kuchen|cake|muffin|brot|brötchen|strudel|cookies/.test(tEnd[1]) ? "Backen" : /eis|cream/.test(tEnd[1]) ? "Dessert" : /smoothie/.test(tEnd[1]) ? "Getränk" : "Sauce & Dip";
 bestScore = 9;
@@ -3022,6 +3175,20 @@ bestScore = 0;
 r.category = best || "Hauptgericht";
 r.categoryAlso = Object.keys(scores).filter(function (c) { return c !== r.category && scores[c] >= 3; });
 r.categoryBasis = best ? "Stichworte" : "Standard";
+if (LERN && LERN.kategorien) {
+var stimmen = {};
+kategorieWoerter(r).forEach(function (w) { var k = LERN.kategorien[w]; if (k)
+Object.keys(k).forEach(function (c) { stimmen[c] = (stimmen[c] || 0) + k[c]; }); });
+var gew = Object.keys(stimmen).sort(function (a, b) { return stimmen[b] - stimmen[a]; })[0];
+if (gew && (r.categoryBasis === "Standard" || bestScore < 3 || stimmen[gew] >= 2) && gew !== r.category) {
+if (r.categoryBasis !== "Standard")
+r.categoryAlso = [r.category].concat(r.categoryAlso).filter(function (c) { return c !== gew; });
+r.category = gew;
+r.categoryBasis = "gelernt";
+}
+else if (gew && gew === r.category && r.categoryBasis === "Standard")
+r.categoryBasis = "gelernt";
+}
 var full = r.title + " " + r.steps.join(" ");
 r.equipment = EQUIPMENT.filter(function (e) { return e[1].test(full); }).map(function (e) { return e[0]; });
 if (!r.equipment.length && r.steps.length)
@@ -3058,6 +3225,31 @@ var FOKUS_INFO = {
 "vitamin-C-reich": { feld: "vitC", einheit: "mg", regel: "Mindestens 24 mg Vitamin C je Portion (30 % von 80 mg)." },
 "omega-3-reich": { feld: "omega3", einheit: "g", regel: "Mindestens 0,6 g Omega-3-Fettsäuren je 100 kcal." }
 };
+function naehrwertAnteile(r, tabelle, feld, opts) {
+var table = tabelle && tabelle.zutaten ? tabelle.zutaten : tabelle, eigene = (opts && opts.zuordnungen) || {};
+var teile = [], summe = 0;
+(r.ingredients || []).forEach(function (i) {
+if (i.teilrezept)
+return;
+var hit = eigene[i.key] ? { entry: eigene[i.key] } : findNutrientEntry(i.key, table, i.state);
+if (!hit || !hit.entry || !hit.entry.n)
+return;
+var g = gramsOf(i, hit.entry);
+if (g == null)
+return;
+var v = hit.entry.n[feld];
+if (v == null)
+return;
+var beitrag = v * g / 100;
+summe += beitrag;
+teile.push({ name: i.name, gramm: Math.round(g), je100: v, menge: beitrag, bls: hit.entry.name || "" });
+});
+var serv = r.nutrition && r.nutrition.perServing ? r.nutrition.servings : null;
+teile.sort(function (a, b) { return b.menge - a.menge; });
+teile.forEach(function (t) { t.anteil = summe ? Math.round(t.menge / summe * 100) : 0; if (serv)
+t.menge = t.menge / serv; });
+return { feld: feld, summe: serv ? summe / serv : summe, proPortion: !!serv, teile: teile, offen: ((r.nutrition && r.nutrition.coverage && r.nutrition.coverage.offen) || []).map(function (o) { return o.name; }) };
+}
 function focusFromNutrition(n, basis) {
 var out = [];
 if (!n || !n.kcal)
@@ -3102,9 +3294,17 @@ else {
 missing.push(r.ingredients.length >= 3 ? "Mengenangaben" : "Zutaten");
 score += Math.min(25, r.ingredients.length * 5);
 }
+var ohne = (r.logik && r.logik.ohneSchritt) || [], zaehlbar = r.ingredients.filter(function (i) { return !i.staple && !isSpice(i) && !i.optional; }).length;
+var sammelSchritt = (r.steps || []).some(function (st) { return /\b(alle|restlichen|übrigen|trockenen|feuchten|nassen|flüssigen)\s+(\w+\s+)?zutaten|\ball (the )?(\w+ )?ingredients|\b(dry|wet) ingredients|\beverything\b|\balles\b/i.test(st); });
+if (stepsOk && !sammelSchritt && ohne.length >= 4 && zaehlbar && ohne.length >= zaehlbar * 0.45) {
+stepsOk = false;
+missing.push("Teile der Zubereitung");
+r.schritteLueckenhaft = true;
+}
 if (stepsOk)
 score += 30;
 else {
+if (missing.indexOf("Teile der Zubereitung") === -1)
 missing.push("Zubereitung");
 score += r.steps.length * 10;
 }
@@ -3160,14 +3360,30 @@ function neuerLernspeicher() {
 return { app: "rezeptbuch-lernen", version: LERN_VERSION, rezepte: 0, rezepteSeitSenden: 0, gesendetAm: null,
 creator: {}, ignorieren: {}, keinSchritt: {}, istSchritt: {}, zutatAlias: {}, keineZutat: {}, keineFloskel: {}, unbekannt: {}, fehler: [], zeiten: {}, protokoll: [], titel: [] };
 }
+function kategorieWoerter(r) {
+var t = lower((r.title || "") + " " + (r.titleOriginal || "")).replace(/[^a-zäöüß\s-]/g, " ");
+var out = {};
+t.split(/[\s-]+/).forEach(function (w) { if (w.length >= 4 && !/^(mit|und|ohne|aus|vom|von|der|die|das|für|with|and|the|vegan\w*|veggie|einfach\w*|schnell\w*|easy|best\w*|beste\w*|cremig\w*|creamy|high|protein|gesund\w*|healthy|rezept\w*|recipe\w*)$/.test(w))
+out[w.replace(/(en|n|s|e)$/, "")] = 1; });
+return Object.keys(out);
+}
+function lerneKategorie(L, r, kategorien) {
+if (!L || !kategorien || !kategorien.length)
+return [];
+L.kategorien = L.kategorien || {};
+var ws = kategorieWoerter(r);
+ws.forEach(function (w) { var k = L.kategorien[w] = L.kategorien[w] || {}; k[kategorien[0]] = Math.min(20, (k[kategorien[0]] || 0) + 1); });
+return ws;
+}
 function lernRegeln(list) {
-var R = { ignorieren: {}, keinSchritt: {}, istSchritt: {}, zutatAlias: {}, keineZutat: {}, keineFloskel: {}, floskeln: {}, zeiten: {} };
+var R = { ignorieren: {}, keinSchritt: {}, istSchritt: {}, zutatAlias: {}, keineZutat: {}, keineFloskel: {}, floskeln: {}, zeiten: {}, kategorien: {} };
 (list || []).filter(Boolean).forEach(function (L) {
 ["ignorieren", "keinSchritt", "istSchritt", "keineZutat", "keineFloskel"].forEach(function (k) { Object.keys(L[k] || {}).forEach(function (x) { R[k][x] = 1; }); });
 Object.keys(L.zutatAlias || {}).forEach(function (x) { R.zutatAlias[x] = L.zutatAlias[x]; });
 Object.keys(L.zeiten || {}).forEach(function (a) { var z = L.zeiten[a]; if (!z || !z.n)
 return; var t = R.zeiten[a] = R.zeiten[a] || { n: 0, summe: 0 }; t.n += z.n; t.summe += z.summe; });
 Object.keys(L.floskeln || {}).forEach(function (a) { (L.floskeln[a] || []).forEach(function (x) { (R.floskeln[a] = R.floskeln[a] || {})[x] = 1; }); });
+Object.keys(L.kategorien || {}).forEach(function (w) { var k = L.kategorien[w] || {}; Object.keys(k).forEach(function (c) { var t = R.kategorien[w] = R.kategorien[w] || {}; t[c] = (t[c] || 0) + k[c]; }); });
 Object.keys(L.creator || {}).forEach(function (a) {
 var c = L.creator[a];
 if (!c || c.n < FLOSKEL_MIN)
@@ -3382,7 +3598,7 @@ rezepte: L.rezepte || 0, regeln: { floskeln: fl, ignorieren: Object.keys(L.ignor
 zutatAlias: L.zutatAlias || {}, keineZutat: Object.keys(L.keineZutat || {}), keineFloskel: Object.keys(L.keineFloskel || {}) }, unbekannt: L.unbekannt || {},
 naehrwerte: naehrwertExport(meta && meta.zuord),
 teilenFehler: (L.fehler || []).filter(function (f) { return !f.gesendet; }),
-zeiten: L.zeiten || {}, zeitFaktor: L.zeitFaktor || [],
+zeiten: L.zeiten || {}, zeitFaktor: L.zeitFaktor || [], kategorien: L.kategorien || {},
 gaenge: L.gaenge || {},
 protokoll: (L.protokoll || []).filter(function (x) { return !x.gesendet; }),
 titel: (L.titel || []).filter(function (x) { return !x.gesendet; }).map(function (x) { return { konto: x.konto, link: x.link, automatisch: x.automatisch, original: x.original || undefined, neu: x.neu, datum: x.datum }; }) };
@@ -3402,6 +3618,14 @@ function analyse(input, opts) {
 input = input || {};
 if (input.paket) {
 var rp = rezeptAusPaket(input.paket);
+if (input.commentText) {
+var erg = parseText(input.commentText, "comment"), alt = rp.steps.map(lernNorm);
+erg.steps.forEach(function (st) { if (alt.indexOf(lernNorm(st)) === -1)
+rp.steps.push(st); });
+erg.ingredients.forEach(function (i) { if (!rp.ingredients.some(function (x) { return x.key === i.key; }))
+rp.ingredients.push(i); });
+finalize(rp);
+}
 return { recipe: rp, trace: [{ step: "geteilt", label: "Geteilt", status: "verwendet" }], completeness: completeness(rp), next: null, ms: 0, version: VERSION };
 }
 LERN = opts && opts.lernen ? lernRegeln(opts.lernen) : null;
@@ -3747,7 +3971,7 @@ return t.replace(/\s+hinzu(?=[\s.,;!?]|$)/, "").replace(/\s{2,}/g, " ");
 function vorUebersetzung(text) {
 var BR = { "½": "1/2", "¼": "1/4", "¾": "3/4", "⅓": "1/3", "⅔": "2/3", "⅛": "1/8" };
 return String(text || "").replace(/(\d)\s*([½¼¾⅓⅔⅛])/g, function (_, d, b) { return d + " " + BR[b]; }).replace(/[½¼¾⅓⅔⅛]/g, function (b) { return BR[b]; })
-.replace(/\s\+\s/g, " and ").replace(/\s&\s/g, " and ").replace(/\bnooch\b/gi, "nutritional yeast").replace(/\bevoo\b/gi, "extra virgin olive oil").replace(/(\d)\s*[º°o]\s*F\b/g, "$1 °F");
+.replace(/(\d{2,3})\s?°?\s?([cC])\b(?!\w)/g, "$1 °C").replace(/\s\+\s/g, " and ").replace(/\s&\s/g, " and ").replace(/\bnooch\b/gi, "nutritional yeast").replace(/\bevoo\b/gi, "extra virgin olive oil").replace(/(\d)\s*[º°o]\s*F\b/g, "$1 °F");
 }
 var GLOSSAR = [
 [/\b(baking soda|bicarbonate of soda|bicarb)\b/i, /Backpulver/, "Natron", /\bbaking powder\b/i],
@@ -3763,7 +3987,20 @@ var GLOSSAR = [
 [/\bcilantro\b/i, /Cilantro/g, "Koriander"],
 [/\bbroil(er)?\b/i, /Broiler|Brathähnchen/g, "Grill"],
 [/\bpreheat\b/i, /vorwärmen/g, "vorheizen"],
-[/\bnutritional yeast\b/i, /(Ernährungshefe|Nährhefe)/g, "Hefeflocken"]
+[/\bnutritional yeast\b/i, /(Ernährungshefe|Nährhefe)/g, "Hefeflocken"],
+[/\b(bulb|head)s? of garlic|garlic (bulb|head)s?\b/i, /Knoblauchzwiebel(n?)/g, "Knoblauchknolle$1"],
+[/\bgarlic\b/i, /\bNelken\b/g, "Zehen"],
+[/\bparing knife\b/i, /(Paarungsmesser|Schälmesser)/g, "kleinen Messer"],
+[/\blined (?:baking )?(?:sheet|tray|pan)\b/i, /gefütterte(n|s|m)? Backblech/g, "mit Backpapier ausgelegte$1 Backblech"],
+[/\btoss(?:ed)? to coat\b/i, /(zum Beschichten werfen|werfen, um (?:sie |es )?zu beschichten|zum Überziehen werfen)/g, "gut durchschwenken"],
+[/\bsquash\b/i, /\bSquash\b/g, "Kürbis"],
+[/\bchar(?:red)?\b/i, /\bchar\b/g, "Röstspuren"],
+[/\broast/i, /\bbraten\b/g, "im Ofen rösten"],
+[/\bdrizzle/i, /\b(Trommelt|Trommeln|trommeln|Nieselregen|Nieseln)\b/g, "Beträufeln"],
+[/\bcashews?\b/i, /Cashew[a-zäöü]*n[aä]h?ne\w*/g, "Cashews"],
+[/\bsoak/i, /\b(tränken|tränkt)\b/g, "einweichen"],
+[/\bnon-?stick\b/i, /Antihaft-[A-Za-zÄÖÜäöüß-]+/g, "beschichtete Form"],
+[/\bcheck at\b/i, /bei (\d+) zu überprüfen/g, "nach $1 Minuten prüfen"]
 ];
 function nachUebersetzung(en, de) {
 var t = String(de || "").replace(/(\d)⁄(\d)/g, "$1/$2");
@@ -3865,7 +4102,9 @@ return vereint;
 var steps = r.steps || [], ings = r.ingredients || [];
 var heads = ings.map(function (i) {
 var names = [i.name, i.nameOriginal || ""].concat(i.key ? [i.key] : []).join(" ").toLowerCase().replace(/[()]/g, " ");
-var w = names.split(/[\s,\/]+/).reduce(function (a, x) { a.push(x); var hy = x.split("-").pop(); if (hy !== x && hy.length >= 5)
+var kernWort = gangTreffer(lower(i.name));
+kernWort = kernWort && kernWort.wort.length >= 4 && !/^(salz|öl|wasser|milch|saft|paste|pulver|sauce|soße)$/.test(kernWort.wort) ? kernWort.wort : "";
+var w = names.split(/[\s,\/]+/).concat(kernWort ? [kernWort] : []).reduce(function (a, x) { a.push(x); var hy = x.split("-").pop(); if (hy !== x && hy.length >= 5)
 a.push(hy); return a; }, []).filter(function (x) { return x.length >= 3 && !ADJ_WORD.test(x) && !/^(und|oder|and|or|mit|with|von|für|frisch|frische|gehackt|getrocknet|gemahlen|gekocht|gekochte|braune|rote|grüne|weiße|schwarze|dunkle|helle|vegane|veganer|veganes|pflanzliche|pflanzlicher|neutrales|extra|fein|grob)$/.test(x); });
 return w.map(function (x) { return x.replace(/(e|en|n|s|er)$/, "").replace(/-$/, ""); }).filter(function (x) { return x.length >= 3 && !/^(aus|dem|der|die|das|den|vom|zum|glas|dose|pck|packung|koro|bio|light)$/.test(x); });
 });
@@ -5563,8 +5802,8 @@ var GANG_WOERTER = [
 ["Kühlregal", ["gouda", "emmentaler", "bergkäse", "hummus", "seitan", "räuchertofu", "veggie burger", "würstchen vegan", "aufschnitt", "joghurt", "pudding"]],
 ["Tiefkühl", ["tiefkühlpizza", "pizza tk", "tk-pizza", "fischstäbchen", "pommes", "tk-erbsen", "rahmspinat", "eiswürfel", "speiseeis", "eis", "eiscreme"]],
 ["Gewürze, Öle & Saucen", ["kapern", "mayo", "mayonnaise", "remoulade", "grillsauce", "bbq-sauce", "dressing", "ketchup", "olivenöl", "rapsöl", "sonnenblumenöl"]],
-["Trockenware & Konserven", ["erdnussmus", "erdnussbutter", "mandelmus", "cashewmus", "nutella", "marmelade", "konfitüre", "aufstrich", "müsli", "cornflakes", "granola", "proteinpulver", "oliven", "cashew", "cashews", "erdnüsse", "walnüsse", "haselnüsse"]],
-["Obst & Gemüse", ["äpfel", "apfel", "birne", "trauben", "kiwi", "pflaume", "nektarine", "pfirsich", "melone", "salatgurke", "eisbergsalat"]]
+["Trockenware & Konserven", ["erdnussmus", "erdnussbutter", "mandelmus", "cashewmus", "nutella", "marmelade", "konfitüre", "aufstrich", "müsli", "cornflakes", "granola", "proteinpulver", "hefeflocken", "speisestärke", "stärke", "sesam", "tahin", "oliven", "cashew", "cashews", "erdnüsse", "walnüsse", "haselnüsse"]],
+["Obst & Gemüse", ["zitronensaft", "limettensaft", "zitronenschale", "limettenschale", "äpfel", "apfel", "birne", "trauben", "kiwi", "pflaume", "nektarine", "pfirsich", "melone", "salatgurke", "eisbergsalat"]]
 ];
 var GANG_MARKEN = { "nutella": "Trockenware & Konserven", "coca-cola": "Getränke", "coke": "Getränke", "fanta": "Getränke", "sprite": "Getränke", "red bull": "Getränke", "club-mate": "Getränke",
 "haribo": "Süßes & Snacks", "oreo": "Süßes & Snacks", "pringles": "Süßes & Snacks", "milka": "Süßes & Snacks", "ritter sport": "Süßes & Snacks", "kinder": "Süßes & Snacks", "duplo": "Süßes & Snacks", "hanuta": "Süßes & Snacks",
@@ -5578,7 +5817,7 @@ while (at !== -1) {
 var nach = n.slice(at + term.length).match(/^(?:e|en|n|s|er|n?s)?(?=[^a-zäöüß]|$)/);
 var vorne = at === 0 || /[^a-zäöüß]/.test(n.charAt(at - 1)), ende = !!nach;
 if (vorne && ende || !WHOLE_WORD[term] && (term.length >= 4 || ende && term.length >= 2)) {
-var punkte = term.length + (ende ? 50 : 0) + (vorne && ende ? 10 : 0) + (extra || 0);
+var punkte = (ende ? 100 : 0) + term.length * 2 + (vorne && ende ? 10 : 0) + (extra || 0) * 0.1;
 if (!best || punkte > best.punkte)
 best = { gang: gang, wort: term, punkte: punkte };
 }
@@ -5623,7 +5862,7 @@ if (gl[n])
 return gl[n];
 var marke = Object.keys(GANG_MARKEN).filter(function (m) { return containsTermAt(n, m); }).sort(function (a, b) { return b.length - a.length; })[0];
 var t = gangTreffer(n);
-if (t && t.gang === "Drogerie & Haushalt" && t.punkte >= 50)
+if (t && t.gang === "Drogerie & Haushalt" && t.punkte >= 100)
 return t.gang;
 if (marke)
 return GANG_MARKEN[marke];
@@ -5838,7 +6077,7 @@ translateTitle: translateTitle, polishTitle: polishTitle, translateIngredient: t
 buildLabels: buildLabels, LABEL_GRUPPEN: LABEL_GRUPPEN, GRUNDVORRAT: GRUNDVORRAT, standardVorrat: standardVorrat, vorratsSchluessel: vorratsSchluessel,
 extractInlineIngredients: extractInlineIngredients, isStepLike: isStepLike, postType: postType, normalizeFancy: normalizeFancy, zuordnungsVorschlaege: zuordnungsVorschlaege,
 recipeId: recipeId, importNeue: importNeue, folgenVorschlag: folgenVorschlag, folgenAntwort: folgenAntwort, FOLGEN_ERNEUT_AB: FOLGEN_ERNEUT_AB, FOLGEN_AB: FOLGEN_AB, pruefeBlogTreffer: pruefeBlogTreffer,
-kochAblauf: kochAblauf, FOKUS_INFO: FOKUS_INFO, rezeptPaket: rezeptPaket, rezeptAusPaket: rezeptAusPaket, paketKodieren: paketKodieren, paketLesen: paketLesen, einkaufsGang: einkaufsGang, blsGang: blsGang, resteSuche: resteSuche, wochenVorschlag: wochenVorschlag, ersatzFuer: ersatzFuer, ERSATZ: ERSATZ, kochbegriffeIn: kochbegriffeIn, KOCHBEGRIFFE: KOCHBEGRIFFE,
+kochAblauf: kochAblauf, FOKUS_INFO: FOKUS_INFO, lerneKategorie: lerneKategorie, kategorieWoerter: kategorieWoerter, naehrwertAnteile: naehrwertAnteile, rezeptPaket: rezeptPaket, rezeptAusPaket: rezeptAusPaket, paketKodieren: paketKodieren, paketLesen: paketLesen, einkaufsGang: einkaufsGang, blsGang: blsGang, resteSuche: resteSuche, wochenVorschlag: wochenVorschlag, ersatzFuer: ersatzFuer, ERSATZ: ERSATZ, kochbegriffeIn: kochbegriffeIn, KOCHBEGRIFFE: KOCHBEGRIFFE,
 parseRecipeHtml: parseRecipeHtml, inferServings: inferServings, uebersetzeSchritte: uebersetzeSchritte, vorUebersetzung: vorUebersetzung, nachUebersetzung: nachUebersetzung, uebersetzeZutaten: uebersetzeZutaten, mergeFrameText: mergeFrameText, isEnglishTitle: isEnglishTitle, stepIngredients: stepIngredients, parseTranscript: parseTranscript, detectLang: detectLang, rezeptStil: rezeptStil, cleanSteps: cleanSteps, langOfText: langOfText, dropEnglishHalf: dropEnglishHalf
 };
 if (typeof module !== "undefined" && module.exports)
@@ -5864,7 +6103,7 @@ root.RezeptKern = api;
   var LERN_ERINNERUNG = 20;
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.20.7";
+  var APP_VERSION = "0.20.8";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0 (creativecommons.org/licenses/by/4.0). Werte unverändert übernommen; Stück- und Löffelgewichte sind eigene Richtwerte der App. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -6299,6 +6538,7 @@ root.RezeptKern = api;
     if (e.input.caption) { try { e.typ = K.recipeLikelihood(res, e.input.caption, e.input.url).typ || e.typ; } catch (x) { /* egal */ } }
     if (e.edit) applyEdit(r, e.edit);
     e.recipe = r; e.updatedAt = Date.now();
+    katAnwenden(e);
   }
   // ------------------------------------------------------------------ Bearbeiten (die App lernt aus Korrekturen)
   function ingLine(i) { return clean2((i.qty != null ? K.fmtQty(i.qty) + (i.qtyMax != null ? "-" + K.fmtQty(i.qtyMax) : "") + " " : "") + unitText(i.unit) + " " + i.name + (i.note ? ", " + i.note : "")); }
@@ -6444,6 +6684,7 @@ root.RezeptKern = api;
     Object.keys(L.istSchritt || {}).forEach(function (x) { out.push({ k: "istSchritt", v: x, t: "Ist ein Schritt", d: x }); });
     Object.keys(L.zutatAlias || {}).forEach(function (x) { out.push({ k: "zutatAlias", v: x, t: "Zutat", d: x + " → " + L.zutatAlias[x] }); });
     Object.keys(L.keineZutat || {}).forEach(function (x) { out.push({ k: "keineZutat", v: x, t: "Keine Zutat", d: x }); });
+    Object.keys(L.kategorien || {}).forEach(function (x) { var k = L.kategorien[x], c = Object.keys(k).sort(function (a, b) { return k[b] - k[a]; })[0]; if (c) out.push({ k: "kategorien", v: x, t: "Kategorie", d: "Titel mit „" + x + "…“ → " + c + (k[c] > 1 ? " (" + k[c] + "×)" : "") }); });
     Object.keys(S.zuord || {}).forEach(function (x) { var e = S.zuord[x]; out.push({ k: "zuord", v: x, t: "Nährwerte: " + (e.zutat || x), d: e.art === "eigen" ? "eigene Angabe, " + Math.round(e.n.kcal) + " kcal je 100 g" + (e.quelle ? " · Quelle: " + e.quelle : "") + (e.stk ? " · 1 Stück = " + e.stk + " g" : "") : (e.name || "") + (e.stk ? " · 1 Stück = " + e.stk + " g" : "") }); });
     return out;
   }
@@ -6845,6 +7086,41 @@ root.RezeptKern = api;
   // ------------------------------------------------------------------ Ansicht: Kategorien
   var KAT_ORDER = ["Hauptgericht", "Frühstück", "Salat & Bowl", "Suppe & Eintopf", "Snack", "Beilage", "Dessert", "Backen", "Getränk", "Sauce & Dip"];
   function inCat(e, c) { var r = e.recipe; return r.category === c || (r.categoryAlso || []).indexOf(c) !== -1; }
+  // "Nicht zugeordnet": die App hat keinen Hinweis gefunden und nur "Hauptgericht" angenommen
+  function katOffen(e) { return !e.example && !(e.kategorien && e.kategorien.length) && e.recipe.categoryBasis === "Standard"; }
+  // Von Hand gewählte Kategorien gelten immer (auch nach neuer Analyse); erste = Hauptkategorie
+  function katAnwenden(e) {
+    var k = e.kategorien, r = e.recipe;
+    if (!k || !k.length || !r) return;
+    r.category = k[0]; r.categoryAlso = k.slice(1); r.categoryBasis = "von dir";
+    r.labels = (r.labels || []).filter(function (l) { return l.gruppe !== "Gang"; });
+    r.labels = k.map(function (c) { return { gruppe: "Gang", label: c, basis: "von dir" }; }).concat(r.labels);
+  }
+  function katSheet(id) {
+    var e = S.recipes[id]; if (!e) return;
+    var wahl = UI.katWahl && UI.katWahl.id === id ? UI.katWahl.k : (e.kategorien && e.kategorien.slice()) || (katOffen(e) ? [] : [e.recipe.category].concat(e.recipe.categoryAlso || []));
+    UI.katWahl = { id: id, k: wahl };
+    sheet('<h2>Kategorie wählen</h2><p class="small muted">' + esc(titleOf(e)) + '</p>' +
+      '<div class="wrapchips">' + KAT_ORDER.map(function (c) { var i = wahl.indexOf(c); return '<button class="chip' + (i !== -1 ? " on" : "") + '" aria-pressed="' + (i !== -1) + '" data-a="kat-toggle" data-id="' + esc(id) + '" data-c="' + esc(c) + '">' + esc(c) + (i === 0 && wahl.length > 1 ? " · zuerst" : "") + '</button>'; }).join("") + '</div>' +
+      '<p class="small muted">Mehrere sind möglich, zum Beispiel Frühstück und Backen. Die App merkt sich die Wörter im Titel und ordnet ähnliche Rezepte künftig selbst zu.</p>' +
+      '<div class="btnrow"><button class="btn" data-a="kat-speichern" data-id="' + esc(id) + '"' + (wahl.length ? '' : ' disabled') + '>Speichern</button><button class="btn soft" data-a="close-sheet">Abbrechen</button></div>');
+  }
+  function katSpeichern(id) {
+    var e = S.recipes[id], w = UI.katWahl && UI.katWahl.id === id ? UI.katWahl.k : null;
+    if (!e || !w || !w.length) return;
+    var war = katOffen(e);
+    e.kategorien = w.slice(0, 4); katAnwenden(e); e.updatedAt = Date.now();
+    var neu = 0;
+    if (S.lernen && K.lerneKategorie) {
+      K.lerneKategorie(S.lernen, e.recipe, e.kategorien);
+      (S.lernen.protokoll = S.lernen.protokoll || []).push({ art: "kategorie", titel: e.recipe.title || "", kategorien: e.kategorien, vorher: war ? "nicht zugeordnet" : "", datum: new Date().toISOString().slice(0, 10) });
+      save("lernen");
+      // Gelerntes gleich bei den übrigen nicht zugeordneten Rezepten anwenden
+      entries().forEach(function (x) { if (x.id !== id && katOffen(x) && x.input) { try { reanalyse(x); if (!katOffen(x)) neu++; } catch (z) { /* bleibt */ } } });
+    }
+    UI.katWahl = null; save("recipes"); closeSheet(); render();
+    toast("Gespeichert: " + e.kategorien.join(", ") + (neu ? " · " + neu + (neu === 1 ? " weiteres Rezept" : " weitere Rezepte") + " gleich mit zugeordnet" : ""));
+  }
   function viewKategorien() {
     var all = entries().filter(function (e) { return dietOk(e.recipe); });
     if (UI.liste && S.listen[UI.liste]) {
@@ -6853,6 +7129,13 @@ root.RezeptKern = api;
         '<section class="hero"><h1>' + esc(L.name) + '</h1><p class="small muted">' + inL.length + (inL.length === 1 ? " Rezept" : " Rezepte") + ' · eigene Liste</p></section>' +
         (inL.length ? '<div class="group">' + inL.map(recipeRow).join("") + '</div>' : '<div class="group empty">' + ic("grid") + '<p class="muted small">Noch leer. Im Rezept unter „⋯ → Zu Liste hinzufügen“ füllst du sie.</p></div>') +
         '<div class="btnrow"><button class="btn ghost" data-a="liste-loeschen" data-k="' + esc(UI.liste) + '">Liste löschen</button></div>';
+    }
+    if (UI.cat === "__offen") {
+      var offen = all.filter(katOffen);
+      return '<header class="topbar"><button class="iconbtn" data-a="cat-back" aria-label="Alle Kategorien">' + ic("back") + '</button></header>' +
+        '<section class="hero"><h1>Nicht zugeordnet</h1><p class="small muted">' + offen.length + (offen.length === 1 ? " Rezept" : " Rezepte") + ' ohne erkennbare Kategorie. Wähle eine – die App lernt daraus und ordnet ähnliche Rezepte künftig selbst zu.</p></section>' +
+        (offen.length ? '<div class="group">' + offen.map(function (e) { return '<div class="katzeile">' + recipeRow(e) + '<button class="btn soft small" data-a="kat-waehlen" data-id="' + esc(e.id) + '">Kategorie wählen</button></div>'; }).join("") + '</div>'
+          : '<div class="group empty">' + ic("check") + '<p class="muted small">Alles zugeordnet.</p></div>');
     }
     if (UI.cat) {
       var list = filteredList(all.filter(function (e) { return inCat(e, UI.cat); }));
@@ -6873,6 +7156,7 @@ root.RezeptKern = api;
           var n = S.listen[k].ids.filter(function (id) { return S.recipes[id]; }).length;
           return '<button class="row" data-a="liste-zeigen" data-k="' + esc(k) + '">' + ic("grid") + '<span class="main"><span class="title">' + esc(S.listen[k].name) + '</span><span class="sub">' + n + (n === 1 ? " Rezept" : " Rezepte") + '</span></span>' + ic("chev", "chev") + '</button>';
         }).join("") + '</div></section>' : ''; })() +
+      (function () { var n = all.filter(katOffen).length; return n ? '<div class="group"><button class="row" data-a="cat" data-c="__offen">' + ic("info") + '<span class="main"><span class="title">Nicht zugeordnet</span><span class="sub">' + n + (n === 1 ? " Rezept" : " Rezepte") + ' – Kategorie wählen, die App lernt mit</span></span>' + ic("chev", "chev") + '</button></div>' : ''; })() +
       '<div class="catgrid">' + KAT_ORDER.map(function (c) {
         return '<button class="cat" data-a="cat" data-c="' + esc(c) + '"' + (counts[c] ? '' : ' disabled') + '><span class="glyph" aria-hidden="true">' + ic(GANG_ICON[c]) + '</span><span><b>' + esc(c) + '</b><span class="c">' + (counts[c] === 1 ? "1 Rezept" : counts[c] + " Rezepte") + '</span></span></button>';
       }).join("") + '</div>' +
@@ -7000,15 +7284,43 @@ root.RezeptKern = api;
     hits.forEach(function (h) { out += esc(text.slice(pos, h.start)) + '<button class="begriff" data-a="begriff" data-b="' + esc(h.begriff) + '" aria-label="' + esc(h.wort) + ' – Erklärung">' + esc(h.wort) + '</button>'; pos = h.ende; });
     return out + esc(text.slice(pos));
   }
-  // Label antippen: wie die App es bestimmt hat; falsch -> melden (Jakob, 28.10.)
+  // Label „Zeit“ oder „Nährwert-Fokus“ antippen: der Rechenweg dieses Rezepts; falsch -> melden (Jakob, 28.10.)
+  var r1z = function (x) { return String(Math.round(x * 10) / 10).replace(".", ","); };
+  function labelRechnung(e, gruppe, label) {
+    var r = e.recipe, zeilen = [], text = "", kurz = "";
+    if (gruppe === "Zeit") {
+      var za = zeitAnzeige(e);
+      if (za.art === "bei dir") { text = "Du hast " + za.min + " Minuten eingetragen oder im Kochmodus gebraucht."; kurz = "eigene Zeit " + za.min; }
+      else if (!r.timeEstimated && r.timeTotal) { text = "Die Zeit steht so im Rezept (" + r.timeTotal + " Minuten)."; kurz = "laut Rezept " + r.timeTotal; }
+      else {
+        var z = K.zeitAnalyse(r, S.lernen && S.lernen.zeiten);
+        if (z && z.teile) {
+          zeilen = z.teile.map(function (t) { return { links: (t.schritt ? t.schritt + ". " : "") + t.text, rechts: r1z(t.min) + " Min.", sub: t.art }; });
+          var f = zeitFaktor();
+          text = "Geschätzt aus den Schritten: zusammen " + r1z(z.roh) + " Minuten, gerundet " + z.total + (f !== 1 ? ", mit deinem Faktor " + r1z(f) + " → " + za.min : "") + " Minuten." + (z.ueberNacht ? " „Über Nacht“ ist nicht mitgezählt." : "") + " Steht eine Zeit im Schritt, zählt sie (bei „20–25 Minuten“ die Mitte). Sonst schätzt die App typische Dauern; nennt das Rezept andere Zeiten, sind Schritte ohne Zeit meist kurz.";
+          kurz = "geschätzt " + z.total + " (roh " + r1z(z.roh) + "): " + z.teile.map(function (t) { return r1z(t.min) + " " + t.art.split(",")[0]; }).join(" | ");
+        }
+      }
+    } else if (gruppe === "Nährwert-Fokus") {
+      var info = K.FOKUS_INFO && K.FOKUS_INFO[label], l = (r.labels || []).filter(function (x) { return x.gruppe === gruppe && x.label === label; })[0] || {};
+      if (!info) { text = l.basis === "laut Creator" ? "Das sagt der Creator im Beitrag – die App rechnet es nicht nach." : "Grundlage: " + (l.basis || "unbekannt") + "."; kurz = label + " " + (l.basis || ""); }
+      else if (/creator|blog/i.test(l.basis || "")) { text = info.regel + " Grundlage sind die Nährwerte, die der Creator oder Blog angibt."; kurz = label + " laut Angabe"; }
+      else {
+        var a = K.naehrwertAnteile(r, NW, info.feld, { zuordnungen: Z() });
+        text = info.regel + " Dieses Rezept: " + r1z(a.summe) + " " + info.einheit + (a.proPortion ? " je Portion" : " im ganzen Rezept") + (info.anteil && r.nutrition ? " (" + info.anteil(r.nutrition.values) + ")" : "") + ". Gerechnet aus Menge × Wert je 100 g (Bundeslebensmittelschlüssel BLS 4.0)." + (a.offen.length ? " Ohne Nährwert, also nicht mitgezählt: " + a.offen.join(", ") + "." : "");
+        zeilen = a.teile.filter(function (t) { return t.menge > 0; }).slice(0, 8).map(function (t) { return { links: t.name + " (" + t.gramm + " g)", rechts: r1z(t.menge) + " " + info.einheit, sub: r1z(t.je100) + " " + info.einheit + " je 100 g · " + t.anteil + " % · " + t.bls }; });
+        kurz = label + ": " + r1z(a.summe) + " " + info.einheit + " | " + a.teile.slice(0, 5).map(function (t) { return t.name + " " + t.gramm + " g → " + r1z(t.menge); }).join(", ") + (a.offen.length ? " | offen: " + a.offen.join(", ") : "");
+      }
+    }
+    return { text: text, zeilen: zeilen, kurz: kurz };
+  }
   function labelSheet(id, gruppe, label) {
-    var e = S.recipes[id], r = e.recipe, l = (r.labels || []).filter(function (x) { return x.gruppe === gruppe && x.label === label; })[0] || { basis: "" };
-    var info = gruppe === "Nährwert-Fokus" && K.FOKUS_INFO ? K.FOKUS_INFO[label] : null, n = r.nutrition, v = n && n.values, wert = "";
-    if (info && v && v[info.feld] != null) wert = "Dieses Rezept: " + String(Math.round(v[info.feld] * 10) / 10).replace(".", ",") + " " + info.einheit + (n.perServing ? " je Portion" : " im ganzen Rezept") + (info.anteil ? " · " + info.anteil(v) : "") + ".";
-    var wie = info ? info.regel + " Berechnet aus den Zutaten mit dem Bundeslebensmittelschlüssel (BLS 4.0)" + (n && !n.reliable ? " – nur teilweise, weil nicht alle Zutaten bekannt sind." : ".") + (l.basis === "laut Blog" || /creator|blog/i.test(l.basis || "") ? " Angabe vom Creator oder Blog." : "")
-      : (l.basis ? "Grundlage: " + l.basis + "." : "Die App leitet das aus Titel, Zutaten und Schritten ab.");
-    sheet('<h2>' + esc(label) + '</h2><p class="small muted">' + esc(gruppe) + '</p><p>' + esc(wie) + '</p>' + (wert ? '<p class="small">' + esc(wert) + '</p>' : '') +
-      '<button class="btn soft" data-a="label-falsch" data-id="' + esc(id) + '" data-g="' + esc(gruppe) + '" data-l="' + esc(label) + '">Stimmt nicht – melden</button><button class="btn ghost" data-a="close-sheet">Schließen</button>');
+    var e = S.recipes[id], rr = labelRechnung(e, gruppe, label);
+    UI.labelKurz = rr.kurz;
+    sheet('<h2>' + esc(label) + '</h2><p class="small muted">' + esc(gruppe === "Zeit" ? "So kommt die Zeit zustande" : "So rechnet die App") + '</p><p class="small">' + esc(rr.text) + '</p>' +
+      (rr.zeilen.length ? '<div class="group">' + rr.zeilen.map(function (z) { return '<div class="row"><span class="main"><span>' + esc(z.links) + '</span>' + (z.sub ? '<span class="sub">' + esc(z.sub) + '</span>' : '') + '</span><span class="small" style="white-space:nowrap">' + esc(z.rechts) + '</span></div>'; }).join("") + '</div>' : '') +
+      (gruppe === "Zeit" ? '<button class="btn soft" data-a="zeit" data-id="' + esc(id) + '">' + ic("clock") + 'Meine Zeit eintragen</button>' : '') +
+      '<button class="btn soft" data-a="label-falsch" data-id="' + esc(id) + '" data-g="' + esc(gruppe) + '" data-l="' + esc(label) + '">Rechnung stimmt nicht – melden</button><button class="btn ghost" data-a="close-sheet">Schließen</button>');
   }
   function begriffSheet(b) {
     var e = (K.KOCHBEGRIFFE || []).filter(function (x) { return x[0] === b; })[0];
@@ -7060,7 +7372,13 @@ root.RezeptKern = api;
     if (!p) { toast("Der geteilte Link ist unvollständig – bitte noch einmal schicken lassen"); return false; }
     var res = A({ paket: p });
     var out = addRecipe(res, { input: { paket: p, url: p.u || "", account: p.a || "" }, geteilt: true });
-    if (out.dupe) { UI.tab = "rezepte"; UI.detail = out.id; setTimeout(function () { toast("Das Rezept hast du schon"); }, 300); return true; }
+    if (out.dupe) {
+      UI.tab = "rezepte"; UI.detail = out.id; UI.paketKopie = code;
+      // Zum Ausprobieren allein: den eigenen Kombüse-Link öffnen und als Kopie speichern
+      setTimeout(function () { sheet('<h2>Das Rezept hast du schon</h2><p class="small muted">' + esc(titleOf(S.recipes[out.id])) + '</p><p class="small">Du kannst es trotzdem als Kopie speichern – praktisch, um das Teilen allein auszuprobieren.</p>' +
+        '<div class="btnrow"><button class="btn" data-a="paket-kopie">Als Kopie speichern</button><button class="btn soft" data-a="close-sheet">Vorhandenes öffnen</button></div>'); }, 300);
+      return true;
+    }
     S.recipes[out.id].geteilt = true; save("recipes");
     UI.tab = "rezepte"; UI.detail = out.id;
     setTimeout(function () { toast("Geschicktes Rezept gespeichert"); }, 300);
@@ -7103,7 +7421,7 @@ root.RezeptKern = api;
     var labelGroups = {};
     visibleLabels(r).forEach(function (l) { if (l.gruppe === "Gang") return; (labelGroups[l.gruppe] = labelGroups[l.gruppe] || []).push(l); });
     var labels = Object.keys(labelGroups).map(function (g) {
-      return '<div class="lg"><span>' + esc(g) + '</span><span class="tags">' + labelGroups[g].map(function (l) { return '<button class="tag" style="font:inherit;border:0" data-a="label-info" data-id="' + esc(id) + '" data-g="' + esc(l.gruppe) + '" data-l="' + esc(l.label) + '" title="' + esc(l.basis) + '">' + esc(l.label) + '</button>'; }).join("") + '</span></div>';
+      return '<div class="lg"><span>' + esc(g) + '</span><span class="tags">' + labelGroups[g].map(function (l) { return /^(Zeit|Nährwert-Fokus)$/.test(l.gruppe) ? '<button class="tag" style="font:inherit;border:0;text-decoration:underline dotted;text-underline-offset:3px" data-a="label-info" data-id="' + esc(id) + '" data-g="' + esc(l.gruppe) + '" data-l="' + esc(l.label) + '" aria-label="' + esc(l.label) + ' – wie berechnet?">' + esc(l.label) + '</button>' : '<span class="tag" title="' + esc(l.basis) + '">' + esc(l.label) + '</span>'; }).join("") + '</span></div>';
     }).join("");
     var nut = "";
     var offen = (n && n.coverage && n.coverage.offen) || [];
@@ -7123,7 +7441,7 @@ root.RezeptKern = api;
     var src = r.source.url ? '<a class="row" href="' + esc(r.source.url) + '" target="_blank" rel="noopener" data-a="original-auf" data-id="' + esc(id) + '"><span class="main"><span class="title">Original auf Instagram</span><span class="sub">' + (r.source.account ? "@" + esc(r.source.account) : "") + '</span></span>' + ic("chev", "chev") + '</a>' : "";
     var blog = r.source.blogUrl ? '<a class="row" href="' + esc(r.source.blogUrl) + '" target="_blank" rel="noopener"><span class="main"><span class="title">Rezept auf dem Blog</span><span class="sub">' + esc(String(r.source.blogUrl).replace(/^https?:\/\//, "").slice(0, 60)) + '</span></span>' + ic("chev", "chev") + '</a>' : "";
     var blogLink = (r.links || [])[0] || (r.elsewhere && r.elsewhere.url) || "";
-    var missing = !c.enough ? '<div class="note"><b>Noch unvollständig: ' + esc(c.missing.join(", ")) + '.</b><span>' + esc(nextHint(r, e)) + '</span>' +
+    var missing = !c.enough ? '<div class="note"><b>Noch unvollständig: ' + esc(c.missing.join(", ")) + '.</b><span>' + esc(r.schritteLueckenhaft ? "Die Zubereitung hört auf, bevor " + (r.logik.ohneSchritt || []).slice(0, 4).join(", ") + " vorkommen. Oft steht der Rest in den Kommentaren oder im Video. Text kopieren und „Fehlenden Text einfügen“ tippen." : nextHint(r, e)) + '</span>' +
       (blogLink && !r.source.blogUrl ? '<button class="btn accent" data-a="blog-fetch" data-t="' + esc(blogLink) + '">' + ic("share") + 'Rezept vom Blog holen</button>' : '') +
       (r.elsewhere && r.elsewhere.wo === "nachricht" && r.source.url ? '<button class="btn accent" data-a="kommentar" data-t="' + esc(r.elsewhere.stichwort || "") + '" data-u="' + esc(r.source.url) + '">' + ic("share") + (r.elsewhere.stichwort ? '„' + esc(r.elsewhere.stichwort) + '“ kopieren und Beitrag öffnen' : 'Beitrag öffnen') + '</button><p class="small muted">' + (r.elsewhere.stichwort ? 'In Instagram als Kommentar einfügen und senden. ' : '') + 'Der Creator schickt dir das Rezept per Nachricht. Diese kopieren, hierher zurückkommen und „Fehlenden Text einfügen“ tippen.</p>' : '') +
       (r.elsewhere && r.elsewhere.wo === "kommentar" && r.source.url ? '<a class="btn accent" href="' + esc(r.source.url) + '" target="_blank" rel="noopener">' + ic("share") + 'Kommentare in Instagram öffnen</a><p class="small muted">Den Kommentar mit dem Rezept (meist oben angepinnt) lange drücken, kopieren und hier mit „Fehlenden Text einfügen“ ergänzen.</p>' : '') +
@@ -7181,6 +7499,7 @@ root.RezeptKern = api;
       '<button class="row" data-a="share-recipe" data-id="' + esc(id) + '">' + ic("share") + '<span class="main"><span class="title">Rezept teilen</span><span class="sub">Mit Kombüse-Link und Link zum Original</span></span></button>' +
       '<button class="row" data-a="edit" data-id="' + esc(id) + '">' + ic("edit") + '<span class="main"><span class="title">Rezept bearbeiten</span><span class="sub">Zutaten und Schritte korrigieren – die App lernt daraus</span></span></button>' +
       '<button class="row" data-a="rename" data-id="' + esc(id) + '">' + ic("edit") + '<span class="main"><span class="title">Titel ändern</span></span></button>' +
+      '<button class="row" data-a="kat-waehlen" data-id="' + esc(id) + '">' + ic("grid") + '<span class="main"><span class="title">Kategorie ändern</span><span class="sub">' + esc(katOffen(e) ? "Nicht zugeordnet" : [r.category].concat(r.categoryAlso || []).join(", ")) + '</span></span></button>' +
       '<button class="row" data-a="listen" data-id="' + esc(id) + '">' + ic("grid") + '<span class="main"><span class="title">Zu Liste hinzufügen</span><span class="sub">' + esc(Object.keys(S.listen).filter(function (k) { return S.listen[k].ids.indexOf(id) !== -1; }).map(function (k) { return S.listen[k].name; }).join(", ") || "Eigene Listen, z. B. Weihnachten") + '</span></span></button>' +
       (e.cooked ? '<button class="row" data-a="nochmal-frage" data-id="' + esc(id) + '">' + ic("heart") + '<span class="main"><span class="title">Nochmal kochen?</span><span class="sub">' + (e.nochmal === true ? "Ja" : e.nochmal === false ? "Lieber nicht" : "Noch nicht beantwortet") + '</span></span></button>' : '') +
       ((S.recipes[id].recipe.source || {}).account ? '<button class="row" data-a="follow-zeigen" data-acc="' + esc(S.recipes[id].recipe.source.account) + '">' + ic("person") + '<span class="main"><span class="title">Kanal von @' + esc(S.recipes[id].recipe.source.account) + '</span><span class="sub">Folgen und weitere Rezepte ansehen</span></span></button>' : '') +
@@ -8160,7 +8479,7 @@ root.RezeptKern = api;
       case "kachel-fertig": UI.kachelEdit = false; render(); break;
       case "label-info": labelSheet(id, el.dataset.g, el.dataset.l); break;
       case "label-falsch": var le = S.recipes[id], lr = le.recipe, lv = lr.nutrition && lr.nutrition.values;
-        merkeFehler("label", null, { link: (lr.source && lr.source.url) || "", notiz: "Label falsch: " + el.dataset.g + " – " + el.dataset.l + (lv ? " · kcal " + lv.kcal + ", Eiweiß " + lv.protein + " g" : ""), rezept: { titel: titleOf(le), zutaten: lr.ingredients.map(function (i) { return i.raw; }).slice(0, 40) } });
+        merkeFehler("label", null, { link: (lr.source && lr.source.url) || "", art: el.dataset.g, notiz: ("Rechnung falsch: " + el.dataset.g + " – " + el.dataset.l + " · " + (UI.labelKurz || "")).slice(0, 900), rezept: { titel: titleOf(le), zutaten: lr.ingredients.map(function (i) { return i.raw; }).slice(0, 40), schritte: lr.steps.slice(0, 30) } });
         save("lernen"); closeSheet(); toast("Gemeldet – geht gesammelt mit „An Jakob schicken“ raus"); break;
       case "zeit": zeitSheet(id); break;
       case "zeit-ok": var zm = parseInt((($("#zeit-q") || {}).value || ""), 10); if (zm >= 5 && zm <= 360) { zeitMerken(S.recipes[id], zm, "eingetragen"); save("recipes"); closeSheet(); render(); toast("Gemerkt: " + zm + " Minuten"); } else toast("Bitte Minuten zwischen 5 und 360"); break;
@@ -8216,6 +8535,17 @@ root.RezeptKern = api;
         planDieseWoche().forEach(function (t) { t.ids.forEach(function (pid) { if (!S.shopping.list.some(function (x) { return x.id === pid; })) { S.shopping.list.push({ id: pid, servings: UI.servings[pid] || defaultServings(S.recipes[pid].recipe) }); pn++; } }); });
         save("shopping"); render(); toast(pn ? pn + (pn === 1 ? " Rezept" : " Rezepte") + " auf der Einkaufsliste, ohne was du schon hast" : "Schon alles auf der Liste"); break;
       case "listen": listenSheet(id); break;
+      case "kat-waehlen": UI.katWahl = null; katSheet(id); break;
+      case "kat-toggle": (function () { var w = UI.katWahl && UI.katWahl.id === id ? UI.katWahl.k : [], c = el.dataset.c, i = w.indexOf(c); if (i === -1) w.push(c); else w.splice(i, 1); UI.katWahl = { id: id, k: w }; katSheet(id); })(); break;
+      case "kat-speichern": katSpeichern(id); break;
+      case "paket-kopie": (function () {
+        var p = UI.paketKopie && K.paketLesen(UI.paketKopie); if (!p) { closeSheet(); return; }
+        var res = A({ paket: p }), r = res.recipe; r.title = (r.title || "Rezept") + " (Kopie)";
+        K.berechneNaehrwerte(r, NW, null, { zuordnungen: Z() });
+        var nid = K.recipeId(r) + "-k" + Date.now().toString(36);
+        S.recipes[nid] = { id: nid, recipe: r, input: { paket: p, url: p.u || "", account: p.a || "" }, addedAt: Date.now(), updatedAt: Date.now(), geteilt: true, userTitle: r.title };
+        UI.paketKopie = null; save("recipes"); closeSheet(); UI.tab = "rezepte"; UI.detail = nid; render(); toast("Kopie gespeichert – so sieht es bei der Empfängerin aus");
+      })(); break;
       case "liste-tag": var lk = S.listen[el.dataset.k]; if (lk) { var li = lk.ids.indexOf(id); if (li === -1) lk.ids.push(id); else lk.ids.splice(li, 1); save("listen"); listenSheet(id); } break;
       case "liste-neu": listeNeu(id); break;
       case "liste-zeigen": UI.liste = el.dataset.k; render(); window.scrollTo(0, 0); break;

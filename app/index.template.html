@@ -417,6 +417,9 @@ a { color: var(--accent); }
 .cat b { font-size: 1rem; font-weight: 650; display: block; }
 .cat span.c { font-size: 0.82rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .cat[disabled] { opacity: .45; }
+.katzeile { display: grid; }
+.katzeile .row { border-bottom: 0; }
+.katzeile > .btn.small { justify-self: start; margin: 0 16px 12px 64px; padding: 8px 14px; min-height: 0; font-size: .88rem; }
 @media (min-width: 560px) { .catgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .tab span { white-space: nowrap; }
 @media (max-width: 360px) { .tab { font-size: 0.62rem; } }
@@ -466,7 +469,7 @@ a { color: var(--accent); }
   var LERN_ERINNERUNG = 20;
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.20.7";
+  var APP_VERSION = "0.20.8";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0 (creativecommons.org/licenses/by/4.0). Werte unverändert übernommen; Stück- und Löffelgewichte sind eigene Richtwerte der App. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -901,6 +904,7 @@ a { color: var(--accent); }
     if (e.input.caption) { try { e.typ = K.recipeLikelihood(res, e.input.caption, e.input.url).typ || e.typ; } catch (x) { /* egal */ } }
     if (e.edit) applyEdit(r, e.edit);
     e.recipe = r; e.updatedAt = Date.now();
+    katAnwenden(e);
   }
   // ------------------------------------------------------------------ Bearbeiten (die App lernt aus Korrekturen)
   function ingLine(i) { return clean2((i.qty != null ? K.fmtQty(i.qty) + (i.qtyMax != null ? "-" + K.fmtQty(i.qtyMax) : "") + " " : "") + unitText(i.unit) + " " + i.name + (i.note ? ", " + i.note : "")); }
@@ -1046,6 +1050,7 @@ a { color: var(--accent); }
     Object.keys(L.istSchritt || {}).forEach(function (x) { out.push({ k: "istSchritt", v: x, t: "Ist ein Schritt", d: x }); });
     Object.keys(L.zutatAlias || {}).forEach(function (x) { out.push({ k: "zutatAlias", v: x, t: "Zutat", d: x + " → " + L.zutatAlias[x] }); });
     Object.keys(L.keineZutat || {}).forEach(function (x) { out.push({ k: "keineZutat", v: x, t: "Keine Zutat", d: x }); });
+    Object.keys(L.kategorien || {}).forEach(function (x) { var k = L.kategorien[x], c = Object.keys(k).sort(function (a, b) { return k[b] - k[a]; })[0]; if (c) out.push({ k: "kategorien", v: x, t: "Kategorie", d: "Titel mit „" + x + "…“ → " + c + (k[c] > 1 ? " (" + k[c] + "×)" : "") }); });
     Object.keys(S.zuord || {}).forEach(function (x) { var e = S.zuord[x]; out.push({ k: "zuord", v: x, t: "Nährwerte: " + (e.zutat || x), d: e.art === "eigen" ? "eigene Angabe, " + Math.round(e.n.kcal) + " kcal je 100 g" + (e.quelle ? " · Quelle: " + e.quelle : "") + (e.stk ? " · 1 Stück = " + e.stk + " g" : "") : (e.name || "") + (e.stk ? " · 1 Stück = " + e.stk + " g" : "") }); });
     return out;
   }
@@ -1447,6 +1452,41 @@ a { color: var(--accent); }
   // ------------------------------------------------------------------ Ansicht: Kategorien
   var KAT_ORDER = ["Hauptgericht", "Frühstück", "Salat & Bowl", "Suppe & Eintopf", "Snack", "Beilage", "Dessert", "Backen", "Getränk", "Sauce & Dip"];
   function inCat(e, c) { var r = e.recipe; return r.category === c || (r.categoryAlso || []).indexOf(c) !== -1; }
+  // "Nicht zugeordnet": die App hat keinen Hinweis gefunden und nur "Hauptgericht" angenommen
+  function katOffen(e) { return !e.example && !(e.kategorien && e.kategorien.length) && e.recipe.categoryBasis === "Standard"; }
+  // Von Hand gewählte Kategorien gelten immer (auch nach neuer Analyse); erste = Hauptkategorie
+  function katAnwenden(e) {
+    var k = e.kategorien, r = e.recipe;
+    if (!k || !k.length || !r) return;
+    r.category = k[0]; r.categoryAlso = k.slice(1); r.categoryBasis = "von dir";
+    r.labels = (r.labels || []).filter(function (l) { return l.gruppe !== "Gang"; });
+    r.labels = k.map(function (c) { return { gruppe: "Gang", label: c, basis: "von dir" }; }).concat(r.labels);
+  }
+  function katSheet(id) {
+    var e = S.recipes[id]; if (!e) return;
+    var wahl = UI.katWahl && UI.katWahl.id === id ? UI.katWahl.k : (e.kategorien && e.kategorien.slice()) || (katOffen(e) ? [] : [e.recipe.category].concat(e.recipe.categoryAlso || []));
+    UI.katWahl = { id: id, k: wahl };
+    sheet('<h2>Kategorie wählen</h2><p class="small muted">' + esc(titleOf(e)) + '</p>' +
+      '<div class="wrapchips">' + KAT_ORDER.map(function (c) { var i = wahl.indexOf(c); return '<button class="chip' + (i !== -1 ? " on" : "") + '" aria-pressed="' + (i !== -1) + '" data-a="kat-toggle" data-id="' + esc(id) + '" data-c="' + esc(c) + '">' + esc(c) + (i === 0 && wahl.length > 1 ? " · zuerst" : "") + '</button>'; }).join("") + '</div>' +
+      '<p class="small muted">Mehrere sind möglich, zum Beispiel Frühstück und Backen. Die App merkt sich die Wörter im Titel und ordnet ähnliche Rezepte künftig selbst zu.</p>' +
+      '<div class="btnrow"><button class="btn" data-a="kat-speichern" data-id="' + esc(id) + '"' + (wahl.length ? '' : ' disabled') + '>Speichern</button><button class="btn soft" data-a="close-sheet">Abbrechen</button></div>');
+  }
+  function katSpeichern(id) {
+    var e = S.recipes[id], w = UI.katWahl && UI.katWahl.id === id ? UI.katWahl.k : null;
+    if (!e || !w || !w.length) return;
+    var war = katOffen(e);
+    e.kategorien = w.slice(0, 4); katAnwenden(e); e.updatedAt = Date.now();
+    var neu = 0;
+    if (S.lernen && K.lerneKategorie) {
+      K.lerneKategorie(S.lernen, e.recipe, e.kategorien);
+      (S.lernen.protokoll = S.lernen.protokoll || []).push({ art: "kategorie", titel: e.recipe.title || "", kategorien: e.kategorien, vorher: war ? "nicht zugeordnet" : "", datum: new Date().toISOString().slice(0, 10) });
+      save("lernen");
+      // Gelerntes gleich bei den übrigen nicht zugeordneten Rezepten anwenden
+      entries().forEach(function (x) { if (x.id !== id && katOffen(x) && x.input) { try { reanalyse(x); if (!katOffen(x)) neu++; } catch (z) { /* bleibt */ } } });
+    }
+    UI.katWahl = null; save("recipes"); closeSheet(); render();
+    toast("Gespeichert: " + e.kategorien.join(", ") + (neu ? " · " + neu + (neu === 1 ? " weiteres Rezept" : " weitere Rezepte") + " gleich mit zugeordnet" : ""));
+  }
   function viewKategorien() {
     var all = entries().filter(function (e) { return dietOk(e.recipe); });
     if (UI.liste && S.listen[UI.liste]) {
@@ -1455,6 +1495,13 @@ a { color: var(--accent); }
         '<section class="hero"><h1>' + esc(L.name) + '</h1><p class="small muted">' + inL.length + (inL.length === 1 ? " Rezept" : " Rezepte") + ' · eigene Liste</p></section>' +
         (inL.length ? '<div class="group">' + inL.map(recipeRow).join("") + '</div>' : '<div class="group empty">' + ic("grid") + '<p class="muted small">Noch leer. Im Rezept unter „⋯ → Zu Liste hinzufügen“ füllst du sie.</p></div>') +
         '<div class="btnrow"><button class="btn ghost" data-a="liste-loeschen" data-k="' + esc(UI.liste) + '">Liste löschen</button></div>';
+    }
+    if (UI.cat === "__offen") {
+      var offen = all.filter(katOffen);
+      return '<header class="topbar"><button class="iconbtn" data-a="cat-back" aria-label="Alle Kategorien">' + ic("back") + '</button></header>' +
+        '<section class="hero"><h1>Nicht zugeordnet</h1><p class="small muted">' + offen.length + (offen.length === 1 ? " Rezept" : " Rezepte") + ' ohne erkennbare Kategorie. Wähle eine – die App lernt daraus und ordnet ähnliche Rezepte künftig selbst zu.</p></section>' +
+        (offen.length ? '<div class="group">' + offen.map(function (e) { return '<div class="katzeile">' + recipeRow(e) + '<button class="btn soft small" data-a="kat-waehlen" data-id="' + esc(e.id) + '">Kategorie wählen</button></div>'; }).join("") + '</div>'
+          : '<div class="group empty">' + ic("check") + '<p class="muted small">Alles zugeordnet.</p></div>');
     }
     if (UI.cat) {
       var list = filteredList(all.filter(function (e) { return inCat(e, UI.cat); }));
@@ -1475,6 +1522,7 @@ a { color: var(--accent); }
           var n = S.listen[k].ids.filter(function (id) { return S.recipes[id]; }).length;
           return '<button class="row" data-a="liste-zeigen" data-k="' + esc(k) + '">' + ic("grid") + '<span class="main"><span class="title">' + esc(S.listen[k].name) + '</span><span class="sub">' + n + (n === 1 ? " Rezept" : " Rezepte") + '</span></span>' + ic("chev", "chev") + '</button>';
         }).join("") + '</div></section>' : ''; })() +
+      (function () { var n = all.filter(katOffen).length; return n ? '<div class="group"><button class="row" data-a="cat" data-c="__offen">' + ic("info") + '<span class="main"><span class="title">Nicht zugeordnet</span><span class="sub">' + n + (n === 1 ? " Rezept" : " Rezepte") + ' – Kategorie wählen, die App lernt mit</span></span>' + ic("chev", "chev") + '</button></div>' : ''; })() +
       '<div class="catgrid">' + KAT_ORDER.map(function (c) {
         return '<button class="cat" data-a="cat" data-c="' + esc(c) + '"' + (counts[c] ? '' : ' disabled') + '><span class="glyph" aria-hidden="true">' + ic(GANG_ICON[c]) + '</span><span><b>' + esc(c) + '</b><span class="c">' + (counts[c] === 1 ? "1 Rezept" : counts[c] + " Rezepte") + '</span></span></button>';
       }).join("") + '</div>' +
@@ -1602,15 +1650,43 @@ a { color: var(--accent); }
     hits.forEach(function (h) { out += esc(text.slice(pos, h.start)) + '<button class="begriff" data-a="begriff" data-b="' + esc(h.begriff) + '" aria-label="' + esc(h.wort) + ' – Erklärung">' + esc(h.wort) + '</button>'; pos = h.ende; });
     return out + esc(text.slice(pos));
   }
-  // Label antippen: wie die App es bestimmt hat; falsch -> melden (Jakob, 28.10.)
+  // Label „Zeit“ oder „Nährwert-Fokus“ antippen: der Rechenweg dieses Rezepts; falsch -> melden (Jakob, 28.10.)
+  var r1z = function (x) { return String(Math.round(x * 10) / 10).replace(".", ","); };
+  function labelRechnung(e, gruppe, label) {
+    var r = e.recipe, zeilen = [], text = "", kurz = "";
+    if (gruppe === "Zeit") {
+      var za = zeitAnzeige(e);
+      if (za.art === "bei dir") { text = "Du hast " + za.min + " Minuten eingetragen oder im Kochmodus gebraucht."; kurz = "eigene Zeit " + za.min; }
+      else if (!r.timeEstimated && r.timeTotal) { text = "Die Zeit steht so im Rezept (" + r.timeTotal + " Minuten)."; kurz = "laut Rezept " + r.timeTotal; }
+      else {
+        var z = K.zeitAnalyse(r, S.lernen && S.lernen.zeiten);
+        if (z && z.teile) {
+          zeilen = z.teile.map(function (t) { return { links: (t.schritt ? t.schritt + ". " : "") + t.text, rechts: r1z(t.min) + " Min.", sub: t.art }; });
+          var f = zeitFaktor();
+          text = "Geschätzt aus den Schritten: zusammen " + r1z(z.roh) + " Minuten, gerundet " + z.total + (f !== 1 ? ", mit deinem Faktor " + r1z(f) + " → " + za.min : "") + " Minuten." + (z.ueberNacht ? " „Über Nacht“ ist nicht mitgezählt." : "") + " Steht eine Zeit im Schritt, zählt sie (bei „20–25 Minuten“ die Mitte). Sonst schätzt die App typische Dauern; nennt das Rezept andere Zeiten, sind Schritte ohne Zeit meist kurz.";
+          kurz = "geschätzt " + z.total + " (roh " + r1z(z.roh) + "): " + z.teile.map(function (t) { return r1z(t.min) + " " + t.art.split(",")[0]; }).join(" | ");
+        }
+      }
+    } else if (gruppe === "Nährwert-Fokus") {
+      var info = K.FOKUS_INFO && K.FOKUS_INFO[label], l = (r.labels || []).filter(function (x) { return x.gruppe === gruppe && x.label === label; })[0] || {};
+      if (!info) { text = l.basis === "laut Creator" ? "Das sagt der Creator im Beitrag – die App rechnet es nicht nach." : "Grundlage: " + (l.basis || "unbekannt") + "."; kurz = label + " " + (l.basis || ""); }
+      else if (/creator|blog/i.test(l.basis || "")) { text = info.regel + " Grundlage sind die Nährwerte, die der Creator oder Blog angibt."; kurz = label + " laut Angabe"; }
+      else {
+        var a = K.naehrwertAnteile(r, NW, info.feld, { zuordnungen: Z() });
+        text = info.regel + " Dieses Rezept: " + r1z(a.summe) + " " + info.einheit + (a.proPortion ? " je Portion" : " im ganzen Rezept") + (info.anteil && r.nutrition ? " (" + info.anteil(r.nutrition.values) + ")" : "") + ". Gerechnet aus Menge × Wert je 100 g (Bundeslebensmittelschlüssel BLS 4.0)." + (a.offen.length ? " Ohne Nährwert, also nicht mitgezählt: " + a.offen.join(", ") + "." : "");
+        zeilen = a.teile.filter(function (t) { return t.menge > 0; }).slice(0, 8).map(function (t) { return { links: t.name + " (" + t.gramm + " g)", rechts: r1z(t.menge) + " " + info.einheit, sub: r1z(t.je100) + " " + info.einheit + " je 100 g · " + t.anteil + " % · " + t.bls }; });
+        kurz = label + ": " + r1z(a.summe) + " " + info.einheit + " | " + a.teile.slice(0, 5).map(function (t) { return t.name + " " + t.gramm + " g → " + r1z(t.menge); }).join(", ") + (a.offen.length ? " | offen: " + a.offen.join(", ") : "");
+      }
+    }
+    return { text: text, zeilen: zeilen, kurz: kurz };
+  }
   function labelSheet(id, gruppe, label) {
-    var e = S.recipes[id], r = e.recipe, l = (r.labels || []).filter(function (x) { return x.gruppe === gruppe && x.label === label; })[0] || { basis: "" };
-    var info = gruppe === "Nährwert-Fokus" && K.FOKUS_INFO ? K.FOKUS_INFO[label] : null, n = r.nutrition, v = n && n.values, wert = "";
-    if (info && v && v[info.feld] != null) wert = "Dieses Rezept: " + String(Math.round(v[info.feld] * 10) / 10).replace(".", ",") + " " + info.einheit + (n.perServing ? " je Portion" : " im ganzen Rezept") + (info.anteil ? " · " + info.anteil(v) : "") + ".";
-    var wie = info ? info.regel + " Berechnet aus den Zutaten mit dem Bundeslebensmittelschlüssel (BLS 4.0)" + (n && !n.reliable ? " – nur teilweise, weil nicht alle Zutaten bekannt sind." : ".") + (l.basis === "laut Blog" || /creator|blog/i.test(l.basis || "") ? " Angabe vom Creator oder Blog." : "")
-      : (l.basis ? "Grundlage: " + l.basis + "." : "Die App leitet das aus Titel, Zutaten und Schritten ab.");
-    sheet('<h2>' + esc(label) + '</h2><p class="small muted">' + esc(gruppe) + '</p><p>' + esc(wie) + '</p>' + (wert ? '<p class="small">' + esc(wert) + '</p>' : '') +
-      '<button class="btn soft" data-a="label-falsch" data-id="' + esc(id) + '" data-g="' + esc(gruppe) + '" data-l="' + esc(label) + '">Stimmt nicht – melden</button><button class="btn ghost" data-a="close-sheet">Schließen</button>');
+    var e = S.recipes[id], rr = labelRechnung(e, gruppe, label);
+    UI.labelKurz = rr.kurz;
+    sheet('<h2>' + esc(label) + '</h2><p class="small muted">' + esc(gruppe === "Zeit" ? "So kommt die Zeit zustande" : "So rechnet die App") + '</p><p class="small">' + esc(rr.text) + '</p>' +
+      (rr.zeilen.length ? '<div class="group">' + rr.zeilen.map(function (z) { return '<div class="row"><span class="main"><span>' + esc(z.links) + '</span>' + (z.sub ? '<span class="sub">' + esc(z.sub) + '</span>' : '') + '</span><span class="small" style="white-space:nowrap">' + esc(z.rechts) + '</span></div>'; }).join("") + '</div>' : '') +
+      (gruppe === "Zeit" ? '<button class="btn soft" data-a="zeit" data-id="' + esc(id) + '">' + ic("clock") + 'Meine Zeit eintragen</button>' : '') +
+      '<button class="btn soft" data-a="label-falsch" data-id="' + esc(id) + '" data-g="' + esc(gruppe) + '" data-l="' + esc(label) + '">Rechnung stimmt nicht – melden</button><button class="btn ghost" data-a="close-sheet">Schließen</button>');
   }
   function begriffSheet(b) {
     var e = (K.KOCHBEGRIFFE || []).filter(function (x) { return x[0] === b; })[0];
@@ -1662,7 +1738,13 @@ a { color: var(--accent); }
     if (!p) { toast("Der geteilte Link ist unvollständig – bitte noch einmal schicken lassen"); return false; }
     var res = A({ paket: p });
     var out = addRecipe(res, { input: { paket: p, url: p.u || "", account: p.a || "" }, geteilt: true });
-    if (out.dupe) { UI.tab = "rezepte"; UI.detail = out.id; setTimeout(function () { toast("Das Rezept hast du schon"); }, 300); return true; }
+    if (out.dupe) {
+      UI.tab = "rezepte"; UI.detail = out.id; UI.paketKopie = code;
+      // Zum Ausprobieren allein: den eigenen Kombüse-Link öffnen und als Kopie speichern
+      setTimeout(function () { sheet('<h2>Das Rezept hast du schon</h2><p class="small muted">' + esc(titleOf(S.recipes[out.id])) + '</p><p class="small">Du kannst es trotzdem als Kopie speichern – praktisch, um das Teilen allein auszuprobieren.</p>' +
+        '<div class="btnrow"><button class="btn" data-a="paket-kopie">Als Kopie speichern</button><button class="btn soft" data-a="close-sheet">Vorhandenes öffnen</button></div>'); }, 300);
+      return true;
+    }
     S.recipes[out.id].geteilt = true; save("recipes");
     UI.tab = "rezepte"; UI.detail = out.id;
     setTimeout(function () { toast("Geschicktes Rezept gespeichert"); }, 300);
@@ -1705,7 +1787,7 @@ a { color: var(--accent); }
     var labelGroups = {};
     visibleLabels(r).forEach(function (l) { if (l.gruppe === "Gang") return; (labelGroups[l.gruppe] = labelGroups[l.gruppe] || []).push(l); });
     var labels = Object.keys(labelGroups).map(function (g) {
-      return '<div class="lg"><span>' + esc(g) + '</span><span class="tags">' + labelGroups[g].map(function (l) { return '<button class="tag" style="font:inherit;border:0" data-a="label-info" data-id="' + esc(id) + '" data-g="' + esc(l.gruppe) + '" data-l="' + esc(l.label) + '" title="' + esc(l.basis) + '">' + esc(l.label) + '</button>'; }).join("") + '</span></div>';
+      return '<div class="lg"><span>' + esc(g) + '</span><span class="tags">' + labelGroups[g].map(function (l) { return /^(Zeit|Nährwert-Fokus)$/.test(l.gruppe) ? '<button class="tag" style="font:inherit;border:0;text-decoration:underline dotted;text-underline-offset:3px" data-a="label-info" data-id="' + esc(id) + '" data-g="' + esc(l.gruppe) + '" data-l="' + esc(l.label) + '" aria-label="' + esc(l.label) + ' – wie berechnet?">' + esc(l.label) + '</button>' : '<span class="tag" title="' + esc(l.basis) + '">' + esc(l.label) + '</span>'; }).join("") + '</span></div>';
     }).join("");
     var nut = "";
     var offen = (n && n.coverage && n.coverage.offen) || [];
@@ -1725,7 +1807,7 @@ a { color: var(--accent); }
     var src = r.source.url ? '<a class="row" href="' + esc(r.source.url) + '" target="_blank" rel="noopener" data-a="original-auf" data-id="' + esc(id) + '"><span class="main"><span class="title">Original auf Instagram</span><span class="sub">' + (r.source.account ? "@" + esc(r.source.account) : "") + '</span></span>' + ic("chev", "chev") + '</a>' : "";
     var blog = r.source.blogUrl ? '<a class="row" href="' + esc(r.source.blogUrl) + '" target="_blank" rel="noopener"><span class="main"><span class="title">Rezept auf dem Blog</span><span class="sub">' + esc(String(r.source.blogUrl).replace(/^https?:\/\//, "").slice(0, 60)) + '</span></span>' + ic("chev", "chev") + '</a>' : "";
     var blogLink = (r.links || [])[0] || (r.elsewhere && r.elsewhere.url) || "";
-    var missing = !c.enough ? '<div class="note"><b>Noch unvollständig: ' + esc(c.missing.join(", ")) + '.</b><span>' + esc(nextHint(r, e)) + '</span>' +
+    var missing = !c.enough ? '<div class="note"><b>Noch unvollständig: ' + esc(c.missing.join(", ")) + '.</b><span>' + esc(r.schritteLueckenhaft ? "Die Zubereitung hört auf, bevor " + (r.logik.ohneSchritt || []).slice(0, 4).join(", ") + " vorkommen. Oft steht der Rest in den Kommentaren oder im Video. Text kopieren und „Fehlenden Text einfügen“ tippen." : nextHint(r, e)) + '</span>' +
       (blogLink && !r.source.blogUrl ? '<button class="btn accent" data-a="blog-fetch" data-t="' + esc(blogLink) + '">' + ic("share") + 'Rezept vom Blog holen</button>' : '') +
       (r.elsewhere && r.elsewhere.wo === "nachricht" && r.source.url ? '<button class="btn accent" data-a="kommentar" data-t="' + esc(r.elsewhere.stichwort || "") + '" data-u="' + esc(r.source.url) + '">' + ic("share") + (r.elsewhere.stichwort ? '„' + esc(r.elsewhere.stichwort) + '“ kopieren und Beitrag öffnen' : 'Beitrag öffnen') + '</button><p class="small muted">' + (r.elsewhere.stichwort ? 'In Instagram als Kommentar einfügen und senden. ' : '') + 'Der Creator schickt dir das Rezept per Nachricht. Diese kopieren, hierher zurückkommen und „Fehlenden Text einfügen“ tippen.</p>' : '') +
       (r.elsewhere && r.elsewhere.wo === "kommentar" && r.source.url ? '<a class="btn accent" href="' + esc(r.source.url) + '" target="_blank" rel="noopener">' + ic("share") + 'Kommentare in Instagram öffnen</a><p class="small muted">Den Kommentar mit dem Rezept (meist oben angepinnt) lange drücken, kopieren und hier mit „Fehlenden Text einfügen“ ergänzen.</p>' : '') +
@@ -1783,6 +1865,7 @@ a { color: var(--accent); }
       '<button class="row" data-a="share-recipe" data-id="' + esc(id) + '">' + ic("share") + '<span class="main"><span class="title">Rezept teilen</span><span class="sub">Mit Kombüse-Link und Link zum Original</span></span></button>' +
       '<button class="row" data-a="edit" data-id="' + esc(id) + '">' + ic("edit") + '<span class="main"><span class="title">Rezept bearbeiten</span><span class="sub">Zutaten und Schritte korrigieren – die App lernt daraus</span></span></button>' +
       '<button class="row" data-a="rename" data-id="' + esc(id) + '">' + ic("edit") + '<span class="main"><span class="title">Titel ändern</span></span></button>' +
+      '<button class="row" data-a="kat-waehlen" data-id="' + esc(id) + '">' + ic("grid") + '<span class="main"><span class="title">Kategorie ändern</span><span class="sub">' + esc(katOffen(e) ? "Nicht zugeordnet" : [r.category].concat(r.categoryAlso || []).join(", ")) + '</span></span></button>' +
       '<button class="row" data-a="listen" data-id="' + esc(id) + '">' + ic("grid") + '<span class="main"><span class="title">Zu Liste hinzufügen</span><span class="sub">' + esc(Object.keys(S.listen).filter(function (k) { return S.listen[k].ids.indexOf(id) !== -1; }).map(function (k) { return S.listen[k].name; }).join(", ") || "Eigene Listen, z. B. Weihnachten") + '</span></span></button>' +
       (e.cooked ? '<button class="row" data-a="nochmal-frage" data-id="' + esc(id) + '">' + ic("heart") + '<span class="main"><span class="title">Nochmal kochen?</span><span class="sub">' + (e.nochmal === true ? "Ja" : e.nochmal === false ? "Lieber nicht" : "Noch nicht beantwortet") + '</span></span></button>' : '') +
       ((S.recipes[id].recipe.source || {}).account ? '<button class="row" data-a="follow-zeigen" data-acc="' + esc(S.recipes[id].recipe.source.account) + '">' + ic("person") + '<span class="main"><span class="title">Kanal von @' + esc(S.recipes[id].recipe.source.account) + '</span><span class="sub">Folgen und weitere Rezepte ansehen</span></span></button>' : '') +
@@ -2762,7 +2845,7 @@ a { color: var(--accent); }
       case "kachel-fertig": UI.kachelEdit = false; render(); break;
       case "label-info": labelSheet(id, el.dataset.g, el.dataset.l); break;
       case "label-falsch": var le = S.recipes[id], lr = le.recipe, lv = lr.nutrition && lr.nutrition.values;
-        merkeFehler("label", null, { link: (lr.source && lr.source.url) || "", notiz: "Label falsch: " + el.dataset.g + " – " + el.dataset.l + (lv ? " · kcal " + lv.kcal + ", Eiweiß " + lv.protein + " g" : ""), rezept: { titel: titleOf(le), zutaten: lr.ingredients.map(function (i) { return i.raw; }).slice(0, 40) } });
+        merkeFehler("label", null, { link: (lr.source && lr.source.url) || "", art: el.dataset.g, notiz: ("Rechnung falsch: " + el.dataset.g + " – " + el.dataset.l + " · " + (UI.labelKurz || "")).slice(0, 900), rezept: { titel: titleOf(le), zutaten: lr.ingredients.map(function (i) { return i.raw; }).slice(0, 40), schritte: lr.steps.slice(0, 30) } });
         save("lernen"); closeSheet(); toast("Gemeldet – geht gesammelt mit „An Jakob schicken“ raus"); break;
       case "zeit": zeitSheet(id); break;
       case "zeit-ok": var zm = parseInt((($("#zeit-q") || {}).value || ""), 10); if (zm >= 5 && zm <= 360) { zeitMerken(S.recipes[id], zm, "eingetragen"); save("recipes"); closeSheet(); render(); toast("Gemerkt: " + zm + " Minuten"); } else toast("Bitte Minuten zwischen 5 und 360"); break;
@@ -2818,6 +2901,17 @@ a { color: var(--accent); }
         planDieseWoche().forEach(function (t) { t.ids.forEach(function (pid) { if (!S.shopping.list.some(function (x) { return x.id === pid; })) { S.shopping.list.push({ id: pid, servings: UI.servings[pid] || defaultServings(S.recipes[pid].recipe) }); pn++; } }); });
         save("shopping"); render(); toast(pn ? pn + (pn === 1 ? " Rezept" : " Rezepte") + " auf der Einkaufsliste, ohne was du schon hast" : "Schon alles auf der Liste"); break;
       case "listen": listenSheet(id); break;
+      case "kat-waehlen": UI.katWahl = null; katSheet(id); break;
+      case "kat-toggle": (function () { var w = UI.katWahl && UI.katWahl.id === id ? UI.katWahl.k : [], c = el.dataset.c, i = w.indexOf(c); if (i === -1) w.push(c); else w.splice(i, 1); UI.katWahl = { id: id, k: w }; katSheet(id); })(); break;
+      case "kat-speichern": katSpeichern(id); break;
+      case "paket-kopie": (function () {
+        var p = UI.paketKopie && K.paketLesen(UI.paketKopie); if (!p) { closeSheet(); return; }
+        var res = A({ paket: p }), r = res.recipe; r.title = (r.title || "Rezept") + " (Kopie)";
+        K.berechneNaehrwerte(r, NW, null, { zuordnungen: Z() });
+        var nid = K.recipeId(r) + "-k" + Date.now().toString(36);
+        S.recipes[nid] = { id: nid, recipe: r, input: { paket: p, url: p.u || "", account: p.a || "" }, addedAt: Date.now(), updatedAt: Date.now(), geteilt: true, userTitle: r.title };
+        UI.paketKopie = null; save("recipes"); closeSheet(); UI.tab = "rezepte"; UI.detail = nid; render(); toast("Kopie gespeichert – so sieht es bei der Empfängerin aus");
+      })(); break;
       case "liste-tag": var lk = S.listen[el.dataset.k]; if (lk) { var li = lk.ids.indexOf(id); if (li === -1) lk.ids.push(id); else lk.ids.splice(li, 1); save("listen"); listenSheet(id); } break;
       case "liste-neu": listeNeu(id); break;
       case "liste-zeigen": UI.liste = el.dataset.k; render(); window.scrollTo(0, 0); break;

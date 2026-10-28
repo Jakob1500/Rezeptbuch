@@ -682,5 +682,22 @@ check("Ü: Brüche vor der Übersetzung", K.vorUebersetzung("Add 3½ cups water"
   check("Ü: Zutaten bleiben nach der Übersetzung ihrem Schritt zugeordnet", m[0].length === 2 && m[1].length === 1, m);
   check("Ü: englische Zusätze werden abgetrennt", K.parseIngredientLine("2 cups kosher salt").name === "Salz" && K.parseIngredientLine("1 cup unsalted butter").name === "Butter" && K.parseIngredientLine("1 cup granulated sugar").name === "Zucker");
 }
+// 28.10.: Kategorien aus dem Titel-Kopf, gelernte Zuordnungen
+{
+  const kat = (t, z, sch) => K.analyse({ caption: t + "\n\nZutaten\n" + z.join("\n") + "\n\nZubereitung\n" + (sch || ["Alles verrühren.", "Servieren."]).join("\n"), url: "" }).recipe;
+  check("Kat: Erdnussoße ist Soße", kat("Erdnussoße", ["2 EL Öl", "4 EL Erdnüsse", "2 EL Sojasoße", "1 Limette"]).category === "Sauce & Dip");
+  check("Kat: Pecan Pie ist Dessert", kat("Whiskey Pecan Pie", ["200 g Pekannüsse", "100 g Zucker", "2 Eier", "1 Mürbeteig"]).category === "Dessert");
+  check("Kat: Chicken Pot Pie bleibt Hauptgericht", kat("Chicken Pot Pie", ["500 g Hähnchen", "1 Zwiebel", "2 Karotten", "1 Blätterteig"]).category === "Hauptgericht");
+  check("Kat: Ofengnocchi mit Hummus ist kein Dip", kat("Ofengnocchi mit Hummus", ["500 g Gnocchi", "200 g Hummus", "1 Paprika", "1 Zucchini"]).category === "Hauptgericht");
+  check("Kat: Margarita ist Getränk", kat("Frozen Margarita", ["4 cl Tequila", "2 cl Limettensaft", "Eis"]).category === "Getränk");
+  check("Kat: Pommes sind Beilage", kat("Crispy Oven Fries", ["1 kg Kartoffeln", "2 EL Öl", "Salz"]).category === "Beilage");
+  const L = K.neuerLernspeicher(), cap = "Veganes Lahmacun\n\nZutaten\n200 g Sojahack\n4 Dürüm\n1 Paprika\n\nZubereitung\nAlles pürieren und verteilen.\nBacken.";
+  const r1 = K.analyse({ caption: cap, url: "a" }, { lernen: [L] }).recipe;
+  check("Kat: ohne Stichwort -> Standard", r1.categoryBasis === "Standard", r1.categoryBasis);
+  K.lerneKategorie(L, r1, ["Snack"]);
+  const r2 = K.analyse({ caption: cap.replace("Veganes Lahmacun", "Lahmacun mit Minze"), url: "b" }, { lernen: [L] }).recipe;
+  check("Kat: gelernte Zuordnung gilt für ähnliche Titel", r2.category === "Snack" && r2.categoryBasis === "gelernt", [r2.category, r2.categoryBasis]);
+  check("Kat: Lernwerte im Export", JSON.stringify(K.lernExport(L, {}).kategorien).indexOf("lahmac") !== -1);
+}
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

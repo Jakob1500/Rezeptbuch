@@ -198,7 +198,29 @@ const check = (name, cond, info) => { if (cond) ok++; else { bad++; console.log(
   await klick('[data-a="zeit"]'); await page.fill("#zeit-q", "35"); await klick('[data-a="zeit-ok"]');
   check("Eigene Zeit wird angezeigt", /35[\s\S]{0,40}bei dir/.test(await page.innerText("body")));
   // Label antippen
-  if (await klick('[data-a="label-info"]')) { check("Label erklärt mit Melden-Knopf", /Stimmt nicht – melden/.test(await page.innerText(".sheet"))); await page.keyboard.press("Escape"); }
+  if (await klick('[data-a="label-info"]')) { check("Label erklärt mit Rechenweg und Melden-Knopf", /Rechnung stimmt nicht – melden/.test(await page.innerText(".sheet")) && /Min\.|je 100 g/.test(await page.innerText(".sheet")), await page.innerText(".sheet")); await page.keyboard.press("Escape"); }
+  // Kategorien: nicht zugeordnete Rezepte zuordnen, die App lernt mit
+  await page.keyboard.press("Escape"); await page.waitForTimeout(200);
+  const lahm = (t, u) => page.evaluate(([t, u]) => { location.hash = "u=" + encodeURIComponent("https://www.instagram.com/p/" + u + "/") + "&t=" + encodeURIComponent(t + "\n\nZutaten\n200 g Sojahack\n4 Dürüm\n1 Paprika\n\nZubereitung\nAlles pürieren und auf den Dürüm verteilen.\nIm Ofen backen."); }, [t, u]);
+  await lahm("Veganes Lahmacun", "KAT1"); await page.waitForTimeout(1500);
+  for (let k = 0; k < 4; k++) { if (!(await page.$(".sheet"))) break; await page.keyboard.press("Escape"); await page.waitForTimeout(400); }
+  await coachWeg(); await page.click('.tabbar [data-t="kategorien"]'); await page.waitForTimeout(300); await coachWeg();
+  check("Kategorien: Kachel „Nicht zugeordnet“", /Nicht zugeordnet/.test(await page.innerText("body")));
+  await klick('[data-c="__offen"]');
+  check("Nicht zugeordnet: Lahmacun steht drin", /Lahmacun/.test(await page.innerText("body")));
+  await klick('[data-a="kat-waehlen"]'); await klick('.sheet [data-c="Snack"]'); await klick('.sheet [data-a="kat-speichern"]');
+  await page.waitForTimeout(300);
+  check("Zuordnung gespeichert, Liste leer", /Alles zugeordnet/.test(await page.innerText("body")), (await page.innerText("body")).slice(0, 200));
+  await lahm("Lahmacun mit Minze", "KAT2"); await page.waitForTimeout(1500);
+  for (let k = 0; k < 4; k++) { if (!(await page.$(".sheet"))) break; await page.keyboard.press("Escape"); await page.waitForTimeout(400); }
+  await coachWeg(); await page.click('.tabbar [data-t="kategorien"]'); await page.waitForTimeout(300); await klick('[data-c="Snack"]');
+  const gelernt = await page.innerText("body");
+  check("Neues ähnliches Rezept: Kategorie gelernt", /2 Rezepte/.test(gelernt) && (gelernt.match(/Lahmacun/g) || []).length === 2, gelernt.slice(0, 300));
+  // Teilen allein ausprobieren: eigener Kombüse-Link -> als Kopie speichern
+  await page.evaluate((h) => { location.hash = h.slice(1); }, kLink); await page.waitForTimeout(1500);
+  const dsh = await page.$(".sheet") ? await page.innerText(".sheet") : "";
+  check("Eigener Kombüse-Link: „Als Kopie speichern“", /Als Kopie speichern/.test(dsh), dsh.slice(0, 150));
+  if (await klick('.sheet [data-a="paket-kopie"]')) check("Kopie geöffnet", /\(Kopie\)/.test(await page.innerText("body")));
   check("keine JavaScript-Fehler", errors.length === 0, errors);
   await page.screenshot({ path: path.join(require("os").tmpdir(), "einstellungen.png") });
   await browser.close(); srv.close();
