@@ -140,6 +140,36 @@ const check = (name, cond, info) => { if (cond) ok++; else { bad++; console.log(
   await klick('[data-a="more"]');
   check("Antwort im Rezept-Menü", /Nochmal kochen\?\s*Ja/.test(await page.innerText(".sheet")));
   await page.keyboard.press("Escape");
+  // ---- App-Vergleich (Pakete 2–4): Kochbegriffe, Ersatz, Herkunft, Teilen-Link, Gänge, Reste, Woche, Hinweis aufs Original
+  await coachWeg(); await page.click('.tabbar [data-t="rezepte"]'); await page.waitForTimeout(300); await coachWeg();
+  await page.click('text=Blechpizza'); await page.waitForTimeout(400); await coachWeg();
+  check("Kochbegriff antippbar", !!(await page.$('.steps [data-a="begriff"]')));
+  if (await klick('.steps [data-a="begriff"]')) { check("Kochbegriff erklärt", /Ofen|Hitze|kühlen|Teig|garen/i.test(await page.innerText(".sheet"))); await page.keyboard.press("Escape"); await page.waitForTimeout(200); }
+  check("Ersetzen-Knopf bei Zutat", !!(await page.$('[data-a="ersatz"]')));
+  if (await klick('[data-a="ersatz"]')) { check("Ersatz-Vorschlag mit Nährwerten", /ersetzen[\s\S]*je 100 g/i.test(await page.innerText(".sheet")), await page.innerText(".sheet")); await page.keyboard.press("Escape"); await page.waitForTimeout(200); }
+  check("Herkunft sichtbar", /Zutaten aus der Beschreibung/.test(await page.innerText("body")));
+  const geteilt = await page.evaluate(() => { let t = ""; navigator.share = (d) => { t = d.text; return Promise.resolve(); }; document.querySelector('[data-a="more"]').click(); document.querySelector('[data-a="share-recipe"]').click(); return t; });
+  check("Teilen mit Kombüse-Link", /#u=.*&t=.*&g=1/.test(geteilt) && /Original/.test(geteilt), geteilt.slice(0, 160));
+  await page.keyboard.press("Escape"); await page.waitForTimeout(200);
+  await coachWeg(); await page.click('.tabbar [data-t="einkauf"]'); await page.waitForTimeout(300); await coachWeg();
+  for (const w of ["Klopapier", "Chips"]) { await page.fill("#extra-q", w); await page.keyboard.press("Enter"); await page.waitForTimeout(200); }
+  let ek2 = await page.innerText("body");
+  check("Gang Drogerie & Haushalt", /Drogerie & Haushalt[\s\S]*Klopapier/.test(ek2), ek2.slice(0, 300));
+  check("Gang Süßes & Snacks", /Süßes & Snacks[\s\S]*Chips/.test(ek2));
+  await klick('[data-a="gang"][data-n="Chips"]'); await klick('.sheet [data-g="Getränke"]');
+  check("Gang gelernt", /Getränke[\s\S]*Chips/.test(await page.innerText("body")) && (await page.evaluate(() => JSON.stringify(window.localStorage) + "")).length >= 0);
+  await coachWeg(); await page.click('.tabbar [data-t="rezepte"]'); await page.waitForTimeout(300);
+  await klick('[data-a="reste"]'); await page.fill("#reste-q", "Mozzarella, Mehl"); await page.keyboard.press("Enter"); await page.waitForTimeout(300);
+  check("Reste-Suche findet Rezept", /Blechpizza/.test(await page.innerText(".sheet")), await page.innerText(".sheet"));
+  await page.keyboard.press("Escape"); await page.waitForTimeout(200);
+  await klick('[data-a="woche-vorschlag"]');
+  check("Woche vorschlagen öffnet", /Woche vorschlagen/.test(await page.innerText(".sheet")));
+  await page.keyboard.press("Escape"); await page.waitForTimeout(200);
+  await page.evaluate(() => { location.hash = "u=" + encodeURIComponent("https://www.instagram.com/p/GETEILT1/") + "&t=" + encodeURIComponent("Bananenbrot\n\nZutaten\n3 Bananen\n250 g Mehl\n1 TL Backpulver\n\nZubereitung\nBananen zerdrücken und mit Mehl und Backpulver verrühren.\n50 Minuten bei 180 °C backen.") + "&g=1"; });
+  await page.waitForTimeout(1500);
+  let hin = ""; for (let k = 0; k < 4; k++) { const t = await page.$(".sheet"); if (!t) break; hin += await t.innerText(); if (/Original auf Instagram öffnen/.test(hin)) break; await page.keyboard.press("Escape"); await page.waitForTimeout(600); }
+  if (!/Original auf Instagram öffnen/.test(hin)) { const t = await page.$('text=Bananenbrot'); if (t) { await t.click(); await page.waitForTimeout(900); const s2 = await page.$(".sheet"); if (s2) hin += await s2.innerText(); } }
+  check("Geteiltes Rezept: Hinweis aufs Original", /Original auf Instagram öffnen/.test(hin), hin.slice(0, 200));
   check("keine JavaScript-Fehler", errors.length === 0, errors);
   await page.screenshot({ path: path.join(require("os").tmpdir(), "einstellungen.png") });
   await browser.close(); srv.close();

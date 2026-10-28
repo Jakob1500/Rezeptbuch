@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.6.3";
+  var VERSION = "0.6.4";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -30,7 +30,7 @@
   // ---------------------------------------------------------------------------
 
   var AISLES = ["Obst & Gemüse", "Kühlregal", "Fleisch & Fisch", "Brot & Backwaren",
-    "Trockenware & Konserven", "Gewürze, Öle & Saucen", "Tiefkühl", "Getränke", "Sonstiges"];
+    "Trockenware & Konserven", "Gewürze, Öle & Saucen", "Tiefkühl", "Getränke", "Süßes & Snacks", "Drogerie & Haushalt", "Sonstiges"];
 
   // Einheiten: Alias -> kanonische Einheit. Längere Aliase zuerst prüfen.
   var UNIT_ALIASES = {
@@ -2511,6 +2511,7 @@
       naehrwerte: naehrwertExport(meta && meta.zuord),
       teilenFehler: (L.fehler || []).filter(function (f) { return !f.gesendet; }),
       zeiten: L.zeiten || {},
+      gaenge: L.gaenge || {}, // Einkaufs-Gänge, die jemand von Hand geändert hat (C7)
       protokoll: (L.protokoll || []).filter(function (x) { return !x.gesendet; }),
       titel: (L.titel || []).filter(function (x) { return !x.gesendet; }).map(function (x) { return { konto: x.konto, link: x.link, automatisch: x.automatisch, original: x.original || undefined, neu: x.neu, datum: x.datum }; }) };
   }
@@ -4176,6 +4177,275 @@
     return r;
   }
 
+
+  // ---------------------------------------------------------------------------
+  // Einkaufsliste: Gang für jeden Eintrag (App-Vergleich C7)
+  // Reihenfolge: Gelerntes > Haushalt/Drogerie > Marken > Wörterbuch (längster Treffer, Wortende zählt mehr) > BLS-Warengruppe
+  // ---------------------------------------------------------------------------
+  var GANG_WOERTER = [
+    ["Drogerie & Haushalt", ["spülmittel", "spüli", "spültabs", "spülmaschinentabs", "klarspüler", "spülschwamm", "schwamm", "lappen", "spültuch", "putztuch", "mikrofasertuch",
+      "klopapier", "toilettenpapier", "küchenrolle", "küchenpapier", "taschentücher", "servietten", "müllbeutel", "müllsäcke", "mülltüten", "gefrierbeutel", "frischhaltefolie", "alufolie", "backpapier", "brotdose", "dose für", "vorratsdose",
+      "waschmittel", "weichspüler", "fleckentferner", "putzmittel", "reiniger", "entkalker", "swiffer", "staubsaugerbeutel", "staubtuch", "besen", "eimer",
+      "zahnpasta", "zahncreme", "zahnbürste", "zahnseide", "mundspülung", "shampoo", "spülung", "duschgel", "seife", "handseife", "deo", "deodorant", "bodylotion", "creme für", "handcreme", "gesichtscreme", "sonnencreme", "sonnenschutz", "parfum", "parfüm",
+      "rasierer", "rasierklingen", "rasierschaum", "rasiergel", "binden", "tampons", "slipeinlagen", "windeln", "feuchttücher", "wattepads", "wattestäbchen", "pflaster", "kontaktlinsen",
+      "batterie", "batterien", "glühbirne", "leuchtmittel", "kerze", "kerzen", "streichhölzer", "feuerzeug",
+      "katzenfutter", "hundefutter", "tierfutter", "katzenstreu", "vogelfutter", "grillkohle", "holzkohle", "grillanzünder", "geschenkpapier", "vitamintabletten", "tabletten", "nahrungsergänzung",
+      "haushaltsgerät", "küchenhelfer", "wasserkocher", "toaster", "schneebesen", "pfannenwender", "kochlöffel", "messer", "schneidebrett", "sieb", "reibe", "dosenöffner", "pinsel", "auflaufform", "backform", "muffinförmchen", "topf", "pfanne", "teller", "becher", "gläser", "strohhalme"]],
+    ["Süßes & Snacks", ["chips", "flips", "salzstangen", "brezeln", "popcorn", "cracker", "gummibärchen", "gummibären", "fruchtgummi", "lakritz", "bonbons", "kaugummi", "schokoriegel", "pralinen", "kekse", "plätzchen", "waffeln", "studentenfutter", "nussmischung", "müsliriegel", "proteinriegel", "eis am stiel", "süßigkeiten", "snacks"]],
+    ["Getränke", ["wasser", "mineralwasser", "sprudel", "sprudelwasser", "limo", "limonade", "schorle", "saft", "eistee", "cola", "energy", "kaffeebohnen", "kaffeepads", "kaffeekapseln", "kaffee", "tee", "teebeutel", "sekt", "prosecco", "wein", "bier", "kombucha", "hafermilch", "haferdrink", "sojadrink", "mandeldrink"]],
+    ["Brot & Backwaren", ["brezel", "laugenbrezel", "croissant", "semmel", "knäckebrot", "zwieback", "toastbrot", "vollkornbrot", "laugenstange"]],
+    ["Kühlregal", ["gouda", "emmentaler", "bergkäse", "hummus", "seitan", "räuchertofu", "veggie burger", "würstchen vegan", "aufschnitt", "joghurt", "pudding"]],
+    ["Tiefkühl", ["tiefkühlpizza", "pizza tk", "tk-pizza", "fischstäbchen", "pommes", "tk-erbsen", "rahmspinat", "eiswürfel", "speiseeis", "eis", "eiscreme"]],
+    ["Gewürze, Öle & Saucen", ["kapern", "mayo", "mayonnaise", "remoulade", "grillsauce", "bbq-sauce", "dressing", "ketchup", "olivenöl", "rapsöl", "sonnenblumenöl"]],
+    ["Trockenware & Konserven", ["erdnussmus", "erdnussbutter", "mandelmus", "cashewmus", "nutella", "marmelade", "konfitüre", "aufstrich", "müsli", "cornflakes", "granola", "proteinpulver", "oliven", "cashew", "cashews", "erdnüsse", "walnüsse", "haselnüsse"]],
+    ["Obst & Gemüse", ["äpfel", "apfel", "birne", "trauben", "kiwi", "pflaume", "nektarine", "pfirsich", "melone", "salatgurke", "eisbergsalat"]]
+  ];
+  var GANG_MARKEN = { "nutella": "Trockenware & Konserven", "coca-cola": "Getränke", "coke": "Getränke", "fanta": "Getränke", "sprite": "Getränke", "red bull": "Getränke", "club-mate": "Getränke",
+    "haribo": "Süßes & Snacks", "oreo": "Süßes & Snacks", "pringles": "Süßes & Snacks", "milka": "Süßes & Snacks", "ritter sport": "Süßes & Snacks", "kinder": "Süßes & Snacks", "duplo": "Süßes & Snacks", "hanuta": "Süßes & Snacks",
+    "nivea": "Drogerie & Haushalt", "persil": "Drogerie & Haushalt", "pril": "Drogerie & Haushalt", "fairy": "Drogerie & Haushalt", "somat": "Drogerie & Haushalt", "finish": "Drogerie & Haushalt", "tempo": "Drogerie & Haushalt", "zewa": "Drogerie & Haushalt", "colgate": "Drogerie & Haushalt", "elmex": "Drogerie & Haushalt", "gillette": "Drogerie & Haushalt", "balea": "Drogerie & Haushalt", "dove": "Drogerie & Haushalt", "swiffer": "Drogerie & Haushalt",
+    "alpro": "Kühlregal", "oatly": "Getränke", "philadelphia": "Kühlregal", "barilla": "Trockenware & Konserven", "knorr": "Gewürze, Öle & Saucen", "maggi": "Gewürze, Öle & Saucen", "heinz": "Gewürze, Öle & Saucen" };
+  // Bester Treffer: Wort am Ende eines (zusammengesetzten) Wortes zählt am meisten ("Tomatenketchup" ist Ketchup, "Zahnpasta" keine Pasta), sonst das längste Wort
+  function gangTreffer(n) {
+    var best = null;
+    var pruefe = function (gang, term, extra) {
+      var at = n.indexOf(term);
+      while (at !== -1) {
+        var nach = n.slice(at + term.length).match(/^(?:e|en|n|s|er|n?s)?(?=[^a-zäöüß]|$)/); // Plural zählt als Wortende ("Kichererbse-n")
+        var vorne = at === 0 || /[^a-zäöüß]/.test(n.charAt(at - 1)), ende = !!nach;
+        if (vorne && ende || !WHOLE_WORD[term] && (term.length >= 4 || ende && term.length >= 2)) {
+          var punkte = term.length + (ende ? 50 : 0) + (vorne && ende ? 10 : 0) + (extra || 0);
+          if (!best || punkte > best.punkte) best = { gang: gang, wort: term, punkte: punkte };
+        }
+        at = n.indexOf(term, at + 1);
+      }
+    };
+    GANG_WOERTER.forEach(function (g) { g[1].forEach(function (w) { pruefe(g[0], w, 1); }); });
+    AISLE_DICT.forEach(function (g) { g[1].forEach(function (w) { if (!/^(tk[- ]|ei|eier)$/.test(w) || w === "ei" || w === "eier") pruefe(g[0], w.trim(), 0); }); });
+    return best;
+  }
+  // BLS als Rückfall: erster Buchstabe des BLS-Codes = Warengruppe
+  var BLS_GANG = { B: "Brot & Backwaren", C: "Trockenware & Konserven", D: "Brot & Backwaren", E: "Trockenware & Konserven", F: "Obst & Gemüse", G: "Obst & Gemüse", H: "Trockenware & Konserven", K: "Obst & Gemüse",
+    M: "Kühlregal", N: "Getränke", P: "Getränke", Q: "Gewürze, Öle & Saucen", R: "Gewürze, Öle & Saucen", S: "Süßes & Snacks", T: "Fleisch & Fisch", U: "Fleisch & Fisch", V: "Fleisch & Fisch", W: "Fleisch & Fisch" };
+  function blsGang(name, eintraege) {
+    if (!eintraege || !eintraege.length) return null;
+    var w = lower(name).split(/[\s,\/-]+/).filter(function (x) { return x.length > 2; });
+    if (!w.length) return null;
+    var c = {};
+    eintraege.forEach(function (e) {
+      var n = lower(e[1]);
+      if (!w.some(function (x) { return n.indexOf(x) === 0 || n.split(/[\s,\/]+/).indexOf(x) !== -1; })) return;
+      var g = /tiefgefroren|tiefgekühlt/.test(n) ? "Tiefkühl" : e[0].charAt(0) === "E" && /\bei\b|eigelb|eiklar|hühnerei/.test(n) ? "Kühlregal" : BLS_GANG[e[0].charAt(0)];
+      if (g) c[g] = (c[g] || 0) + 1;
+    });
+    var best = Object.keys(c).sort(function (a, b) { return c[b] - c[a]; })[0];
+    return best || null;
+  }
+  // opts: { gelernt: {schlüssel: Gang}, bls: [[code, name], …] }
+  function einkaufsGang(name, opts) {
+    opts = opts || {};
+    var n = lower(clean(stripEmoji(String(name || "")))).replace(/\(.*?\)/g, " ").replace(/^\s*(?:\d+(?:[.,]\d+)?\s*(?:x|g|kg|ml|l|stk|stück|packungen?|pck|dosen?|flaschen?|gläser|glas|beutel|rollen?)?\s+)/i, "").trim();
+    if (!n) return "Sonstiges";
+    var key = normName(n);
+    var gl = opts.gelernt || {};
+    if (gl[key]) return gl[key];
+    if (gl[n]) return gl[n];
+    var marke = Object.keys(GANG_MARKEN).filter(function (m) { return containsTermAt(n, m); }).sort(function (a, b) { return b.length - a.length; })[0];
+    var t = gangTreffer(n);
+    // Haushalt/Drogerie zuerst ("Zahnpasta", "Backpapier"), dann Marke, dann bester Wörterbuch-Treffer
+    if (t && t.gang === "Drogerie & Haushalt" && t.punkte >= 50) return t.gang;
+    if (marke) return GANG_MARKEN[marke];
+    if (t) return t.gang;
+    if (/(^|\s)tk[- ]|tiefgekühlt|tiefkühl|gefroren/.test(n)) return "Tiefkühl";
+    return blsGang(n, opts.bls) || "Sonstiges";
+  }
+  function containsTermAt(n, term) { return new RegExp("(^|[^a-zäöüß])" + escapeRe(term) + "($|[^a-zäöüß])").test(n); }
+
+  // ---------------------------------------------------------------------------
+  // Reste-Suche „Ich habe …“ (C8): Rezepte, die möglichst viele der genannten Zutaten verwenden
+  // ---------------------------------------------------------------------------
+  function resteSuche(rezepte, text, opts) {
+    opts = opts || {};
+    var woerter = String(text || "").split(/\s*(?:,|;|\n|\bund\b|\band\b|&|\+)\s*/i).map(function (w) { return clean(w); }).filter(function (w) { return w.length >= 2; });
+    var such = woerter.map(function (w) { var p = parseIngredientLine(w); return { wort: w, key: p ? p.key : lower(w), stamm: lower(p ? p.name : w).replace(/(e|en|n|s)$/, "") }; });
+    if (!such.length) return [];
+    var hat = opts.hat || function () { return false; };
+    return (rezepte || []).map(function (e) {
+      var r = e.recipe || e, ings = r.ingredients || [];
+      var treffer = such.filter(function (s) { return ings.some(function (i) { var nm = lower(i.name + " " + (i.key || "")); return i.key === s.key || (s.stamm.length >= 3 && nm.indexOf(s.stamm) !== -1); }); });
+      var noetig = ings.filter(function (i) { return !i.optional && !i.staple; });
+      var fehlt = noetig.filter(function (i) { return !hat(i.key) && !such.some(function (s) { return i.key === s.key || lower(i.name).indexOf(s.stamm) !== -1; }); });
+      return { e: e, treffer: treffer.map(function (s) { return s.wort; }), fehlt: fehlt.map(function (i) { return i.name; }) };
+    }).filter(function (x) { return x.treffer.length; })
+      .sort(function (a, b) { return b.treffer.length - a.treffer.length || a.fehlt.length - b.fehlt.length; });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Woche vorschlagen (C10): Rezepte, die sich Zutaten teilen (weniger Reste, kürzere Einkaufsliste)
+  // ---------------------------------------------------------------------------
+  function wochenVorschlag(rezepte, opts) {
+    opts = opts || {};
+    var anzahl = opts.anzahl || 4, hat = opts.hat || function () { return false; }, jetzt = opts.jetzt || Date.now();
+    var kandidaten = (rezepte || []).filter(function (e) { var r = e.recipe; return r && r.ingredients && r.ingredients.length >= 3 && r.steps && r.steps.length && !e.example && (opts.erlaubt ? opts.erlaubt(e) : true); });
+    var zutaten = function (e) { var o = {}; e.recipe.ingredients.forEach(function (i) { if (!i.staple && !i.optional && i.key && !isStaple(i.name)) o[i.key] = i.name; }); return o; };
+    var Z = kandidaten.map(zutaten);
+    var basis = kandidaten.map(function (e, k) {
+      var fehlt = Object.keys(Z[k]).filter(function (key) { return !hat(key); }).length;
+      var lange = e.lastCooked ? Math.min(30, (jetzt - e.lastCooked) / 864e5) : 20; // länger nicht gekocht = eher dran
+      var zeit = e.recipe.timeTotal && e.recipe.timeTotal <= 40 ? 2 : 0;
+      return (e.fav ? 3 : 0) + lange / 5 + zeit - fehlt * 0.6;
+    });
+    var gewaehlt = [], einkauf = {};
+    while (gewaehlt.length < anzahl && gewaehlt.length < kandidaten.length) {
+      var bestK = -1, bestP = -1e9;
+      kandidaten.forEach(function (e, k) {
+        if (gewaehlt.indexOf(k) !== -1) return;
+        var gemeinsam = Object.keys(Z[k]).filter(function (key) { return einkauf[key]; }).length;
+        var kat = (e.recipe.category || ""), gleicheKat = gewaehlt.filter(function (g) { return (kandidaten[g].recipe.category || "") === kat; }).length;
+        var p = basis[k] + gemeinsam * 2.5 - gleicheKat * 2;
+        if (p > bestP) { bestP = p; bestK = k; }
+      });
+      if (bestK < 0) break;
+      gewaehlt.push(bestK); Object.keys(Z[bestK]).forEach(function (key) { einkauf[key] = (einkauf[key] || 0) + 1; });
+    }
+    var geteilt = Object.keys(einkauf).filter(function (k) { return einkauf[k] > 1; }).map(function (k) { for (var g = 0; g < gewaehlt.length; g++) if (Z[gewaehlt[g]][k]) return Z[gewaehlt[g]][k]; return k; });
+    return { rezepte: gewaehlt.map(function (k) { return kandidaten[k]; }), geteilt: geteilt };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Zutat ersetzen (C9): vorsichtige Tauschliste; Nährwerte vergleicht die App mit dem BLS
+  // f = Faktor für die Menge, hinweis = worauf achten. Nur Fälle, die beim Kochen meist gut gehen.
+  // ---------------------------------------------------------------------------
+  var ERSATZ = {
+    "butter": [["Margarine", 1, "beim Backen 1:1"], ["Rapsöl", 0.8, "zum Braten; beim Backen etwas weniger nehmen"]],
+    "sahne": [["Hafercuisine", 1, "zum Kochen; lässt sich nicht aufschlagen"], ["Kokosmilch", 1, "schmeckt leicht nach Kokos"]],
+    "milch": [["Haferdrink", 1, "zum Kochen und Backen 1:1"], ["Sojadrink", 1, "mehr Eiweiß"]],
+    "joghurt": [["Sojajoghurt", 1, "1:1"], ["Skyr", 1, "dicker und eiweißreicher"]],
+    "schmand": [["Saure Sahne", 1, "etwas flüssiger"], ["Crème fraîche", 1, "verträgt Hitze besser"]],
+    "saure sahne": [["Schmand", 1, "etwas fester"], ["Joghurt", 1, "nicht kochen, sonst flockt er"]],
+    "crème fraîche": [["Schmand", 1, "1:1"]],
+    "creme fraiche": [["Schmand", 1, "1:1"]],
+    "frischkäse": [["Quark", 1, "etwas säuerlicher"]],
+    "quark": [["Skyr", 1, "1:1"], ["Griechischer Joghurt", 1, "etwas flüssiger"]],
+    "parmesan": [["Pecorino", 1, "würziger"], ["Hefeflocken", 0.5, "vegan; halbe Menge"]],
+    "honig": [["Ahornsirup", 1, "1:1"], ["Agavendicksaft", 0.8, "süßer; etwas weniger"]],
+    "ahornsirup": [["Honig", 1, "nicht vegan"], ["Agavendicksaft", 0.8, "süßer; etwas weniger"]],
+    "zucker": [["Brauner Zucker", 1, "leicht karamellig"]],
+    "zitronensaft": [["Limettensaft", 1, "1:1"], ["Weißweinessig", 0.5, "nur für herzhafte Gerichte; halbe Menge"]],
+    "limettensaft": [["Zitronensaft", 1, "1:1"]],
+    "frühlingszwiebel": [["Schnittlauch", 1, "milder; erst zum Schluss dazu"], ["Zwiebel", 0.5, "fein gewürfelt; halbe Menge"]],
+    "schalotte": [["Zwiebel", 1, "etwas schärfer"]],
+    "rotweinessig": [["Balsamico", 1, "süßer"], ["Apfelessig", 1, "milder"]],
+    "weißweinessig": [["Apfelessig", 1, "1:1"]],
+    "balsamico": [["Rotweinessig", 1, "saurer; eine Prise Zucker dazu"]],
+    "gemüsebrühe": [["Wasser mit Brühpulver", 1, "1 TL Pulver auf 250 ml"]],
+    "sojasauce": [["Tamari", 1, "glutenfrei"]],
+    "tamari": [["Sojasauce", 1, "enthält Gluten"]],
+    "basilikum": [["Petersilie", 1, "anderer Geschmack, aber frisch"]],
+    "koriander": [["Petersilie", 1, "für alle, die Koriander nicht mögen"]],
+    "petersilie": [["Koriander", 1, "kräftiger"], ["Schnittlauch", 1, "milder"]],
+    "spinat": [["Mangold", 1, "länger garen"], ["Grünkohl", 1, "länger garen"]],
+    "rucola": [["Feldsalat", 1, "milder"]],
+    "zucchini": [["Aubergine", 1, "länger garen"]],
+    "kichererbse": [["Weiße Bohnen", 1, "1:1"]],
+    "weiße bohne": [["Kichererbsen", 1, "1:1"]],
+    "rote linse": [["Gelbe Linsen", 1, "gleiche Kochzeit"]],
+    "reis": [["Quinoa", 1, "kürzere Kochzeit"], ["Bulgur", 1, "kürzere Kochzeit"]],
+    "couscous": [["Bulgur", 1, "etwas länger quellen"]],
+    "bulgur": [["Couscous", 1, "kürzer quellen"]],
+    "dinkelmehl": [["Weizenmehl", 1, "Type 550 für Dinkel 630"]],
+    "mehl": [["Dinkelmehl", 1, "Type 630; Teig wird etwas weicher"]],
+    "olivenöl": [["Rapsöl", 1, "neutraler im Geschmack"]],
+    "rapsöl": [["Sonnenblumenöl", 1, "1:1"]],
+    "mozzarella": [["Burrata", 1, "cremiger, erst nach dem Backen darauf"], ["Gouda", 0.8, "kräftiger; etwas weniger"]],
+    "weizenmehl": [["Dinkelmehl", 1, "Type 630 für Weizen 405/550; Teig etwas weicher"]],
+    "speisestärke": [["Mehl", 2, "doppelte Menge zum Binden"]],
+    "paniermehl": [["Semmelbrösel", 1, "1:1"], ["Panko", 1, "knuspriger"]],
+    "tofu": [["Tempeh", 1, "nussiger, fester"]],
+    "erdnussbutter": [["Mandelmus", 1, "milder"], ["Cashewmus", 1, "milder"]],
+    "erdnussmus": [["Mandelmus", 1, "milder"], ["Cashewmus", 1, "milder"]],
+    "tahin": [["Cashewmus", 1, "milder"]],
+    "kokosmilch": [["Hafercuisine", 1, "ohne Kokosgeschmack"]],
+    "ei": [["Leinsamen", 0, "1 EL gemahlene Leinsamen + 3 EL Wasser je Ei; nur zum Binden, nicht für Eischnee"]],
+    "hackfleisch": [["Sojahack", 1, "vegan; mit Brühe einweichen"]],
+    "rinderhack": [["Sojahack", 1, "vegan; mit Brühe einweichen"]]
+  };
+  function ersatzFuer(ing) {
+    if (!ing) return [];
+    var k = normName(ing.key || ing.name), n = lower(ing.name);
+    var liste = ERSATZ[k] || ERSATZ[n] || ERSATZ[k.replace(/n$/, "")] || null;
+    if (!liste) { var lang = Object.keys(ERSATZ).filter(function (x) { return x.length >= 4 && (containsTermAt(n, x) || containsTermAt(k, x)); }).sort(function (a, b) { return b.length - a.length; })[0]; if (lang) liste = ERSATZ[lang]; }
+    return (liste || []).map(function (x) { return { name: x[0], faktor: x[1], hinweis: x[2], key: normName(x[0]) }; });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Kochbegriffe antippen (C11): kurze, eigene Erklärungen
+  // ---------------------------------------------------------------------------
+  var KOCHBEGRIFFE = [
+    ["ablöschen", "Heißes Bratgut mit Flüssigkeit (Brühe, Wein, Wasser) übergießen. Das löst den Bratensatz und gibt Geschmack."],
+    ["abschmecken", "Zum Schluss probieren und mit Salz, Pfeffer, Säure oder Süße nachwürzen, bis es dir schmeckt."],
+    ["abschrecken", "Gegartes kurz in eiskaltes Wasser geben. So stoppt das Garen und Gemüse bleibt knackig und farbig."],
+    ["al dente", "Nudeln oder Gemüse so garen, dass sie innen noch etwas Biss haben."],
+    ["anschwitzen", "Bei mittlerer Hitze in wenig Fett garen, bis es glasig ist – ohne braun zu werden."],
+    ["andünsten", "Bei mittlerer Hitze in wenig Fett garen, bis es weich und glasig ist – ohne braun zu werden."],
+    ["blanchieren", "Kurz (meist 1–3 Minuten) in kochendes Salzwasser geben, dann sofort kalt abschrecken."],
+    ["glasig", "Zwiebeln sind glasig, wenn sie durchscheinend und weich sind, aber noch nicht braun."],
+    ["karamellisieren", "Bei mittlerer Hitze so lange garen, bis Zucker (auch der eigene, z. B. in Zwiebeln) braun und süßlich wird."],
+    ["köcheln", "Knapp unter dem Kochen garen: es blubbert nur leicht. Herd auf mittlere bis kleine Stufe."],
+    ["simmern", "Knapp unter dem Kochen garen: es blubbert nur leicht. Herd auf mittlere bis kleine Stufe."],
+    ["reduzieren", "Ohne Deckel einkochen lassen, bis Flüssigkeit verdampft ist. Die Soße wird dicker und kräftiger."],
+    ["einkochen", "Ohne Deckel einkochen lassen, bis Flüssigkeit verdampft ist. Die Soße wird dicker und kräftiger."],
+    ["unterheben", "Vorsichtig mit einem Teigschaber von unten nach oben mischen, damit Luft (z. B. aus Eischnee) drin bleibt."],
+    ["emulgieren", "Fett und Wässriges (z. B. Öl und Essig) durch kräftiges Rühren oder Mixen zu einer glatten, cremigen Masse verbinden."],
+    ["marinieren", "Zutaten in einer Würzmischung ziehen lassen, damit sie Geschmack annehmen – von 15 Minuten bis über Nacht."],
+    ["pochieren", "In heißer Flüssigkeit knapp unter dem Kochen sanft garen (z. B. Eier)."],
+    ["schmoren", "Erst anbraten, dann mit wenig Flüssigkeit zugedeckt lange bei kleiner Hitze garen."],
+    ["sautieren", "In wenig heißem Fett unter ständigem Schwenken kurz braten."],
+    ["rösten", "Ohne oder mit wenig Fett braten, bis es duftet und leicht braun wird – z. B. Nüsse oder Gewürze in der trockenen Pfanne."],
+    ["anrösten", "Ohne oder mit wenig Fett braten, bis es duftet und leicht braun wird."],
+    ["glasieren", "Mit einer glänzenden Schicht überziehen, z. B. Gemüse in Butter und etwas Zucker schwenken."],
+    ["legieren", "Eine Soße mit Eigelb oder Sahne binden – nicht mehr kochen lassen, sonst gerinnt sie."],
+    ["binden", "Eine Flüssigkeit dicker machen, z. B. mit angerührter Speisestärke."],
+    ["mehlschwitze", "Butter schmelzen, Mehl einrühren und kurz anschwitzen; dann Flüssigkeit dazu. Grundlage für helle Soßen."],
+    ["wasserbad", "Eine Schüssel über einen Topf mit heißem, nicht kochendem Wasser setzen – zum sanften Schmelzen (z. B. Schokolade)."],
+    ["zur rose abziehen", "Eine Creme unter Rühren erhitzen, bis sie auf dem Kochlöffel liegen bleibt und beim Pusten Wellen wie eine Rose zeigt."],
+    ["ober-/unterhitze", "Der Ofen heizt von oben und unten. Bei Umluft meist 20 °C weniger einstellen."],
+    ["umluft", "Ein Ventilator verteilt die Hitze. Gegenüber Ober-/Unterhitze meist 20 °C weniger einstellen."],
+    ["röschen", "Die kleinen Blütenstände von Brokkoli oder Blumenkohl, vom Strunk abgeschnitten."],
+    ["julienne", "Gemüse in sehr feine, streichholzdünne Streifen schneiden."],
+    ["zesten", "Die äußere, farbige Schale von Zitrusfrüchten fein abreiben – ohne das bittere Weiße."],
+    ["abrieb", "Die äußere, farbige Schale von Zitrusfrüchten fein abgerieben – ohne das bittere Weiße. Bio-Früchte nehmen."],
+    ["prise", "So viel, wie zwischen Daumen und Zeigefinger passt – etwa 1/8 Teelöffel."],
+    ["msp", "Messerspitze: so viel, wie auf die Spitze eines Messers passt – etwas weniger als eine Prise."],
+    ["messerspitze", "So viel, wie auf die Spitze eines Messers passt – etwas weniger als eine Prise."],
+    ["vorheizen", "Den Ofen schon vorher anschalten, damit er die Temperatur hat, wenn das Gericht hineinkommt (meist 10–15 Minuten)."],
+    ["ziehen lassen", "Bei wenig oder ohne Hitze stehen lassen, damit sich die Aromen verbinden oder etwas gar wird."],
+    ["quellen lassen", "Getreide oder Samen in Flüssigkeit stehen lassen, bis sie sie aufgenommen haben und weich sind."],
+    ["deglacieren", "Den Bratensatz in der Pfanne mit Flüssigkeit lösen – wie Ablöschen."],
+    ["passieren", "Durch ein feines Sieb streichen, damit es ganz glatt wird."],
+    ["auskühlen lassen", "Vollständig abkühlen lassen, bevor es weitergeht – sonst schmilzt z. B. Glasur."],
+    ["kneten", "Teig mit den Händen (oder der Küchenmaschine) kräftig drücken, falten und wieder drücken, bis er glatt und elastisch ist – meist 5–10 Minuten."],
+    ["verkneten", "Zutaten mit den Händen (oder der Küchenmaschine) zu einem glatten Teig verarbeiten – meist 5–10 Minuten."],
+    ["ruhen lassen", "Abgedeckt stehen lassen, ohne etwas zu tun. Teig wird dabei geschmeidiger, Fleisch saftiger."],
+    ["temperieren", "Langsam auf eine bestimmte Temperatur bringen, z. B. Schokolade, damit sie glänzt und knackt."]
+  ];
+  // Fundstellen in einem Schritt: [{wort (wie im Text), start, ende, erklaerung}] – je Begriff nur das erste Vorkommen
+  function kochbegriffeIn(text) {
+    var t = String(text || ""), low = lower(t), out = [];
+    KOCHBEGRIFFE.forEach(function (b) {
+      var re = new RegExp("(^|[^a-zäöüß])(" + escapeRe(b[0]) + ")(?=[^a-zäöüß]|$)", "i"), m = re.exec(low);
+      if (!m) {
+        // gebeugte Formen: "abgelöscht", "köchelt", "blanchierte", "vorgeheizten"
+        var stamm = b[0].replace(/(en|n)$/, "");
+        if (stamm.length >= 5 && !/\s/.test(b[0])) m = new RegExp("(^|[^a-zäöüß])(" + escapeRe(stamm) + "[a-zäöüß]{0,4})(?=[^a-zäöüß]|$)", "i").exec(low);
+      }
+      if (!m) return;
+      var start = m.index + m[1].length, ende = start + m[2].length;
+      if (out.some(function (o) { return start < o.ende && ende > o.start; })) return;
+      out.push({ wort: t.slice(start, ende), start: start, ende: ende, begriff: b[0], erklaerung: b[1] });
+    });
+    return out.sort(function (a, b) { return a.start - b.start; });
+  }
+
   // ---------------------------------------------------------------------------
 
   var api = {
@@ -4197,6 +4467,7 @@
     buildLabels: buildLabels, LABEL_GRUPPEN: LABEL_GRUPPEN, GRUNDVORRAT: GRUNDVORRAT, standardVorrat: standardVorrat, vorratsSchluessel: vorratsSchluessel,
     extractInlineIngredients: extractInlineIngredients, isStepLike: isStepLike, postType: postType, normalizeFancy: normalizeFancy, zuordnungsVorschlaege: zuordnungsVorschlaege,
     recipeId: recipeId, importNeue: importNeue, folgenVorschlag: folgenVorschlag, folgenAntwort: folgenAntwort, FOLGEN_ERNEUT_AB: FOLGEN_ERNEUT_AB, FOLGEN_AB: FOLGEN_AB, pruefeBlogTreffer: pruefeBlogTreffer,
+    einkaufsGang: einkaufsGang, blsGang: blsGang, resteSuche: resteSuche, wochenVorschlag: wochenVorschlag, ersatzFuer: ersatzFuer, ERSATZ: ERSATZ, kochbegriffeIn: kochbegriffeIn, KOCHBEGRIFFE: KOCHBEGRIFFE,
     parseRecipeHtml: parseRecipeHtml, inferServings: inferServings, uebersetzeSchritte: uebersetzeSchritte, uebersetzeZutaten: uebersetzeZutaten, mergeFrameText: mergeFrameText, isEnglishTitle: isEnglishTitle, stepIngredients: stepIngredients, parseTranscript: parseTranscript, detectLang: detectLang, rezeptStil: rezeptStil, cleanSteps: cleanSteps, langOfText: langOfText, dropEnglishHalf: dropEnglishHalf
   };
 

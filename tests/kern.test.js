@@ -647,5 +647,27 @@ check("Ton: fehlende Schritte kommen aus dem Ton", tonLeer.recipe.steps.length >
   check("A5: half a cup / two to three", e.ingredients.some(i => i.name === "Haferflocken") && e.ingredients.some(i => i.qtyMax === 3), e.ingredients.map(i => i.raw));
 }
 
+// Paket 3/4: Gänge (C7), Reste (C8), Ersatz (C9), Woche (C10), Kochbegriffe (C11)
+{
+  const g = t => K.einkaufsGang(t);
+  check("C7: Haushalt", ["Klopapier", "Zahnpasta", "Backpapier", "Müllbeutel", "Spüli", "Rasierer", "Swiffer", "Staubsaugerbeutel", "Sonnencreme"].every(t => g(t) === "Drogerie & Haushalt"), ["Klopapier", "Zahnpasta", "Backpapier"].map(g));
+  check("C7: Wortende entscheidet", g("Tomatenketchup") === "Gewürze, Öle & Saucen" && g("Olivenöl") === "Gewürze, Öle & Saucen" && g("Kichererbsen") === "Trockenware & Konserven", [g("Tomatenketchup"), g("Olivenöl"), g("Kichererbsen")]);
+  check("C7: Marken und Snacks", g("Haribo") === "Süßes & Snacks" && g("Chips") === "Süßes & Snacks" && g("Coca-Cola") === "Getränke", [g("Haribo"), g("Chips")]);
+  check("C7: Gelerntes geht vor", K.einkaufsGang("Klopapier", { gelernt: { klopapier: "Sonstiges" } }) === "Sonstiges");
+  check("C7: BLS-Rückfall", K.einkaufsGang("Grünkern", { bls: [["C999000", "Grünkern, roh"]] }) === "Trockenware & Konserven", K.einkaufsGang("Grünkern", { bls: [["C999000", "Grünkern, roh"]] }));
+  const mk = (t, z) => ({ id: t, recipe: { title: t, ingredients: z.map(K.parseIngredientLine), steps: ["Kochen."] } });
+  const R = [mk("Curry", ["200 g Reis", "1 Zucchini", "400 ml Kokosmilch"]), mk("Pfanne", ["1 Zucchini", "2 Paprika", "200 g Feta"]), mk("Kuchen", ["200 g Mehl", "3 Eier"])];
+  const rs = K.resteSuche(R, "Zucchini, Feta");
+  check("C8: Reste-Suche sortiert nach Treffern", rs.length === 2 && rs[0].e.id === "Pfanne" && rs[0].treffer.length === 2, rs.map(x => x.e.id + ":" + x.treffer.length));
+  const ers = K.ersatzFuer(K.parseIngredientLine("200 ml Sahne"));
+  check("C9: Ersatz für Sahne", ers.length >= 1 && ers[0].name === "Hafercuisine", ers);
+  check("C9: kein Ersatz für Unbekanntes", K.ersatzFuer(K.parseIngredientLine("1 Prise Zauberstaub")).length === 0);
+  const w = K.wochenVorschlag(R.concat([mk("Gemüse", ["1 Zucchini", "2 Paprika", "1 Zwiebel"])]), { anzahl: 2 });
+  check("C10: Woche nutzt gemeinsame Zutaten", w.rezepte.length === 2 && w.geteilt.length >= 1, [w.rezepte.map(e => e.id), w.geteilt]);
+  const kb = K.kochbegriffeIn("Mit Brühe ablöschen und 10 Minuten köcheln lassen, dann abschmecken.");
+  check("C11: Kochbegriffe gefunden", kb.map(x => x.begriff).join(",") === "ablöschen,köcheln,abschmecken", kb.map(x => x.begriff));
+  check("C11: gebeugte Form", K.kochbegriffeIn("Den Brokkoli blanchiert servieren.").length === 1);
+}
+
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

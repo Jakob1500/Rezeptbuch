@@ -54,28 +54,36 @@ fs.writeFileSync(path.join(docs, "manifest.webmanifest"), JSON.stringify({
           { src: "icon.svg", sizes: "any", type: "image/svg+xml" }]
 }, null, 1));
 const ver = require(path.join(root, "kern/rezept-kern.js")).VERSION + "-" + Date.now().toString(36);
+// Große Daten (Übersetzer, BLS-Suche) in einem eigenen Speicher, der nur wechselt, wenn sich diese Dateien ändern (App-Vergleich C4)
+const datenHash = require("crypto").createHash("sha1");
+["bls-suche.json", "bergamot/registry.json"].forEach(f => { const pf = path.join(docs, f); if (fs.existsSync(pf)) datenHash.update(fs.readFileSync(pf)); });
+const daten = datenHash.digest("hex").slice(0, 10);
 fs.writeFileSync(path.join(docs, "sw.js"), `// Offline-Speicher der App (nur eigene Dateien, keine fremden Abrufe)
 const CACHE = "rezeptbuch-${ver}";
+const DATEN = "rezeptbuch-daten-${daten}";
 const FILES = ["./", "index.html", "manifest.webmanifest", "icon.svg", "icon-180.png", "icon-192.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES))); self.skipWaiting(); });
-self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k))))); self.clients.claim(); });
+self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE && k !== DATEN).map(k => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener("fetch", e => {
   const u = new URL(e.request.url);
   if (u.origin !== location.origin || e.request.method !== "GET") return;
-  // Die App selbst: mit Internet immer die neueste Fassung, ohne Internet die gespeicherte
-  if (e.request.mode === "navigate" || /\/(index\.html)?$/.test(u.pathname)) {
-    e.respondWith(fetch(e.request, { cache: "no-store" }).then(res => {
+  // Die App selbst: mit Internet immer die neueste Fassung (unverändert = nur kurze Rückfrage, kein neuer Download), ohne Internet die gespeicherte
+  if (e.request.mode === "navigate" || /\\/(index\\.html)?$/.test(u.pathname)) {
+    e.respondWith(fetch(e.request, { cache: "no-cache" }).then(res => {
       if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put("index.html", copy)); }
       return res;
     }).catch(() => caches.match("index.html").then(hit => hit || caches.match("./"))));
     return;
   }
+  const gross = /bls-suche\\.json$/.test(u.pathname) || /\\/bergamot\\//.test(u.pathname);
   e.respondWith(caches.match(e.request, { ignoreSearch: true }).then(hit => hit || fetch(e.request).then(res => {
-    if (res.ok && (/bls-suche\\.json$/.test(u.pathname) || /\\/bergamot\\//.test(u.pathname))) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); }
+    if (res.ok && gross) { const copy = res.clone(); caches.open(DATEN).then(c => c.put(e.request, copy)); }
     return res;
   })));
 });
 `);
+// Gegenprobe: ein Tippfehler im Service Worker legt das Offline-Speichern still, ohne dass die App es merkt
+try { new Function(fs.readFileSync(path.join(docs, "sw.js"), "utf8")); } catch (e) { console.error("sw.js fehlerhaft: " + e.message); process.exit(1); }
 fs.writeFileSync(path.join(docs, ".nojekyll"), "");
 const prev = process.argv[2];
 if (prev) fs.writeFileSync(prev, body);
