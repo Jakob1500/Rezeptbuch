@@ -232,7 +232,7 @@ const nw = K.berechneNaehrwerte(curry, NW);
 check("Curry kcal plausibel", nw.values.kcal > 380 && nw.values.kcal < 560, nw.values);
 check("Curry pro Portion", nw.perServing && nw.servings === 4);
 check("Curry Abdeckung", nw.reliable && nw.coverage.unmatched.length <= 1, nw.coverage);
-check("Curry viel Eisen berechnet", curry.focus.some(f => f.label === "viel Eisen" && f.basis === "berechnet"), curry.focus);
+check("Curry eisenreich berechnet", curry.focus.some(f => f.label === "eisenreich" && f.basis === "berechnet"), curry.focus);
 check("Curry proteinreich bleibt Creator-Angabe", curry.focus.some(f => f.label === "proteinreich" && f.basis === "laut Creator"), curry.focus);
 const bowl = K.analyse({ caption: "Hähnchen-Bowl\nZutaten (2 Portionen):\n300 g Hähnchenbrust\n150 g Reis\n1 Avocado\n2 EL Olivenöl\nZubereitung:\nReis kochen.\nHähnchen braten und alles anrichten." }).recipe;
 const nb = K.berechneNaehrwerte(bowl, NW);
@@ -788,9 +788,9 @@ check("Ü: Brüche vor der Übersetzung", K.vorUebersetzung("Add 3½ cups water"
 }
 {
   // N/O: Labels je Portion, ehrlich benannt; weitere Nährstoffe
-  check("N: Label-Regel nennt Bezugswert und je Portion", /4,2 mg/.test(K.FOKUS_INFO["viel Eisen"].regel) && /je Portion/.test(K.FOKUS_INFO["viel Eisen"].regel) && K.FOKUS_INFO["viel Eisen"].anteil({ iron: 6.2 }) === "44 % des Tagesbedarfs");
-  check("O: Jod, B12, Vitamin D, Zink, Folat als Labels", ["viel Jod", "viel Vitamin B12", "viel Vitamin D", "viel Zink", "viel Folat"].every(l => K.FOKUS_INFO[l] && K.FOKUS_INFO[l].nrv));
-  check("O: Schwelle Jod 45 µg", /ab 45 µg/.test(K.FOKUS_INFO["viel Jod"].regel), K.FOKUS_INFO["viel Jod"].regel);
+  check("N: Label-Regel nennt Bezugswert und je Portion", /4,2 mg/.test(K.FOKUS_INFO["eisenreich"].regel) && /je Portion/.test(K.FOKUS_INFO["eisenreich"].regel) && K.FOKUS_INFO["eisenreich"].anteil({ iron: 6.2 }) === "44 % des Tagesbedarfs");
+  check("O: Jod, B12, Vitamin D, Zink, Folat als Labels", ["jodreich", "vitamin-B12-reich", "vitamin-D-reich", "zinkreich", "folatreich"].every(l => K.FOKUS_INFO[l] && K.FOKUS_INFO[l].nrv));
+  check("O: Schwelle Jod 45 µg", /ab 45 µg/.test(K.FOKUS_INFO["jodreich"].regel), K.FOKUS_INFO["jodreich"].regel);
 }
 {
   // L: Ausreißer bei der Kochzeit

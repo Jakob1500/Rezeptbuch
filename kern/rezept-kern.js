@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.7.2";
+  var VERSION = "0.7.3";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -2425,36 +2425,36 @@
     return r;
   }
 
-  // Nährwert-Labels (Entscheidung N, Jakob 29.10.2026: je Portion, ehrlich benannt)
+  // Nährwert-Labels (Entscheidung N, Jakob 29.10.2026: je Portion; Namen wie „eisenreich“ bleiben – die Erklärung sagt, dass es je Portion gilt)
   // Eiweiß und Ballaststoffe: Regeln der VO (EG) Nr. 1924/2006 (Anhang), die sich auf die Energie beziehen –
   //   gelten je Portion genauso wie je 100 g: proteinreich ≥ 20 % der Energie aus Eiweiß, ballaststoffreich ≥ 3 g je 100 kcal.
-  // Vitamine und Mineralstoffe: „viel …“ = eine Portion liefert mindestens 30 % des Nährstoffbezugswerts (NRV)
-  //   aus der LMIV (VO (EU) Nr. 1169/2011, Anhang XIII Teil A). Die EU-Angabe „reich an …“ auf Verpackungen
-  //   gilt dagegen je 100 g – deshalb heißen unsere Labels anders. Die Erklärung zeigt beides.
-  // Omega-3: ≥ 0,6 g je 100 kcal (die EU-Regel verlangt zusätzlich 0,6 g je 100 g) – daher ebenfalls „viel Omega-3“.
-  var NRV = [ // Feld, Bezugswert je Tag, Einheit, Name (Reihenfolge = Reihenfolge der Labels)
-    ["iron", 14, "mg", "Eisen"], ["calcium", 800, "mg", "Calcium"], ["magnesium", 375, "mg", "Magnesium"], ["zinc", 10, "mg", "Zink"],
-    ["iodine", 150, "µg", "Jod"], ["vitB12", 2.5, "µg", "Vitamin B12"], ["vitD", 5, "µg", "Vitamin D"], ["folate", 200, "µg", "Folat"], ["vitC", 80, "mg", "Vitamin C"]];
+  // Vitamine und Mineralstoffe: „…reich“ = eine Portion liefert mindestens 30 % des Nährstoffbezugswerts (NRV)
+  //   aus der LMIV (VO (EU) Nr. 1169/2011, Anhang XIII Teil A). Die EU-Angabe auf Verpackungen gilt dagegen je 100 g –
+  //   die Erklärung zeigt beides.
+  // Omega-3: ≥ 0,6 g je 100 kcal (die EU-Regel verlangt zusätzlich 0,6 g je 100 g).
+  var NRV = [ // Feld, Bezugswert je Tag, Einheit, Name, Label (Reihenfolge = Reihenfolge der Labels)
+    ["iron", 14, "mg", "Eisen", "eisenreich"], ["calcium", 800, "mg", "Calcium", "calciumreich"], ["magnesium", 375, "mg", "Magnesium", "magnesiumreich"], ["zinc", 10, "mg", "Zink", "zinkreich"],
+    ["iodine", 150, "µg", "Jod", "jodreich"], ["vitB12", 2.5, "µg", "Vitamin B12", "vitamin-B12-reich"], ["vitD", 5, "µg", "Vitamin D", "vitamin-D-reich"], ["folate", 200, "µg", "Folat", "folatreich"], ["vitC", 80, "mg", "Vitamin C", "vitamin-C-reich"]];
   var NRV_ANTEIL = 0.3;
   var FOCUS_RULES = [
     ["proteinreich", function (n) { return n.protein != null && (n.protein * 4) / n.kcal >= 0.2; }],
     ["ballaststoffreich", function (n) { return n.fiber != null && n.fiber / (n.kcal / 100) >= 3; }]
-  ].concat(NRV.map(function (x) { return ["viel " + x[3], function (n) { return n[x[0]] != null && n[x[0]] >= x[1] * NRV_ANTEIL - 1e-9; }]; }))
-   .concat([["viel Omega-3", function (n) { return n.omega3 != null && n.omega3 / (n.kcal / 100) >= 0.6; }]]);
+  ].concat(NRV.map(function (x) { return [x[4], function (n) { return n[x[0]] != null && n[x[0]] >= x[1] * NRV_ANTEIL - 1e-9; }]; }))
+   .concat([["omega-3-reich", function (n) { return n.omega3 != null && n.omega3 / (n.kcal / 100) >= 0.6; }]]);
   // Erklärung je Fokus-Label für die App (Tipp auf das Label): Feld, Einheit, Regel in einfachen Worten
   var FOKUS_INFO = {
     "proteinreich": { feld: "protein", einheit: "g", regel: "Mindestens 20 % der Kalorien kommen aus Eiweiß (EU-Regel, VO 1924/2006 – gilt je Portion wie je 100 g).", anteil: function (n) { return n.protein && n.kcal ? Math.round(n.protein * 4 / n.kcal * 100) + " % der Kalorien aus Eiweiß" : ""; } },
     "ballaststoffreich": { feld: "fiber", einheit: "g", regel: "Mindestens 3 g Ballaststoffe je 100 kcal (EU-Regel, VO 1924/2006).", anteil: function (n) { return n.fiber && n.kcal ? (Math.round(n.fiber / (n.kcal / 100) * 10) / 10 + " g je 100 kcal").replace(".", ",") : ""; } },
-    "viel Omega-3": { feld: "omega3", einheit: "g", regel: "Mindestens 0,6 g Omega-3-Fettsäuren je 100 kcal. Die EU-Angabe „reich an Omega-3“ verlangt zusätzlich 0,6 g je 100 g." }
+    "omega-3-reich": { feld: "omega3", einheit: "g", regel: "Mindestens 0,6 g Omega-3-Fettsäuren je 100 kcal. Die EU-Regel für diese Angabe verlangt zusätzlich 0,6 g je 100 g." }
   };
   NRV.forEach(function (x) {
     var schwelle = String(Math.round(x[1] * NRV_ANTEIL * 100) / 100).replace(".", ",");
-    FOKUS_INFO["viel " + x[3]] = { feld: x[0], einheit: x[2], nrv: x[1],
+    FOKUS_INFO[x[4]] = { feld: x[0], einheit: x[2], nrv: x[1], name: x[3],
       regel: "Eine Portion liefert mindestens 30 % des Tagesbedarfs an " + x[3] + " – ab " + schwelle + " " + x[2] + " (Bezugswert " + String(x[1]).replace(".", ",") + " " + x[2] + " pro Tag, LMIV Anhang XIII). Gerechnet je Portion, nicht nach der EU-Regel für Verpackungen (je 100 g).",
       anteil: function (n) { return n[x[0]] != null ? Math.round(n[x[0]] / x[1] * 100) + " % des Tagesbedarfs" : ""; } };
   });
-  // Alte Label-Namen (bis Kern 0.6.9) → neue, z. B. für gespeicherte Filter
-  var FOKUS_ALT = { "eisenreich": "viel Eisen", "calciumreich": "viel Calcium", "magnesiumreich": "viel Magnesium", "vitamin-C-reich": "viel Vitamin C", "omega-3-reich": "viel Omega-3" };
+  // Kurzzeitige Label-Namen aus Kern 0.7.0–0.7.2 → wieder die gewohnten (Jakob, 29.10.: „eisenreich ist besser als viel Eisen“)
+  var FOKUS_ALT = {}; NRV.forEach(function (x) { FOKUS_ALT["viel " + x[3]] = x[4]; }); FOKUS_ALT["viel Omega-3"] = "omega-3-reich";
   // Wie kommt ein Nährwert zustande? Beitrag jeder Zutat (für die Erklärung beim Antippen eines Labels)
   function naehrwertAnteile(r, tabelle, feld, opts) {
     var table = tabelle && tabelle.zutaten ? tabelle.zutaten : tabelle, eigene = (opts && opts.zuordnungen) || {};

@@ -468,7 +468,7 @@ a { color: var(--accent); }
 
 <script>(function (root) {
 "use strict";
-var VERSION = "0.7.2";
+var VERSION = "0.7.3";
 var SCHEMA_VERSION = 1;
 var AISLES = ["Obst & Gemüse", "Kühlregal", "Fleisch & Fisch", "Brot & Backwaren",
 "Trockenware & Konserven", "Gewürze, Öle & Saucen", "Tiefkühl", "Getränke", "Süßes & Snacks", "Drogerie & Haushalt", "Sonstiges"];
@@ -3262,27 +3262,29 @@ r.focus.push({ label: c, basis: "laut Creator" });
 return r;
 }
 var NRV = [
-["iron", 14, "mg", "Eisen"], ["calcium", 800, "mg", "Calcium"], ["magnesium", 375, "mg", "Magnesium"], ["zinc", 10, "mg", "Zink"],
-["iodine", 150, "µg", "Jod"], ["vitB12", 2.5, "µg", "Vitamin B12"], ["vitD", 5, "µg", "Vitamin D"], ["folate", 200, "µg", "Folat"], ["vitC", 80, "mg", "Vitamin C"]
+["iron", 14, "mg", "Eisen", "eisenreich"], ["calcium", 800, "mg", "Calcium", "calciumreich"], ["magnesium", 375, "mg", "Magnesium", "magnesiumreich"], ["zinc", 10, "mg", "Zink", "zinkreich"],
+["iodine", 150, "µg", "Jod", "jodreich"], ["vitB12", 2.5, "µg", "Vitamin B12", "vitamin-B12-reich"], ["vitD", 5, "µg", "Vitamin D", "vitamin-D-reich"], ["folate", 200, "µg", "Folat", "folatreich"], ["vitC", 80, "mg", "Vitamin C", "vitamin-C-reich"]
 ];
 var NRV_ANTEIL = 0.3;
 var FOCUS_RULES = [
 ["proteinreich", function (n) { return n.protein != null && (n.protein * 4) / n.kcal >= 0.2; }],
 ["ballaststoffreich", function (n) { return n.fiber != null && n.fiber / (n.kcal / 100) >= 3; }]
-].concat(NRV.map(function (x) { return ["viel " + x[3], function (n) { return n[x[0]] != null && n[x[0]] >= x[1] * NRV_ANTEIL - 1e-9; }]; }))
-.concat([["viel Omega-3", function (n) { return n.omega3 != null && n.omega3 / (n.kcal / 100) >= 0.6; }]]);
+].concat(NRV.map(function (x) { return [x[4], function (n) { return n[x[0]] != null && n[x[0]] >= x[1] * NRV_ANTEIL - 1e-9; }]; }))
+.concat([["omega-3-reich", function (n) { return n.omega3 != null && n.omega3 / (n.kcal / 100) >= 0.6; }]]);
 var FOKUS_INFO = {
 "proteinreich": { feld: "protein", einheit: "g", regel: "Mindestens 20 % der Kalorien kommen aus Eiweiß (EU-Regel, VO 1924/2006 – gilt je Portion wie je 100 g).", anteil: function (n) { return n.protein && n.kcal ? Math.round(n.protein * 4 / n.kcal * 100) + " % der Kalorien aus Eiweiß" : ""; } },
 "ballaststoffreich": { feld: "fiber", einheit: "g", regel: "Mindestens 3 g Ballaststoffe je 100 kcal (EU-Regel, VO 1924/2006).", anteil: function (n) { return n.fiber && n.kcal ? (Math.round(n.fiber / (n.kcal / 100) * 10) / 10 + " g je 100 kcal").replace(".", ",") : ""; } },
-"viel Omega-3": { feld: "omega3", einheit: "g", regel: "Mindestens 0,6 g Omega-3-Fettsäuren je 100 kcal. Die EU-Angabe „reich an Omega-3“ verlangt zusätzlich 0,6 g je 100 g." }
+"omega-3-reich": { feld: "omega3", einheit: "g", regel: "Mindestens 0,6 g Omega-3-Fettsäuren je 100 kcal. Die EU-Regel für diese Angabe verlangt zusätzlich 0,6 g je 100 g." }
 };
 NRV.forEach(function (x) {
 var schwelle = String(Math.round(x[1] * NRV_ANTEIL * 100) / 100).replace(".", ",");
-FOKUS_INFO["viel " + x[3]] = { feld: x[0], einheit: x[2], nrv: x[1],
+FOKUS_INFO[x[4]] = { feld: x[0], einheit: x[2], nrv: x[1], name: x[3],
 regel: "Eine Portion liefert mindestens 30 % des Tagesbedarfs an " + x[3] + " – ab " + schwelle + " " + x[2] + " (Bezugswert " + String(x[1]).replace(".", ",") + " " + x[2] + " pro Tag, LMIV Anhang XIII). Gerechnet je Portion, nicht nach der EU-Regel für Verpackungen (je 100 g).",
 anteil: function (n) { return n[x[0]] != null ? Math.round(n[x[0]] / x[1] * 100) + " % des Tagesbedarfs" : ""; } };
 });
-var FOKUS_ALT = { "eisenreich": "viel Eisen", "calciumreich": "viel Calcium", "magnesiumreich": "viel Magnesium", "vitamin-C-reich": "viel Vitamin C", "omega-3-reich": "viel Omega-3" };
+var FOKUS_ALT = {};
+NRV.forEach(function (x) { FOKUS_ALT["viel " + x[3]] = x[4]; });
+FOKUS_ALT["viel Omega-3"] = "omega-3-reich";
 function naehrwertAnteile(r, tabelle, feld, opts) {
 var table = tabelle && tabelle.zutaten ? tabelle.zutaten : tabelle, eigene = (opts && opts.zuordnungen) || {};
 var teile = [], summe = 0, teilAnteil = teilrezeptAnteile(r, table, eigene);
@@ -6377,7 +6379,7 @@ root.RezeptKern = api;
   function A(input) { return K.analyse(input, { lernen: [ZENTRAL, S.lernen] }); }
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.20.15";
+  var APP_VERSION = "0.20.16";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0 (creativecommons.org/licenses/by/4.0). Werte unverändert übernommen; Stück- und Löffelgewichte sind eigene Richtwerte der App. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -7695,7 +7697,7 @@ root.RezeptKern = api;
       else {
         var a = K.naehrwertAnteile(r, NW, info.feld, { zuordnungen: Z() });
         var eu = "";
-        if (info.nrv && a.proPortion && r.nutrition && r.nutrition.totalGrams) { var je100 = a.summe * r.nutrition.servings / r.nutrition.totalGrams * 100; eu = " Je 100 g Zutaten (roh gewogen) sind es " + r1z(je100) + " " + info.einheit + " (" + Math.round(je100 / info.nrv * 100) + " % des Bezugswerts) – die EU-Regel für „reich an " + label.replace(/^viel /, "") + "“ (30 % je 100 g) ist damit " + (je100 >= info.nrv * 0.3 ? "auch erfüllt." : "nicht erfüllt."); }
+        if (info.nrv && a.proPortion && r.nutrition && r.nutrition.totalGrams) { var je100 = a.summe * r.nutrition.servings / r.nutrition.totalGrams * 100; eu = " Je 100 g Zutaten (roh gewogen) sind es " + r1z(je100) + " " + info.einheit + " (" + Math.round(je100 / info.nrv * 100) + " % des Bezugswerts) – die EU-Regel für „reich an " + info.name + "“ (30 % je 100 g) ist damit " + (je100 >= info.nrv * 0.3 ? "auch erfüllt." : "nicht erfüllt."); }
         text = info.regel + " Dieses Rezept: " + r1z(a.summe) + " " + info.einheit + (a.proPortion ? " je Portion" : " im ganzen Rezept") + (info.anteil && r.nutrition ? " (" + info.anteil(r.nutrition.values) + ")" : "") + ". Gerechnet aus Menge × Wert je 100 g (Bundeslebensmittelschlüssel BLS 4.0)." + eu + (a.offen.length ? " Ohne Nährwert, also nicht mitgezählt: " + a.offen.join(", ") + "." : "");
         zeilen = a.teile.filter(function (t) { return t.menge > 0; }).slice(0, 8).map(function (t) { return { links: t.name + " (" + t.gramm + " g)", rechts: r1z(t.menge) + " " + info.einheit, sub: r1z(t.je100) + " " + info.einheit + " je 100 g · " + t.anteil + " % · " + t.bls }; });
         kurz = label + ": " + r1z(a.summe) + " " + info.einheit + " | " + a.teile.slice(0, 5).map(function (t) { return t.name + " " + t.gramm + " g → " + r1z(t.menge); }).join(", ") + (a.offen.length ? " | offen: " + a.offen.join(", ") : "");
@@ -8298,10 +8300,10 @@ root.RezeptKern = api;
         '<li><b>Für alle besser:</b> Nach 15 neuen Rezepten, 5 Meldungen oder spätestens 14 Tagen erinnert dich die App, das Gelernte an Jakob zu schicken – dringend, wenn der Lernspeicher zu 80 % voll ist. Die Datei enthält nur Regeln und Zutatennamen, keine Rezepte und nichts über dich. Jakob prüft sie, und mit dem nächsten Update bekommen alle die geprüften Regeln.</li></ul>') +
       (showNutri() ? sec("scale", "Woher die Nährwerte kommen",
         '<p>Die Werte berechnet die App aus dem Bundeslebensmittelschlüssel, der amtlichen deutschen Nährwertdatenbank (Max Rubner-Institut, 2025).</p>' +
-        '<ul><li>Stück- und Löffelgewichte sind Richtwerte. Die Ergebnisse sind Näherungen, keine Laborwerte.</li><li>„proteinreich“ und „ballaststoffreich“ folgen den EU-Regeln für nährwertbezogene Angaben (Europäisches Parlament &amp; Rat der Europäischen Union, 2006). Labels wie „viel Eisen“ gelten je Portion – die EU-Angabe „reich an …“ auf Verpackungen gilt je 100 g, deshalb heißen sie anders.</li>' +
+        '<ul><li>Stück- und Löffelgewichte sind Richtwerte. Die Ergebnisse sind Näherungen, keine Laborwerte.</li><li>„proteinreich“ und „ballaststoffreich“ folgen den EU-Regeln für nährwertbezogene Angaben (Europäisches Parlament &amp; Rat der Europäischen Union, 2006). Labels wie „eisenreich“ gelten je Portion: Eine Portion liefert mindestens 30 % des Tagesbedarfs. Die EU-Regel für Verpackungen gilt je 100 g – die Erklärung beim Antippen zeigt beides.</li>' +
         '<li>Die Werte sind keine Ernährungs- oder Gesundheitsberatung.</li><li>Du kannst alle Zahlen in den Einstellungen ausblenden.</li></ul>' +
         '<p class="small muted">' + esc(BLS_HINWEIS) + '</p>', false,
-        '<p><b>Schwellen pro Portion:</b> proteinreich ab 20 % der Energie aus Eiweiß · ballaststoffreich ab 3 g je 100 kcal · „viel …“ ab 30 % des Tagesbezugswerts: Eisen 4,2 mg · Calcium 240 mg · Magnesium 112,5 mg · Zink 3 mg · Jod 45 µg · Vitamin B12 0,75 µg · Vitamin D 1,5 µg · Folat 60 µg · Vitamin C 24 mg (Nährstoffbezugswerte nach Europäisches Parlament &amp; Rat der Europäischen Union, 2011, Anhang XIII) · viel Omega-3 ab 0,6 g je 100 kcal.</p>' +
+        '<p><b>Schwellen pro Portion:</b> proteinreich ab 20 % der Energie aus Eiweiß · ballaststoffreich ab 3 g je 100 kcal · „…reich“ ab 30 % des Tagesbezugswerts: Eisen 4,2 mg · Calcium 240 mg · Magnesium 112,5 mg · Zink 3 mg · Jod 45 µg · Vitamin B12 0,75 µg · Vitamin D 1,5 µg · Folat 60 µg · Vitamin C 24 mg (Nährstoffbezugswerte nach Europäisches Parlament &amp; Rat der Europäischen Union, 2011, Anhang XIII) · omega-3-reich ab 0,6 g je 100 kcal.</p>' +
         '<p><b>Wann Werte als verlässlich gelten:</b> wenn mindestens 80 % der Zutaten (ohne Gewürze) zugeordnet sind. Sonst steht „teilweise berechnet“ dabei, und die App vergibt keine Labels. Die App unterscheidet roh, gekocht und abgetropft (z. B. Reis, Kichererbsen aus der Dose). Fehlt eine Zutat, ergänzt du sie mit einem Tipp: aus dem BLS oder mit den Werten von der Verpackung.</p>' +
         '<p><b>Wie eigene Angaben geprüft werden:</b> (1) Jeder Wert liegt zwischen 0 und 100 g, höchstens 900 kcal, alles zusammen höchstens 100 g. (2) Zucker ist nicht mehr als Kohlenhydrate, gesättigte Fette nicht mehr als Fett – mit den Toleranzen der EU-Kommission (2012). (3) Die Kalorien müssen zu den Nährstoffen passen (4 kcal je g Kohlenhydrate und Eiweiß, 9 je g Fett, 2 je g Ballaststoffe; Europäisches Parlament &amp; Rat der Europäischen Union, 2011, Anhang XIV). Kilojoule erkennt die App und rechnet um. (4) Vergleich mit ähnlichen Lebensmitteln im BLS. Schickst du dein Gelerntes, prüft Jakob die Werte noch einmal, bevor sie für alle gelten.</p>') :
         sec("scale", "Nährwerte", '<p>Du hast die Nährwerte ausgeblendet. Die App zeigt keine Kalorien, Nährwerte oder Labels wie „proteinreich“. Du kannst das in den Einstellungen jederzeit ändern.</p>')) +
