@@ -391,6 +391,15 @@ Z = {
   "getrocknete tomate": ("=Tomate getrocknet", 6, 8, None, None),
   "seitan-fix": ("=Weizenkleber/Weizengluten", None, 8, 3, None),
   "glutenmehl": ("=Weizenkleber/Weizengluten", None, 8, 3, None),
+  "weizengluten": ("=Weizenkleber/Weizengluten", None, 8, 3, None),
+  "rote beete": ("^Rote Rübe.*roh|^Rote Bete.*roh", 150, None, None, None),
+  "barbecuesoße": ("=Barbecuesauce/Grillsauce", None, 17, 6, None),
+  "barbecuesauce": ("=Barbecuesauce/Grillsauce", None, 17, 6, None),
+  "bbq sauce": ("=Barbecuesauce/Grillsauce", None, 17, 6, None),
+  "braune soße": ("=Bratensoße Instantpulver", None, 8, 3, None),
+  "weizenglute": ("=Weizenkleber/Weizengluten", None, 8, 3, None),
+  "seitan pulver": ("=Weizenkleber/Weizengluten", None, 8, 3, None),
+  "seitanpulver": ("=Weizenkleber/Weizengluten", None, 8, 3, None),
   "wraps": ("=Weizentortilla", 60, None, None, None),
 }
 

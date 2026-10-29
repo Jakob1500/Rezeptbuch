@@ -4674,7 +4674,9 @@
     ["Fleisch & Fisch", ["gulasch", "rindergulasch", "sardelle", "sardellen", "sardellenfilet", "sardellenfilets", "anchovis", "bratwurst", "bratwürste"]],
     ["Kühlregal", ["gouda", "emmentaler", "bergkäse", "hummus", "seitan", "räuchertofu", "veggie burger", "würstchen vegan", "vegane bratwurst", "vegane bratwürste", "vegane würstchen", "veganes würstchen", "käseersatz", "pizzateig", "blätterteig", "aufschnitt", "joghurt", "pudding"]],
     ["Tiefkühl", ["tiefkühlpizza", "pizza tk", "tk-pizza", "fischstäbchen", "pommes", "tk-erbsen", "rahmspinat", "eiswürfel", "speiseeis", "eis", "eiscreme"]],
-    ["Trockenware & Konserven", ["trockenhefe", "seitan-fix", "glutenmehl", "ajvar", "gochujang"]],
+    ["Trockenware & Konserven", ["trockenhefe", "seitan-fix", "seitan pulver", "seitanpulver", "weizengluten", "glutenmehl", "ajvar", "gochujang"]],
+    ["Obst & Gemüse", ["rote beete", "rote bete", "rote-bete", "rote-beete"]],
+    ["Gewürze, Öle & Saucen", ["soße", "sauce", "barbecuesoße", "barbecuesauce", "bbq", "braune soße", "flüssigrauch", "liquid smoke", "kala namak"]],
     ["Gewürze, Öle & Saucen", ["pulver", "lorbeer", "lorbeerblatt", "lorbeerblätter", "majoran", "kräuter", "italienische kräuter", "kräuter der provence", "brühe", "bouillon", "rinderbrühe", "hühnerbrühe", "chicken stock", "beef stock", "kapern", "mayo", "mayonnaise", "remoulade", "grillsauce", "bbq-sauce", "dressing", "ketchup", "olivenöl", "rapsöl", "sonnenblumenöl"]],
     ["Trockenware & Konserven", ["erdnussmus", "erdnussbutter", "mandelmus", "cashewmus", "nutella", "marmelade", "konfitüre", "aufstrich", "müsli", "cornflakes", "granola", "proteinpulver", "hefeflocken", "speisestärke", "stärke", "sesam", "tahin", "oliven", "cashew", "cashews", "erdnüsse", "walnüsse", "haselnüsse"]],
     ["Obst & Gemüse", ["zitronensaft", "limettensaft", "zitronenschale", "limettenschale", "äpfel", "apfel", "birne", "trauben", "kiwi", "pflaume", "nektarine", "pfirsich", "melone", "salatgurke", "eisbergsalat"]]
