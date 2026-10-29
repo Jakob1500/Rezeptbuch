@@ -792,5 +792,18 @@ check("Ü: Brüche vor der Übersetzung", K.vorUebersetzung("Add 3½ cups water"
   check("O: Jod, B12, Vitamin D, Zink, Folat als Labels", ["viel Jod", "viel Vitamin B12", "viel Vitamin D", "viel Zink", "viel Folat"].every(l => K.FOKUS_INFO[l] && K.FOKUS_INFO[l].nrv));
   check("O: Schwelle Jod 45 µg", /ab 45 µg/.test(K.FOKUS_INFO["viel Jod"].regel), K.FOKUS_INFO["viel Jod"].regel);
 }
+{
+  // L: Ausreißer bei der Kochzeit
+  const m = 60000, t0 = Date.parse("2026-11-01T18:00");
+  const leicht = K.zeitAusreisser({ min: 25, geschaetzt: 20, schritte: 4, besucht: 4, aktionen: [t0, t0 + 5 * m, t0 + 12 * m, t0 + 20 * m], ende: t0 + 25 * m, laengsterSchritt: 8 });
+  check("L: normales Kochen ist plausibel", leicht.ok, leicht);
+  check("L: Fertig vergessen (8-fache Zeit)", K.zeitAusreisser({ min: 160, geschaetzt: 20, schritte: 4, besucht: 4 }).grund === "verhaeltnis");
+  check("L: zu früh gedrückt (ein Viertel)", K.zeitAusreisser({ min: 12, geschaetzt: 60 }).grund === "verhaeltnis");
+  check("L: zum Ende gesprungen", K.zeitAusreisser({ min: 30, geschaetzt: 30, schritte: 8, besucht: 2 }).grund === "schritte");
+  const pause = K.zeitAusreisser({ min: 70, geschaetzt: 45, schritte: 4, besucht: 4, aktionen: [t0, t0 + 5 * m, t0 + 10 * m], ende: t0 + 70 * m, laengsterSchritt: 10 });
+  check("L: eine Stunde ohne Tippen = Pause", pause.grund === "pause", pause);
+  const ofen = K.zeitAusreisser({ min: 80, geschaetzt: 75, schritte: 4, besucht: 4, aktionen: [t0, t0 + 10 * m, t0 + 15 * m], ende: t0 + 80 * m, laengsterSchritt: 60 });
+  check("L: 60 Minuten im Ofen sind keine Pause", ofen.ok, ofen);
+}
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

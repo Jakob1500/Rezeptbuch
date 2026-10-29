@@ -474,7 +474,7 @@ a { color: var(--accent); }
   function A(input) { return K.analyse(input, { lernen: [ZENTRAL, S.lernen] }); }
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.20.13";
+  var APP_VERSION = "0.20.14";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0 (creativecommons.org/licenses/by/4.0). Werte unverändert übernommen; Stück- und Löffelgewichte sind eigene Richtwerte der App. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -2026,6 +2026,7 @@ a { color: var(--accent); }
   }
   function renderCook() {
     var c = UI.cook; if (!c) { $("#layer").innerHTML = ""; return; }
+    (c.besucht = c.besucht || {})[c.step] = 1; (c.aktionen = c.aktionen || []).push(Date.now()); // für die Ausreißer-Prüfung (L)
     var e = S.recipes[c.id], r = e.recipe, cl = cookList(r), k = c.step, last = k === cl.length - 1;
     var serv = UI.servings[c.id] || defaultServings(r), f = r.servings ? serv / r.servings : 1;
     var seenC = {}, idx = cl[k].zutaten || (K.stepIngredients(r)[cl[k].k] || []);
@@ -2048,6 +2049,7 @@ a { color: var(--accent); }
     if (!min) return;
     try { if (!audio) { var AC = window.AudioContext || window.webkitAudioContext; if (AC) audio = new AC(); } if (audio && audio.state === "suspended") audio.resume(); } catch (e) { audio = null; }
     UI.timers.push({ id: Date.now(), text: text, end: Date.now() + min * 60000, fertig: false });
+    if (UI.cook) (UI.cook.aktionen = UI.cook.aktionen || []).push(Date.now(), Date.now() + min * 60000); // ein laufender Timer ist keine Pause
     toast("Timer läuft: " + text.split(" · ")[0]);
     timerZeigen();
     if (!timerTick) timerTick = setInterval(timerZeigen, 1000);
@@ -2090,6 +2092,14 @@ a { color: var(--accent); }
       S.lernen.zeitFaktor.push(Math.round(min / r.timeTotal * 100) / 100);
       S.lernen.zeitFaktor = S.lernen.zeitFaktor.slice(-30); save("lernen");
     }
+  }
+  // Kochzeit wirkt unplausibel (L): nachfragen statt still lernen
+  function zeitFrageSheet(id, min, pr) {
+    var r = S.recipes[id].recipe, std = function (m) { return m >= 60 ? Math.floor(m / 60) + " Std." + (m % 60 ? " " + (m % 60) + " Min." : "") : m + " Min."; };
+    sheet('<h2>Hat das wirklich ' + esc(std(min)) + ' gedauert?</h2><p class="small">' + esc((pr.grund === "verhaeltnis" ? "Das ist " + pr.text + (r.timeTotal ? " (die App schätzt " + std(r.timeTotal) + ")" : "") : pr.grund === "schritte" ? "Du hast " + pr.text + " – vielleicht direkt zum Ende gesprungen?" : "Zwischendurch waren " + pr.text + " – vielleicht eine Pause oder „Fertig“ vergessen?") + ". Nur stimmige Zeiten verbessern die Schätzungen.") + '</p>' +
+      '<button class="btn accent" data-a="zeit-ja" data-id="' + esc(id) + '" data-min="' + min + '">Ja, ' + esc(std(min)) + ' stimmt</button>' +
+      '<button class="btn soft" data-a="zeit" data-id="' + esc(id) + '">Andere Zeit eintragen</button>' +
+      '<button class="btn ghost" data-a="zeit-nein" data-id="' + esc(id) + '">Diese Zeit nicht merken</button>');
   }
   // Persönlicher Faktor: Median aus „echt / geschätzt“, erst ab 3 Rezepten, begrenzt auf 0,5–1,5
   function zeitFaktor() {
@@ -3013,9 +3023,15 @@ a { color: var(--accent); }
       case "cook-prev": if (UI.cook.step > 0) { UI.cook.step--; renderCook(); } break;
       case "cook-close": endCook(); break;
       case "cook-done": var cid = UI.cook.id, ce = S.recipes[cid]; ce.cooked = (ce.cooked || 0) + 1; ce.lastCooked = Date.now();
-        zeitMerken(ce, Math.round((Date.now() - (UI.cook.start || Date.now())) / 60000), "kochmodus");
+        var cmin = Math.round((Date.now() - (UI.cook.start || Date.now())) / 60000), cr = ce.recipe;
+        var cpr = K.zeitAusreisser({ min: cmin, geschaetzt: cr.timeTotal && !cr.timeOvernight ? cr.timeTotal : null, schritte: cookList(cr).length, besucht: Object.keys(UI.cook.besucht || {}).length,
+          aktionen: [UI.cook.start].concat(UI.cook.aktionen || []), ende: Date.now(), laengsterSchritt: Math.max.apply(null, [0].concat((cr.steps || []).map(function (st) { return K.schrittMinutenAngabe(st) || 0; }))) });
         save("recipes"); endCook(); render();
-        if (ce.nochmal == null) nochmalSheet(cid); else toast("Guten Appetit!"); break;
+        if (cpr.ok) { zeitMerken(ce, cmin, "kochmodus"); if (ce.nochmal == null) nochmalSheet(cid); else toast("Guten Appetit!"); }
+        else if (cpr.grund === "kurz") { if (ce.nochmal == null) nochmalSheet(cid); else toast("Guten Appetit!"); }
+        else zeitFrageSheet(cid, cmin, cpr); break;
+      case "zeit-ja": zeitMerken(S.recipes[id], +el.dataset.min, "kochmodus-bestaetigt"); save("recipes"); closeSheet(); if (S.recipes[id].nochmal == null) nochmalSheet(id); else toast("Gemerkt: " + el.dataset.min + " Minuten"); break;
+      case "zeit-nein": closeSheet(); if (S.recipes[id].nochmal == null) nochmalSheet(id); else toast("Okay, diese Zeit zählt nicht"); break;
       case "nochmal-frage": nochmalSheet(id); break;
       case "nochmal": S.recipes[id].nochmal = el.dataset.v === "ja"; save("recipes"); closeSheet(); render(); toast(el.dataset.v === "ja" ? "Gemerkt: kommt wieder in die Vorschläge" : "Gemerkt: taucht in Vorschlägen nicht mehr auf"); break;
       case "plan": planSheet(id); break;

@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.7.0";
+  var VERSION = "0.7.1";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -2789,6 +2789,21 @@
       protokoll: (L.protokoll || []).filter(function (x) { return !x.gesendet; }),
       titel: (L.titel || []).filter(function (x) { return !x.gesendet; }).map(function (x) { return { konto: x.konto, link: x.link, automatisch: x.automatisch, original: x.original || undefined, neu: x.neu, datum: x.datum }; }) };
   }
+  // Kochzeit-Ausreißer erkennen (Vorschlag L, Go 29.10.2026): hat jemand zu früh oder gar nicht auf „Fertig“ gedrückt?
+  // o = { min: gemessene Minuten, geschaetzt: Schätzung/Angabe des Rezepts, schritte: Anzahl Schritte, besucht: angesehene Schritte,
+  //       aktionen: Zeitpunkte (ms) von Start, Schrittwechseln und Timern, ende: ms, laengsterSchritt: längste Zeitangabe in einem Schritt (Min.) }
+  // Drei Prüfungen: 1) Verhältnis echt/geschätzt zwischen 0,4 und 2,5; 2) mindestens die Hälfte der Schritte angesehen;
+  // 3) keine Pause: keine Lücke ohne Tippen, die länger ist als 40 Min. und als der längste Schritt + 15 Min.
+  function zeitAusreisser(o) {
+    o = o || {};
+    if (!o.min || o.min < 5) return { ok: false, grund: "kurz", text: "unter 5 Minuten" };
+    if (o.geschaetzt && (o.min < 0.4 * o.geschaetzt || o.min > 2.5 * o.geschaetzt)) return { ok: false, grund: "verhaeltnis", text: o.min < o.geschaetzt ? "viel kürzer als erwartet" : "viel länger als erwartet" };
+    if (o.schritte > 2 && o.besucht != null && o.besucht < Math.ceil(o.schritte / 2)) return { ok: false, grund: "schritte", text: "nur " + o.besucht + " von " + o.schritte + " Schritten angesehen" };
+    var t = (o.aktionen || []).slice().sort(function (a, b) { return a - b; }); if (o.ende) t.push(o.ende);
+    var luecke = 0; for (var k = 1; k < t.length; k++) luecke = Math.max(luecke, (t[k] - t[k - 1]) / 60000);
+    if (luecke > 40 && luecke > (o.laengsterSchritt || 0) + 15) return { ok: false, grund: "pause", text: Math.round(luecke) + " Minuten ohne Tippen" };
+    return { ok: true, grund: "" };
+  }
   // Wann soll das Gelernte an Jakob? (Vorschlag M, Go 29.10.2026)
   // Mindestmenge: 15 neue Rezepte ODER 5 Meldungen ODER 14 Tage mit mindestens 1 wartenden Eintrag.
   // Höchstmenge: 150 Protokoll-Einträge bzw. rund 2 MB – ab 80 % wird es dringend, danach überschreibt die App die ältesten.
@@ -5032,7 +5047,7 @@
   // ---------------------------------------------------------------------------
 
   var api = {
-    neuerLernspeicher: neuerLernspeicher, lerneAusRezept: lerneAusRezept, lerneKorrektur: lerneKorrektur, lernExport: lernExport, lernStand: lernStand, lernSpaeter: lernSpaeter, LERN_GRENZEN: LERN_GRENZEN, lernRegeln: lernRegeln, lernNorm: lernNorm,
+    neuerLernspeicher: neuerLernspeicher, lerneAusRezept: lerneAusRezept, lerneKorrektur: lerneKorrektur, lernExport: lernExport, lernStand: lernStand, zeitAusreisser: zeitAusreisser, schrittMinutenAngabe: schrittMinutenAngabe, lernSpaeter: lernSpaeter, LERN_GRENZEN: LERN_GRENZEN, lernRegeln: lernRegeln, lernNorm: lernNorm,
     VERSION: VERSION, SCHEMA_VERSION: SCHEMA_VERSION, ZEIT_FAKTOR: ZEIT_FAKTOR,
     AISLES: AISLES,
     analyse: analyse,
