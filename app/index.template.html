@@ -188,7 +188,8 @@ textarea.input { min-height: 140px; resize: vertical; line-height: 1.4; }
 .progress i { display: block; height: 100%; background: var(--accent); }
 .progress.voll i { background: var(--warn); }
 .meme { position: relative; display: block; width: 100%; padding: 0; border: 0; border-radius: 16px; overflow: hidden; background: #10271D; margin: 4px 0 12px; cursor: pointer; }
-.meme svg { display: block; width: 100%; height: auto; }
+.meme svg, .meme img { display: block; width: 100%; height: auto; }
+.meme img { max-height: 46vh; object-fit: contain; background: #000; }
 .meme span { position: absolute; left: 10px; right: 10px; text-align: center; color: #fff; font-family: Impact, "Arial Black", "Helvetica Neue", Arial, sans-serif; font-weight: 900; text-transform: uppercase; font-size: clamp(15px, 4.8vw, 22px); line-height: 1.08; letter-spacing: 0.01em; text-shadow: 2px 2px 0 #000, -2px 2px 0 #000, 2px -2px 0 #000, -2px -2px 0 #000, 0 2px 0 #000, 2px 0 0 #000, 0 -2px 0 #000, -2px 0 0 #000; }
 .meme .meme-o { top: 10px; } .meme .meme-u { bottom: 10px; }
 .foot { font-size: 0.78rem; color: var(--muted); padding-inline: 4px; display: grid; gap: 6px; }
@@ -473,7 +474,7 @@ a { color: var(--accent); }
   function A(input) { return K.analyse(input, { lernen: [ZENTRAL, S.lernen] }); }
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.20.12";
+  var APP_VERSION = "0.20.13";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0 (creativecommons.org/licenses/by/4.0). Werte unverändert übernommen; Stück- und Löffelgewichte sind eigene Richtwerte der App. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -1127,11 +1128,24 @@ a { color: var(--accent); }
     { id: "flieger", fuer: [], o: "Notizen sortiert", u: "Fehlt nur dein Tipp auf „Senden“", g: { augen: "normal", mund: "lachen", extra: ["flieger"] } },
     { id: "gefuehl", fuer: [], o: "Rezept: „Salz nach Gefühl“", u: "Ich hab keine Gefühle. Nur Notizen für Jakob", g: { augen: "seite", mund: "flach", extra: ["fragen"] } }
   ];
+  // Eigene Meme-Bilder von Jakob: docs/memes/memes.json + Bilder im selben Ordner (Anleitung: docs/memes/LIESMICH.md).
+  // Liegen dort Bilder, zeigt das Pop-up nur diese; sonst die Beere.
+  var MEME_ORDNER = { geladen: false, liste: [] };
+  function memeOrdnerLaden() {
+    if (MEME_ORDNER.geladen) return Promise.resolve(MEME_ORDNER.liste);
+    return fetch("memes/memes.json", { cache: "no-cache" }).then(function (res) { return res.ok ? res.json() : { memes: [] }; }).then(function (d) {
+      MEME_ORDNER.liste = ((d && d.memes) || []).filter(function (m) { return m && typeof m.bild === "string" && /^[\w\-. ]+\.(jpe?g|png|gif|webp)$/i.test(m.bild); })
+        .map(function (m) { return { id: m.bild, bild: m.bild, o: String(m.oben || ""), u: String(m.unten || ""), fuer: Array.isArray(m.wann) ? m.wann : [] }; });
+      MEME_ORDNER.geladen = true; return MEME_ORDNER.liste;
+    }).catch(function () { return MEME_ORDNER.liste; });
+  }
   function memeWahl(grund, ohne) {
-    var pool = MEMES.filter(function (m) { return m.id !== ohne && (!m.fuer.length || m.fuer.indexOf(grund) >= 0); });
+    var alle = MEME_ORDNER.liste.length ? MEME_ORDNER.liste : MEMES;
+    var pool = alle.filter(function (m) { return m.id !== ohne && (!m.fuer.length || m.fuer.indexOf(grund) >= 0); });
     var eigen = pool.filter(function (m) { return m.fuer.indexOf(grund) >= 0; });
     // beim ersten Mal das passende Meme, danach bunt gemischt
-    return (!ohne && eigen.length ? eigen : pool)[Math.floor(Math.random() * (!ohne && eigen.length ? eigen : pool).length)] || MEMES[0];
+    if (!pool.length) pool = alle.filter(function (m) { return m.id !== ohne; });
+    return (!ohne && eigen.length ? eigen : pool)[Math.floor(Math.random() * (!ohne && eigen.length ? eigen : pool).length)] || alle[0];
   }
   function beereSvg(g) {
     var ex = g.extra || [], o = '<svg viewBox="0 0 320 240" role="img" aria-hidden="true"><defs><radialGradient id="mb" cx="38%" cy="32%" r="75%"><stop offset="0" stop-color="#FFB15C"/><stop offset="1" stop-color="#F27A12"/></radialGradient></defs>' +
@@ -1168,10 +1182,10 @@ a { color: var(--accent); }
   function memeHtml(m, st) {
     var w = { gesamt: (S.lernen && S.lernen.rezepte) || 0, prozent: Math.round(st.fuellstand * 100), tage: st.tage, meldungen: st.meldungen };
     var f = function (t) { return esc(t.replace(/\{(\w+)\}/g, function (_, k) { return w[k]; })); };
-    return '<button class="meme" data-a="meme-next" data-id="' + m.id + '" aria-label="Meme: ' + f(m.o) + ' – ' + f(m.u) + '. Antippen für ein anderes.">' + beereSvg(m.g) + '<span class="meme-o" aria-hidden="true">' + f(m.o) + '</span><span class="meme-u" aria-hidden="true">' + f(m.u) + '</span></button>';
+    return '<button class="meme" data-a="meme-next" data-id="' + m.id + '" aria-label="Meme: ' + f(m.o) + ' – ' + f(m.u) + '. Antippen für ein anderes.">' + (m.bild ? '<img src="memes/' + encodeURIComponent(m.bild) + '" alt="" loading="eager">' : beereSvg(m.g)) + (m.o ? '<span class="meme-o" aria-hidden="true">' + f(m.o) + '</span>' : '') + (m.u ? '<span class="meme-u" aria-hidden="true">' + f(m.u) + '</span>' : '') + '</button>';
   }
   function lernPopup(memeId) {
-    var st = lernStand(), m = memeId ? (MEMES.filter(function (x) { return x.id === memeId; })[0] || memeWahl(st.grund)) : memeWahl(st.grund, S.meta.lernMeme);
+    var st = lernStand(), alle = MEME_ORDNER.liste.length ? MEME_ORDNER.liste : MEMES, m = memeId ? (alle.filter(function (x) { return x.id === memeId; })[0] || memeWahl(st.grund)) : memeWahl(st.grund, S.meta.lernMeme);
     S.meta.lernMeme = m.id; save("meta");
     var teile = [[st.rezepte, "neue Rezepte", "neues Rezept"], [st.fehler, "Probleme beim Teilen", "Problem beim Teilen"], [st.abweichungen, "Nährwert-Abweichungen", "Nährwert-Abweichung"], [st.titel, "geänderte Titel", "geänderter Titel"]].filter(function (t) { return t[0]; }).map(function (t) { return t[0] + " " + (t[0] === 1 ? t[2] : t[1]); });
     sheet(memeHtml(m, st) +
@@ -1192,7 +1206,7 @@ a { color: var(--accent); }
       var frei = !$("#layer").innerHTML && !$("#coach").innerHTML && !UI.detail && !UI.cook && !UEB.laeuft && UI.tab === "rezepte";
       if (!frei) { if (versuche++ < 20) setTimeout(zeigen, 3000); return; }
       if (!lernStand().faellig) return;
-      S.meta.lernPopupTag = heute; save("meta"); lernPopup();
+      S.meta.lernPopupTag = heute; save("meta"); memeOrdnerLaden().then(function () { lernPopup(); });
     })();
   }
   function lernSenden() {
@@ -3175,7 +3189,7 @@ a { color: var(--accent); }
       case "lern-show": lernSheet(); break;
       case "lern-send": lernSenden(); break;
       case "lern-later": S.meta.lernSpaeter = K.lernSpaeter(S.lernen, S.meta.lernSpaeter); save("meta"); closeSheet(); render(); toast("Okay, ich erinnere dich nach 5 Rezepten oder in 3 Tagen"); break;
-      case "lern-popup": lernPopup(); break;
+      case "lern-popup": memeOrdnerLaden().then(function () { lernPopup(); }); break;
       case "meme-next": var mn = memeWahl(lernStand().grund, el.dataset.id); var mel = $("#layer .meme"); if (mel) { mel.outerHTML = memeHtml(mn, lernStand()); S.meta.lernMeme = mn.id; save("meta"); } break;
       case "lern-reset":
         if (!el.dataset.ok) { confirmSheet("Alles Gelernte zurücksetzen?", "lern-reset", "", "Zurücksetzen"); break; }
