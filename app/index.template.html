@@ -186,6 +186,11 @@ textarea.input { min-height: 140px; resize: vertical; line-height: 1.4; }
 .banner .btn { width: auto; min-height: 40px; padding: 8px 14px; font-size: 0.9rem; }
 .progress { height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
 .progress i { display: block; height: 100%; background: var(--accent); }
+.progress.voll i { background: var(--warn); }
+.meme { position: relative; display: block; width: 100%; padding: 0; border: 0; border-radius: 16px; overflow: hidden; background: #10271D; margin: 4px 0 12px; cursor: pointer; }
+.meme svg { display: block; width: 100%; height: auto; }
+.meme span { position: absolute; left: 10px; right: 10px; text-align: center; color: #fff; font-family: Impact, "Arial Black", "Helvetica Neue", Arial, sans-serif; font-weight: 900; text-transform: uppercase; font-size: clamp(15px, 4.8vw, 22px); line-height: 1.08; letter-spacing: 0.01em; text-shadow: 2px 2px 0 #000, -2px 2px 0 #000, 2px -2px 0 #000, -2px -2px 0 #000, 0 2px 0 #000, 2px 0 0 #000, 0 -2px 0 #000, -2px 0 0 #000; }
+.meme .meme-o { top: 10px; } .meme .meme-u { bottom: 10px; }
 .foot { font-size: 0.78rem; color: var(--muted); padding-inline: 4px; display: grid; gap: 6px; }
 a { color: var(--accent); }
 
@@ -466,10 +471,9 @@ a { color: var(--accent); }
   var K = window.RezeptKern, NW = NAEHRWERTE, ZENTRAL = (typeof GELERNT_ZENTRAL === "object" && GELERNT_ZENTRAL) || {};
   // Jede Auswertung nutzt die zentral geprüften Regeln und das auf diesem Gerät Gelernte
   function A(input) { return K.analyse(input, { lernen: [ZENTRAL, S.lernen] }); }
-  var LERN_ERINNERUNG = 20;
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.20.10";
+  var APP_VERSION = "0.20.11";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0 (creativecommons.org/licenses/by/4.0). Werte unverändert übernommen; Stück- und Löffelgewichte sind eigene Richtwerte der App. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -1082,21 +1086,119 @@ a { color: var(--accent); }
           '<button class="iconbtn" data-a="titel-del" data-n="' + n + '" aria-label="Geänderten Titel aus dem Gelernten löschen">' + ic("trash") + '</button></div>';
       }).join("") + '</div>' : '') +
       (Object.keys(L.zeiten || {}).length ? '<p class="small muted" style="padding-inline:4px">Gelernte Dauer je Arbeitsschritt: ' + esc(Object.keys(L.zeiten).filter(function (a) { return L.zeiten[a].n; }).map(function (a) { return a + " ≈ " + Math.round(L.zeiten[a].summe / L.zeiten[a].n) + " Min. (" + L.zeiten[a].n + "×)"; }).join(" · ")) + '</p>' : '') +
+      '<div class="group" style="padding:14px 16px">' + lernFuellstand(lernStand()) + '</div>' +
       '<p class="small muted" style="padding-inline:4px">' + (L.rezepte || 0) + ' Rezepte ausgewertet · seit dem letzten Senden ' + (L.rezepteSeitSenden || 0) + (L.gesendetAm ? ' · zuletzt gesendet ' + esc(dateDe(L.gesendetAm)) : '') + '</p>' +
       '<button class="btn accent" data-a="lern-send">' + ic("share") + 'An Jakob schicken</button>' +
       '<p class="small muted" style="padding-inline:4px">Geschickt wird eine kleine Datei mit den Regeln, deinen Nährwert-Angaben, deinen geänderten Titeln (mit Link zum Beitrag), unbekannten Zutatennamen, einem Protokoll je Rezept (Link, Beschreibung des Beitrags, was erkannt wurde) und Problemen beim Teilen. Während der Testphase gehen die öffentlichen Instagram-Texte immer mit, damit Fehler schnell behoben werden. Keine Fotos, nichts über dich. Du wählst selbst, wie (z. B. WhatsApp oder Mail an Jakob).</p>' +
       '<div class="btnrow"><button class="btn soft" data-a="lern-reset">Alles zurücksetzen</button><button class="btn soft" data-a="close-sheet">Schließen</button></div>');
   }
+  // Lernspeicher: wie voll, wann erinnern (Regeln im Kern: K.lernStand, Vorschlag M)
+  var lernGr = { k: "", v: 0 };
+  function lernGroesse() {
+    var L = S.lernen || {}, k = [L.rezepte, (L.protokoll || []).length, (L.fehler || []).length, (L.titel || []).length, (L.naehrwertAbweichungen || []).length, L.gesendetAm, Object.keys(L.unbekannt || {}).length].join("|");
+    if (k !== lernGr.k) { try { lernGr.v = new Blob([JSON.stringify(K.lernExport(L, { app: APP_VERSION, zuord: S.zuord }), null, 1)]).size; } catch (x) { lernGr.v = 0; } lernGr.k = k; }
+    return lernGr.v;
+  }
+  function lernStand() { return K.lernStand(S.lernen, { groesse: lernGroesse(), spaeter: S.meta.lernSpaeter }); }
+  function kbText(b) { return b >= 1000000 ? (b / 1000000).toFixed(1).replace(/\.0$/, "").replace(".", ",") + " MB" : Math.max(1, Math.round(b / 1000)) + " KB"; }
+  function lernFuellstand(st) {
+    var p = Math.round(st.fuellstand * 100);
+    return '<div class="progress' + (st.fuellstand >= 0.8 ? ' voll' : '') + '" role="img" aria-label="Lernspeicher zu ' + p + ' Prozent voll"><i style="width:' + Math.max(2, p) + '%"></i></div>' +
+      '<p class="small muted" style="margin:6px 0 0">Lernspeicher ' + p + ' % voll · ' + st.protokoll + ' von ' + st.protokollMax + ' Einträgen · ca. ' + kbText(st.groesse) + ' von ' + kbText(st.groesseMax) + '</p>';
+  }
   function lernBanner() {
     var L = S.lernen, of = offeneFehler();
     if (L && of.length >= 2 && of.length > (S.meta.fehlerSnooze || 0)) return '<div class="banner">' + ic("info") + '<div class="main"><b>' + of.length + ' Probleme beim Teilen gespeichert.</b> Schick sie Jakob, dann wird das Teilen schnell besser.</div><button class="btn accent" data-a="lern-send">Senden</button><button class="btn soft" data-a="fehler-later">Später</button></div>';
-    if (!L || (L.rezepteSeitSenden || 0) < LERN_ERINNERUNG || (S.meta.lernSnooze && (L.rezepte || 0) < S.meta.lernSnooze)) return "";
-    return '<div class="banner">' + ic("sparkle") + '<div class="main"><b>' + L.rezepteSeitSenden + ' neue Rezepte – danke!</b> Schick Jakob, was die App dabei gelernt hat. So wird sie für alle besser.</div><button class="btn accent" data-a="lern-send">Senden</button><button class="btn soft" data-a="lern-later">Später</button></div>';
+    if (!L) return "";
+    var st = lernStand(); if (!st.faellig) return "";
+    return '<div class="banner">' + ic("sparkle") + '<div class="main"><b>' + esc(lernTitel(st)) + '</b> ' + (st.dringend ? 'Schick es Jakob, bevor die App alte Einträge überschreibt.' : 'Schick Jakob, was die App gelernt hat.') + '</div><button class="btn accent" data-a="lern-popup">Ansehen</button></div>';
+  }
+  function lernTitel(st) {
+    return st.grund === "voll" ? "Lernspeicher fast voll" : st.grund === "rezepte" ? st.rezepte + " neue Rezepte – danke!" : st.grund === "meldungen" ? st.meldungen + " Meldungen gesammelt" : "Schon " + st.tage + " Tage gesammelt";
+  }
+  // Eigene Memes mit der Sanddorn-Beere aus dem Logo (selbst gezeichnet, keine fremden Bilder)
+  var MEMES = [
+    { id: "seitenblick", fuer: ["rezepte"], o: "Du: speicherst Rezept Nr. {gesamt}", u: "Ich: weiß Dinge, die Jakob nicht weiß", g: { augen: "seite", mund: "schief" } },
+    { id: "ueberkochen", fuer: ["voll"], o: "Lernspeicher {prozent} % voll", u: "Ich: alles unter Kontrolle", g: { augen: "weit", mund: "wellig", extra: ["schweiss", "topf"] } },
+    { id: "nickerchen", fuer: ["zeit"], o: "{tage} Tage nichts geschickt", u: "Ich mach ein Nickerchen auf deinen Notizen", g: { augen: "zu", mund: "o", extra: ["zzz"] } },
+    { id: "detektiv", fuer: ["meldungen"], o: "{meldungen} Meldungen gesammelt", u: "Fall gelöst. Ab zu Kommissar Jakob", g: { augen: "normal", mund: "grinsen", extra: ["lupe"] } },
+    { id: "sonnenbrille", fuer: [], o: "„n. B.“ heißt nicht „nicht backen“", u: "Jetzt weiß ich’s. Jakob soll’s auch wissen", g: { augen: "brille", mund: "grinsen" } },
+    { id: "traene", fuer: [], o: "{gesamt} Rezepte gelesen", u: "Keins probiert. Schick wenigstens meine Notizen", g: { augen: "traurig", mund: "traurig", extra: ["traene"] } },
+    { id: "flieger", fuer: [], o: "Notizen sortiert", u: "Fehlt nur dein Tipp auf „Senden“", g: { augen: "normal", mund: "lachen", extra: ["flieger"] } },
+    { id: "gefuehl", fuer: [], o: "Rezept: „Salz nach Gefühl“", u: "Ich hab keine Gefühle. Nur Notizen für Jakob", g: { augen: "seite", mund: "flach", extra: ["fragen"] } }
+  ];
+  function memeWahl(grund, ohne) {
+    var pool = MEMES.filter(function (m) { return m.id !== ohne && (!m.fuer.length || m.fuer.indexOf(grund) >= 0); });
+    var eigen = pool.filter(function (m) { return m.fuer.indexOf(grund) >= 0; });
+    // beim ersten Mal das passende Meme, danach bunt gemischt
+    return (!ohne && eigen.length ? eigen : pool)[Math.floor(Math.random() * (!ohne && eigen.length ? eigen : pool).length)] || MEMES[0];
+  }
+  function beereSvg(g) {
+    var ex = g.extra || [], o = '<svg viewBox="0 0 320 240" role="img" aria-hidden="true"><defs><radialGradient id="mb" cx="38%" cy="32%" r="75%"><stop offset="0" stop-color="#FFB15C"/><stop offset="1" stop-color="#F27A12"/></radialGradient></defs>' +
+      '<rect width="320" height="240" fill="#10271D"/><circle cx="160" cy="128" r="96" fill="#173A2B"/>';
+    var cx = 160, cy = 132;
+    if (ex.indexOf("topf") >= 0) o += '<g fill="none" stroke="#B7D3C5" stroke-width="4" stroke-linecap="round" opacity=".7"><path d="M118 62c-8-10 8-16 0-28"/><path d="M202 62c-8-10 8-16 0-28"/></g>';
+    o += '<path d="M160 76c2-12 8-20 18-26" stroke="#8C6B47" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M176 52c12-14 30-18 44-14-8 14-26 20-44 14z" fill="#3DC48F"/>';
+    o += '<ellipse cx="' + cx + '" cy="' + cy + '" rx="54" ry="58" fill="url(#mb)"/><ellipse cx="132" cy="94" rx="11" ry="6" fill="#fff" opacity=".45" transform="rotate(-35 132 94)"/>';
+    var ey = 124, lx = 140, rx = 180, a = g.augen;
+    function auge(x, dx, dy, r) { return '<ellipse cx="' + x + '" cy="' + ey + '" rx="12" ry="' + (r || 14) + '" fill="#fff"/><circle cx="' + (x + dx) + '" cy="' + (ey + dy) + '" r="5.5" fill="#1A0E00"/>'; }
+    if (a === "seite") o += auge(lx, -6, 2) + auge(rx, -6, 2) + '<path d="M128 122a12 14 0 0 1 24 0z" fill="#E36C0A"/><path d="M168 122a12 14 0 0 1 24 0z" fill="#E36C0A"/><path d="M126 104l26 2" stroke="#7A3A00" stroke-width="4" stroke-linecap="round"/><path d="M168 100q12-10 24-2" stroke="#7A3A00" stroke-width="4" fill="none" stroke-linecap="round"/>';
+    else if (a === "weit") o += '<ellipse cx="' + lx + '" cy="' + ey + '" rx="14" ry="17" fill="#fff"/><ellipse cx="' + rx + '" cy="' + ey + '" rx="14" ry="17" fill="#fff"/><circle cx="' + lx + '" cy="' + ey + '" r="4" fill="#1A0E00"/><circle cx="' + rx + '" cy="' + ey + '" r="4" fill="#1A0E00"/><path d="M128 100l22-6M192 100l-22-6" stroke="#7A3A00" stroke-width="4" stroke-linecap="round"/>';
+    else if (a === "zu") o += '<path d="M128 124q12 8 24 0M168 124q12 8 24 0" stroke="#1A0E00" stroke-width="4" fill="none" stroke-linecap="round"/>';
+    else if (a === "brille") o += '<path d="M120 114h80" stroke="#111" stroke-width="5"/><rect x="122" y="112" width="34" height="20" rx="6" fill="#111"/><rect x="164" y="112" width="34" height="20" rx="6" fill="#111"/><path d="M128 117h10M170 117h10" stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity=".7"/>';
+    else if (a === "traurig") o += auge(lx, 0, 4) + auge(rx, 0, 4) + '<path d="M128 110l22-7M192 110l-22-7" stroke="#7A3A00" stroke-width="4" stroke-linecap="round"/>';
+    else o += auge(lx, 0, 0) + auge(rx, 0, 0);
+    var m = g.mund, my = 158;
+    o += m === "schief" ? '<path d="M146 ' + my + 'q14 -2 30 -6" stroke="#5A2600" stroke-width="4" fill="none" stroke-linecap="round"/>'
+      : m === "wellig" ? '<path d="M142 ' + my + 'q6 -6 12 0t12 0t12 0" stroke="#5A2600" stroke-width="4" fill="none" stroke-linecap="round"/>'
+      : m === "o" ? '<ellipse cx="160" cy="' + (my + 2) + '" rx="6" ry="7" fill="#5A2600"/>'
+      : m === "grinsen" ? '<path d="M144 ' + (my - 4) + 'q16 16 34 -4" stroke="#5A2600" stroke-width="4" fill="none" stroke-linecap="round"/>'
+      : m === "lachen" ? '<path d="M142 ' + (my - 6) + 'q18 26 36 0z" fill="#5A2600"/><path d="M150 ' + (my + 4) + 'q10 6 20 0" fill="#FF6B5E"/>'
+      : m === "traurig" ? '<path d="M146 ' + (my + 4) + 'q14 -12 28 0" stroke="#5A2600" stroke-width="4" fill="none" stroke-linecap="round"/>'
+      : '<path d="M148 ' + my + 'h24" stroke="#5A2600" stroke-width="4" stroke-linecap="round"/>';
+    if (ex.indexOf("schweiss") >= 0) o += '<path d="M206 92c-6 10-8 14-4 18s10 0 8-6z" fill="#7FC8F8"/>';
+    if (ex.indexOf("traene") >= 0) o += '<path d="M136 140c-5 8-6 12-2 15s9 0 7-5z" fill="#7FC8F8"/>';
+    if (ex.indexOf("zzz") >= 0) o += '<g fill="#B7D3C5" font-family="Arial Black,Arial,sans-serif" font-weight="900"><text x="214" y="96" font-size="22">Z</text><text x="236" y="76" font-size="17">z</text><text x="252" y="60" font-size="13">z</text></g>';
+    if (ex.indexOf("lupe") >= 0) o += '<path d="M206 150l26 22" stroke="#8C6B47" stroke-width="7" stroke-linecap="round"/><circle cx="196" cy="140" r="17" fill="#CFE9FF" fill-opacity=".35" stroke="#E8E2D6" stroke-width="5"/>';
+    if (ex.indexOf("flieger") >= 0) o += '<path d="M222 98l50-20-18 44-10-16z" fill="#F1F3F1"/><path d="M244 106l28-28" stroke="#B7D3C5" stroke-width="2"/><path d="M196 112q14-4 24-10" stroke="#B7D3C5" stroke-width="2" stroke-dasharray="4 4" fill="none"/>';
+    if (ex.indexOf("fragen") >= 0) o += '<g fill="#F2C14E" font-family="Arial Black,Arial,sans-serif" font-weight="900"><text x="212" y="98" font-size="26">?</text><text x="92" y="92" font-size="20">?</text></g>';
+    if (ex.indexOf("topf") >= 0) o += '<path d="M100 176h120l-10 40h-100z" fill="#6B7C78"/><rect x="92" y="168" width="136" height="12" rx="6" fill="#8FA19C"/>';
+    return o + '</svg>';
+  }
+  function memeHtml(m, st) {
+    var w = { gesamt: (S.lernen && S.lernen.rezepte) || 0, prozent: Math.round(st.fuellstand * 100), tage: st.tage, meldungen: st.meldungen };
+    var f = function (t) { return esc(t.replace(/\{(\w+)\}/g, function (_, k) { return w[k]; })); };
+    return '<button class="meme" data-a="meme-next" data-id="' + m.id + '" aria-label="Meme: ' + f(m.o) + ' – ' + f(m.u) + '. Antippen für ein anderes.">' + beereSvg(m.g) + '<span class="meme-o" aria-hidden="true">' + f(m.o) + '</span><span class="meme-u" aria-hidden="true">' + f(m.u) + '</span></button>';
+  }
+  function lernPopup(memeId) {
+    var st = lernStand(), m = memeId ? (MEMES.filter(function (x) { return x.id === memeId; })[0] || memeWahl(st.grund)) : memeWahl(st.grund, S.meta.lernMeme);
+    S.meta.lernMeme = m.id; save("meta");
+    var teile = [[st.rezepte, "neue Rezepte", "neues Rezept"], [st.fehler, "Probleme beim Teilen", "Problem beim Teilen"], [st.abweichungen, "Nährwert-Abweichungen", "Nährwert-Abweichung"], [st.titel, "geänderte Titel", "geänderter Titel"]].filter(function (t) { return t[0]; }).map(function (t) { return t[0] + " " + (t[0] === 1 ? t[2] : t[1]); });
+    sheet(memeHtml(m, st) +
+      '<h2>' + esc(lernTitel(st)) + '</h2>' +
+      '<p class="small">' + (st.dringend ? 'Bei ' + st.protokollMax + ' Einträgen oder rund ' + kbText(st.groesseMax) + ' überschreibt die App die ältesten Einträge – dann geht Gelerntes verloren.' : 'Schick Jakob, was die App gelernt hat. Er prüft es, und mit dem nächsten Update wird die Kombüse für alle schlauer.') + '</p>' +
+      '<div class="group" style="padding:14px 16px">' + lernFuellstand(st) + (teile.length ? '<p class="small" style="margin:8px 0 0">Dabei: ' + esc(teile.join(" · ")) + '</p>' : '') + '</div>' +
+      '<button class="btn accent" data-a="lern-send">' + ic("share") + 'An Jakob schicken</button>' +
+      (st.darfSpaeter ? '<button class="btn soft" data-a="lern-later">Später' + (st.spaeterUebrig < 3 ? ' (noch ' + st.spaeterUebrig + '×)' : '') + '</button>'
+        : '<button class="btn soft" data-a="close-sheet">Schließen</button><p class="small muted" style="padding-inline:4px">' + (st.dringend ? 'Der Hinweis bleibt auf der Startseite, bis du schickst.' : 'Dreimal verschoben – der Hinweis bleibt jetzt auf der Startseite, bis du schickst.') + '</p>') +
+      '<p class="small muted" style="padding-inline:4px">Nichts über dich, keine Fotos. Du wählst selbst, wie (z. B. WhatsApp oder Mail an Jakob).</p>');
+  }
+  // höchstens einmal am Tag von selbst zeigen, nie mitten in einem Import oder über einem anderen Fenster
+  function lernPopupPruefen() {
+    if (!S.lernen || einwilligungFehlt() || !S.prefs.onboarded) return;
+    var heute = new Date().toISOString().slice(0, 10), versuche = 0;
+    if (S.meta.lernPopupTag === heute || !lernStand().faellig) return;
+    (function zeigen() {
+      var frei = !$("#layer").innerHTML && !$("#coach").innerHTML && !UI.detail && !UI.cook && !UEB.laeuft && UI.tab === "rezepte";
+      if (!frei) { if (versuche++ < 20) setTimeout(zeigen, 3000); return; }
+      if (!lernStand().faellig) return;
+      S.meta.lernPopupTag = heute; save("meta"); lernPopup();
+    })();
   }
   function lernSenden() {
     var data = K.lernExport(S.lernen, { app: APP_VERSION, zuord: S.zuord });
     var text = JSON.stringify(data, null, 1), name = "Kombuese-Gelerntes-" + data.datum + ".json";
-    var done = function () { S.lernen.rezepteSeitSenden = 0; S.lernen.gesendetAm = Date.now(); (S.lernen.fehler || []).forEach(function (f) { f.gesendet = true; }); (S.lernen.protokoll || []).forEach(function (x) { x.gesendet = true; delete x.beschreibung; }); (S.lernen.titel || []).forEach(function (x) { x.gesendet = true; }); (S.lernen.naehrwertAbweichungen || []).forEach(function (x) { x.gesendet = true; }); (S.lernen.fehler || []).forEach(function (x) { delete x.beschreibung; }); save("lernen"); closeSheet(); render(); toast("Danke! Gelerntes geteilt"); };
+    var done = function () { S.lernen.rezepteSeitSenden = 0; S.lernen.gesendetAm = Date.now(); S.meta.lernSpaeter = null; save("meta"); (S.lernen.fehler || []).forEach(function (f) { f.gesendet = true; }); (S.lernen.protokoll || []).forEach(function (x) { x.gesendet = true; delete x.beschreibung; }); (S.lernen.titel || []).forEach(function (x) { x.gesendet = true; }); (S.lernen.naehrwertAbweichungen || []).forEach(function (x) { x.gesendet = true; }); (S.lernen.fehler || []).forEach(function (x) { delete x.beschreibung; }); save("lernen"); closeSheet(); render(); toast("Danke! Gelerntes geteilt"); };
     try {
       var file = new File([text], name, { type: "application/json" });
       if (navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: "Kombüse: Gelerntes für Jakob", text: "Gelerntes aus meiner Kombüse (nur Regeln, keine Rezepte)" }).then(done, function () { /* abgebrochen */ }); return; }
@@ -2264,7 +2366,7 @@ a { color: var(--accent); }
         '<li><b>Nährwerte:</b> Fehlt einer Zutat der Nährwert, ergänzt du ihn im Rezept – aus dem BLS oder von der Verpackung. Die App prüft eigene Angaben auf Plausibilität.</li>' +
         '<li><b>Probleme beim Teilen:</b> Klappt das Teilen aus Instagram nicht oder fehlt etwas, merkt sich die App den Instagram-Link und was ankam (ohne Rezepttext). Über „Problem an Jakob schicken“ oder „Mehr → Problem melden“ geht es direkt an Jakob, der die Erkennung für alle verbessert.</li>' +
         '<li><b>Ansehen und löschen:</b> Einstellungen → „Was die App gelernt hat“. Jede Regel lässt sich einzeln löschen oder alles zurücksetzen.</li>' +
-        '<li><b>Für alle besser:</b> Nach je ' + LERN_ERINNERUNG + ' neuen Rezepten erinnert dich die App, das Gelernte an Jakob zu schicken. Die Datei enthält nur Regeln und Zutatennamen, keine Rezepte und nichts über dich. Jakob prüft sie, und mit dem nächsten Update bekommen alle die geprüften Regeln.</li></ul>') +
+        '<li><b>Für alle besser:</b> Nach 15 neuen Rezepten, 5 Meldungen oder spätestens 14 Tagen erinnert dich die App, das Gelernte an Jakob zu schicken – dringend, wenn der Lernspeicher zu 80 % voll ist. Die Datei enthält nur Regeln und Zutatennamen, keine Rezepte und nichts über dich. Jakob prüft sie, und mit dem nächsten Update bekommen alle die geprüften Regeln.</li></ul>') +
       (showNutri() ? sec("scale", "Woher die Nährwerte kommen",
         '<p>Die Werte berechnet die App aus dem Bundeslebensmittelschlüssel, der amtlichen deutschen Nährwertdatenbank (Max Rubner-Institut, 2025).</p>' +
         '<ul><li>Stück- und Löffelgewichte sind Richtwerte. Die Ergebnisse sind Näherungen, keine Laborwerte.</li><li>Labels wie „proteinreich“ oder „eisenreich“ folgen den Schwellen der EU-Verordnung über nährwertbezogene Angaben, umgerechnet pro Portion (Europäisches Parlament &amp; Rat der Europäischen Union, 2006).</li>' +
@@ -3070,7 +3172,9 @@ a { color: var(--accent); }
       case "edit-save": saveEdit(id); break;
       case "lern-show": lernSheet(); break;
       case "lern-send": lernSenden(); break;
-      case "lern-later": S.meta.lernSnooze = (S.lernen.rezepte || 0) + 10; save("meta"); render(); break;
+      case "lern-later": S.meta.lernSpaeter = K.lernSpaeter(S.lernen, S.meta.lernSpaeter); save("meta"); closeSheet(); render(); toast("Okay, ich erinnere dich nach 5 Rezepten oder in 3 Tagen"); break;
+      case "lern-popup": lernPopup(); break;
+      case "meme-next": var mn = memeWahl(lernStand().grund, el.dataset.id); var mel = $("#layer .meme"); if (mel) { mel.outerHTML = memeHtml(mn, lernStand()); S.meta.lernMeme = mn.id; save("meta"); } break;
       case "lern-reset":
         if (!el.dataset.ok) { confirmSheet("Alles Gelernte zurücksetzen?", "lern-reset", "", "Zurücksetzen"); break; }
         var keep = { rezepte: S.lernen.rezepte, gesendetAm: S.lernen.gesendetAm }; S.lernen = Object.assign(K.neuerLernspeicher(), keep); save("lernen"); reanalyseAlle(); closeSheet(); render(); toast("Zurückgesetzt"); break;
@@ -3156,6 +3260,7 @@ a { color: var(--accent); }
     }
     if (S.meta.awaitShortcut && Date.now() - S.meta.awaitShortcut < 600000 && !UEB.laeuft) { UI.detail = null; UI.tab = "neu"; }
     render();
+    setTimeout(lernPopupPruefen, 2500);
   });
 
   // ------------------------------------------------------------------ Start
@@ -3173,6 +3278,7 @@ a { color: var(--accent); }
     if (imSafari() && !S.meta.guides.installieren) coachMerken("installieren");
     else if (einwilligungFehlt()) setTimeout(einwilligungSheet, 300);
     if (!imSafari()) setTimeout(wasNeuPruefen, 1500);
+    if (!imSafari()) setTimeout(lernPopupPruefen, 4000);
     if (upd) toast(upd + (upd === 1 ? " Rezept" : " Rezepte") + " mit der verbesserten Erkennung neu ausgewertet");
     setTimeout(meldeUnbekannte, 3000);
   });

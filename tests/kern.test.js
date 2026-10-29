@@ -758,5 +758,33 @@ check("Ü: Brüche vor der Übersetzung", K.vorUebersetzung("Add 3½ cups water"
   check("Nährwert: gehackte Tomaten = Dosentomaten, frische Tomaten = roh", d.some(x => /Konserve/.test(x.bls)) && d.some(x => x.bls === "Tomate roh"), d.map(x => x.name + ":" + x.bls));
   check("Nährwert: Paprikapulver ist kein Gemüsepaprika", !d.some(x => /Paprikapulver/.test(x.name)) && r.nutrition.coverage.unmatched.indexOf("Paprikapulver") === -1, d);
 }
+{
+  // M: Lern-Export – Mindest- und Höchstmengen, „Später“
+  const T = Date.parse("2026-11-20T12:00"), tag = 86400000;
+  const L = K.neuerLernspeicher();
+  check("M: leerer Speicher ist nicht fällig", !K.lernStand(L, { jetzt: T }).faellig);
+  L.rezepteSeitSenden = 14; L.rezepte = 14;
+  check("M: 14 Rezepte noch nicht fällig", !K.lernStand(L, { jetzt: T }).faellig);
+  L.rezepteSeitSenden = 15; L.rezepte = 15;
+  const s1 = K.lernStand(L, { jetzt: T });
+  check("M: ab 15 Rezepten fällig", s1.faellig && s1.grund === "rezepte" && !s1.dringend, s1);
+  const sp = K.lernSpaeter(L, null, T);
+  check("M: „Später“ verschiebt", !K.lernStand(L, { jetzt: T + tag, spaeter: sp }).faellig);
+  L.rezepte = 20; check("M: nach 5 weiteren Rezepten wieder fällig", K.lernStand(L, { jetzt: T + tag, spaeter: sp }).faellig);
+  L.rezepte = 15; check("M: nach 3 Tagen wieder fällig", K.lernStand(L, { jetzt: T + 3 * tag + 1, spaeter: sp }).faellig);
+  const sp3 = { anzahl: 3, bisRezepte: 99, bisZeit: T + 9 * tag };
+  check("M: nach dreimal Später kein weiteres Später", !K.lernStand(L, { jetzt: T, spaeter: sp3 }).darfSpaeter);
+  const L2 = K.neuerLernspeicher(); L2.rezepteSeitSenden = 1;
+  L2.fehler = [1, 2, 3, 4, 5].map(i => ({ grund: "x", datum: "2026-11-19T10:00" }));
+  check("M: 5 Meldungen machen fällig", K.lernStand(L2, { jetzt: T }).grund === "meldungen");
+  const L3 = K.neuerLernspeicher(); L3.rezepteSeitSenden = 2; L3.protokoll = [{ datum: "2026-11-01T09:00" }, { datum: "2026-11-15T09:00" }];
+  check("M: nach 14 Tagen mit wartenden Einträgen fällig", K.lernStand(L3, { jetzt: T }).grund === "zeit" && K.lernStand(L3, { jetzt: T }).tage === 19);
+  L3.protokoll[0].gesendet = true;
+  check("M: Gesendetes zählt nicht für die 14 Tage", !K.lernStand(L3, { jetzt: T }).faellig);
+  const L4 = K.neuerLernspeicher(); L4.protokoll = Array.from({ length: 120 }, () => ({ datum: "2026-11-19T09:00" }));
+  const s4 = K.lernStand(L4, { jetzt: T, spaeter: sp3 });
+  check("M: ab 80 % der Protokoll-Einträge dringend, Später greift nicht", s4.dringend && s4.faellig && !s4.darfSpaeter, s4);
+  check("M: ab 80 % der Dateigröße dringend", K.lernStand(K.neuerLernspeicher(), { jetzt: T, groesse: 1700000 }).dringend);
+}
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

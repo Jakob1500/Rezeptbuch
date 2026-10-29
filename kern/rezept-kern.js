@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.6.8";
+  var VERSION = "0.6.9";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -2788,6 +2788,38 @@
       protokoll: (L.protokoll || []).filter(function (x) { return !x.gesendet; }),
       titel: (L.titel || []).filter(function (x) { return !x.gesendet; }).map(function (x) { return { konto: x.konto, link: x.link, automatisch: x.automatisch, original: x.original || undefined, neu: x.neu, datum: x.datum }; }) };
   }
+  // Wann soll das Gelernte an Jakob? (Vorschlag M, Go 29.10.2026)
+  // Mindestmenge: 15 neue Rezepte ODER 5 Meldungen ODER 14 Tage mit mindestens 1 wartenden Eintrag.
+  // Höchstmenge: 150 Protokoll-Einträge bzw. rund 2 MB – ab 80 % wird es dringend, danach überschreibt die App die ältesten.
+  // „Später“ verschiebt um 5 Rezepte oder 3 Tage, höchstens dreimal; dringend ignoriert das Verschieben.
+  var LERN_GRENZEN = { rezepte: 15, meldungen: 5, tage: 14, protokollMax: 150, groesseMax: 2000000, dringendAb: 0.8, spaeterRezepte: 5, spaeterTage: 3, spaeterMax: 3 };
+  function lernStand(L, opt) {
+    L = L || {}; opt = opt || {};
+    var G = LERN_GRENZEN, jetzt = opt.jetzt || Date.now(), tag = 86400000;
+    var offen = function (a) { return (a || []).filter(function (x) { return x && !x.gesendet; }); };
+    var prot = offen(L.protokoll), fehler = offen(L.fehler), abw = offen(L.naehrwertAbweichungen), titel = offen(L.titel);
+    var meldungen = fehler.length + abw.length + titel.length, rezepte = L.rezepteSeitSenden || 0;
+    // ältester wartender Eintrag (Datum aus Protokoll, Fehlern, Abweichungen, Titeln)
+    var aeltester = null;
+    prot.concat(fehler, abw, titel).forEach(function (x) { var t = x.datum ? Date.parse(String(x.datum).length <= 10 ? x.datum + "T12:00" : x.datum) : NaN; if (!isNaN(t) && (aeltester == null || t < aeltester)) aeltester = t; });
+    var start = L.gesendetAm && aeltester != null ? Math.max(L.gesendetAm, aeltester) : (aeltester != null ? aeltester : null);
+    var tage = start != null ? Math.floor((jetzt - start) / tag) : 0;
+    var groesse = opt.groesse || 0;
+    var fuellstand = Math.min(1, Math.max(prot.length / G.protokollMax, groesse / G.groesseMax));
+    var wartet = rezepte + meldungen + prot.length > 0;
+    var grund = fuellstand >= G.dringendAb ? "voll" : rezepte >= G.rezepte ? "rezepte" : meldungen >= G.meldungen ? "meldungen" : wartet && tage >= G.tage ? "zeit" : "";
+    var sp = opt.spaeter || {}, anzahl = sp.anzahl || 0;
+    var verschoben = !!grund && grund !== "voll" && anzahl > 0 && ((L.rezepte || 0) < (sp.bisRezepte || 0) && jetzt < (sp.bisZeit || 0));
+    return { faellig: !!grund && !verschoben, dringend: grund === "voll", grund: grund, verschoben: verschoben,
+      rezepte: rezepte, meldungen: meldungen, fehler: fehler.length, abweichungen: abw.length, titel: titel.length, protokoll: prot.length,
+      protokollMax: G.protokollMax, groesse: groesse, groesseMax: G.groesseMax, fuellstand: fuellstand, tage: tage,
+      spaeterUebrig: Math.max(0, G.spaeterMax - anzahl), darfSpaeter: grund !== "voll" && anzahl < G.spaeterMax };
+  }
+  // „Später“ gedrückt: neues Verschiebe-Ziel (5 Rezepte oder 3 Tage, je nachdem was zuerst kommt)
+  function lernSpaeter(L, sp, jetzt) {
+    var G = LERN_GRENZEN; jetzt = jetzt || Date.now();
+    return { anzahl: ((sp && sp.anzahl) || 0) + 1, bisRezepte: ((L && L.rezepte) || 0) + G.spaeterRezepte, bisZeit: jetzt + G.spaeterTage * 86400000 };
+  }
   // Nährwert-Zuordnungen und eigene Angaben (nur Zutatenname, Werte, Quelle – keine Rezepte)
   function naehrwertExport(z) {
     var out = {};
@@ -4999,7 +5031,7 @@
   // ---------------------------------------------------------------------------
 
   var api = {
-    neuerLernspeicher: neuerLernspeicher, lerneAusRezept: lerneAusRezept, lerneKorrektur: lerneKorrektur, lernExport: lernExport, lernRegeln: lernRegeln, lernNorm: lernNorm,
+    neuerLernspeicher: neuerLernspeicher, lerneAusRezept: lerneAusRezept, lerneKorrektur: lerneKorrektur, lernExport: lernExport, lernStand: lernStand, lernSpaeter: lernSpaeter, LERN_GRENZEN: LERN_GRENZEN, lernRegeln: lernRegeln, lernNorm: lernNorm,
     VERSION: VERSION, SCHEMA_VERSION: SCHEMA_VERSION, ZEIT_FAKTOR: ZEIT_FAKTOR,
     AISLES: AISLES,
     analyse: analyse,
