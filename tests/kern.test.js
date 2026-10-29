@@ -806,17 +806,17 @@ check("Ü: Brüche vor der Übersetzung", K.vorUebersetzung("Add 3½ cups water"
   check("L: 60 Minuten im Ofen sind keine Pause", ofen.ok, ofen);
 }
 {
-  // K: Quellen ergänzen sich
-  const blog = '<script type="application/ld+json">' + JSON.stringify({ "@type": "Recipe", name: "Linsensuppe", recipeYield: "4", recipeIngredient: ["250 g rote Linsen", "1 Zwiebel", "2 Karotten", "800 ml Gemüsebrühe", "1 EL Olivenöl"], recipeInstructions: [{ text: "Zwiebel und Karotten würfeln und im Öl anbraten." }, { text: "Linsen und Brühe dazugeben und 20 Minuten köcheln." }] }) + '</script>';
+  // K: Quellen ergänzen sich – Vorrang hat die Caption (Jakob, 29.10.)
+  const blog = '<script type="application/ld+json">' + JSON.stringify({ "@type": "Recipe", name: "Linsensuppe", recipeYield: "4", recipeIngredient: ["250 g rote Linsen", "1 Zwiebel", "2 Karotten", "800 ml Gemüsebrühe", "1 EL Olivenöl", "1 TL Kreuzkümmel"], recipeInstructions: [{ text: "Zwiebel und Karotten würfeln und im Öl anbraten." }, { text: "Linsen, Kreuzkümmel und Brühe dazugeben und 20 Minuten köcheln." }] }) + '</script>';
   const cap = "Linsensuppe\n\nZutaten\n400 g rote Linsen\n1 Zwiebel\n2 Karotten\n800 ml Gemüsebrühe\n1 EL Olivenöl\n1 Limette\n\nZubereitung\nAlles kochen.\nMit Limette abschmecken.";
   const r = K.analyse({ caption: cap, blogHtml: blog, blogUrl: "https://blog.example/linsen", url: "https://www.instagram.com/p/K1/" }).recipe;
-  const lim = r.ingredients.find(i => /Limette/.test(i.name)), lin = r.ingredients.find(i => /Linsen/.test(i.name));
-  check("K: Zutat nur in der Beschreibung wird ergänzt und gekennzeichnet", lim && lim.ergaenzt === "Beschreibung", r.ingredients.map(i => i.name + ":" + (i.ergaenzt || "")));
-  check("K: bei Widerspruch gilt der Blog, andere Menge als Hinweis", lin && lin.qty === 250 && /400 g laut Beschreibung/.test(lin.andereMenge || ""), lin);
-  check("K: Blog-Schritte bleiben", r.steps.length === 2 && /Zwiebel/.test(r.steps[0]), r.steps);
+  const lim = r.ingredients.find(i => /Limette/.test(i.name)), lin = r.ingredients.find(i => /Linsen/.test(i.name)), kk = r.ingredients.find(i => /Kreuzkümmel/.test(i.name));
+  check("K: Caption ist die Hauptliste", lim && !lim.ergaenzt && lin && lin.qty === 400, r.ingredients.map(i => i.name + ":" + i.qty + ":" + (i.ergaenzt || "")));
+  check("K: Zutat nur im Blog wird ergänzt und gekennzeichnet", kk && kk.ergaenzt === "Blog", r.ingredients.map(i => i.name + ":" + (i.ergaenzt || "")));
+  check("K: andere Menge aus dem Blog als Hinweis", /250 g laut Blog/.test((lin && lin.andereMenge) || ""), lin);
   const capEn = "Lentil soup\n\nIngredients\n250 g red lentils\n1 onion\n2 carrots\n800 ml vegetable broth\n1 tbsp olive oil\n\nMethod\nCook everything.";
   const r2 = K.analyse({ caption: capEn, blogHtml: blog, blogUrl: "https://blog.example/linsen", url: "x" }).recipe;
-  check("K: keine doppelten Zutaten bei anderer Sprache", r2.ingredients.length === 5, r2.ingredients.map(i => i.name));
+  check("K: keine doppelten Zutaten bei anderer Sprache", r2.ingredients.length === 6, r2.ingredients.map(i => i.name));
 }
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.7.3";
+  var VERSION = "0.7.4";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -2570,9 +2570,15 @@
       "elsewhere", "bakingForm", "yieldInfo", "servingsUnit", "ingredientsFromSteps", "hashtagTitle", "titleFromTranslation", "dishTitle", "description", "textFood", "titelSignal", "introZeile", "yieldText", "servingsPending", "ausArtikel"].forEach(function (f) {
       if ((r[f] == null || r[f] === "") && b[f] != null && b[f] !== "") { r[f] = b[f]; r.provenance[f] = src; }
     });
-    // Eine brauchbare Blog-Zutatenliste bleibt die Hauptliste (K); die Caption ergänzt nur
-    var blogGut = r.provenance.ingredients === "blog" && r.ingredients.length >= 3 && ingredientQuality(r.ingredients) >= r.ingredients.length * 0.7;
-    if (!blogGut && ingredientQuality(b.ingredients) > ingredientQuality(r.ingredients) * 1.15) {
+    // K (Jakob, 29.10.): Vorrang hat die Caption. Ist ihre Zutatenliste brauchbar, wird sie die Hauptliste und der Blog ergänzt;
+    // sonst bleibt die Blog-Liste und die Caption ergänzt.
+    var gut = function (l) { return l && l.length >= 3 && ingredientQuality(l) >= l.length * 0.7; };
+    var blogGut = r.provenance.ingredients === "blog" && gut(r.ingredients);
+    if (src === "caption" && r.provenance.ingredients === "blog" && gut(b.ingredients)) {
+      var blogListe = r.ingredients;
+      r.ingredients = b.ingredients; r.provenance.ingredients = src;
+      ergaenzeZutaten(r, blogListe, "blog");
+    } else if (!blogGut && ingredientQuality(b.ingredients) > ingredientQuality(r.ingredients) * 1.15) {
       var vorher = r.ingredients, vorherSrc = r.provenance.ingredients;
       r.ingredients = b.ingredients; r.provenance.ingredients = src;
       if (vorher && vorher.length) ergaenzeZutaten(r, vorher, vorherSrc);
@@ -2588,7 +2594,7 @@
   }
 
   // Quellen ergänzen sich (Entscheidung K, Jakob 29.10.2026): Zutaten, die nur in der zweiten Quelle stehen
-  // (z. B. Caption neben dem Blog), kommen gekennzeichnet dazu. Bei Widerspruch gilt die Hauptliste (meist der Blog),
+  // (z. B. Blog neben der Caption), kommen gekennzeichnet dazu. Bei Widerspruch gilt die Hauptliste (Vorrang: Caption),
   // die andere Menge steht als Hinweis dabei. Weichen die Listen stark ab (andere Sprache, andere Namen), wird nichts ergänzt.
   var QUELL_NAME = { blog: "Blog", caption: "Beschreibung", comment: "Ergänzung", speech: "Ton", ocr: "Texterkennung", model: "Modell" };
   function zutatGleich(x, y) {

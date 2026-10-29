@@ -474,7 +474,7 @@ a { color: var(--accent); }
   function A(input) { return K.analyse(input, { lernen: [ZENTRAL, S.lernen] }); }
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.20.16";
+  var APP_VERSION = "0.20.17";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0 (creativecommons.org/licenses/by/4.0). Werte unverändert übernommen; Stück- und Löffelgewichte sind eigene Richtwerte der App. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -1893,7 +1893,7 @@ a { color: var(--accent); }
       if ((i.group || "") !== lastGroup) { lastGroup = i.group || ""; gh = '<div class="row ing-group"><span class="main"><span class="small muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.04em">' + esc(lastGroup || "Weitere Zutaten") + '</span></span></div>'; }
       return gh + '<div class="row ing"><span class="dot' + (have ? " have" : "") + '"><span class="sr">' + (have ? "vorhanden" : "fehlt") + '</span></span>' +
         '<span class="qty">' + esc(clean2(q + " " + unitText(i.unit))) + '</span><span class="main"><span>' + esc(name) + (i.optional ? ' <span class="muted small">(optional)</span>' : '') + '</span>' +
-        ((i.note || i.qtyEstimated || i.ergaenzt || i.andereMenge) ? '<span class="sub">' + esc([i.note, i.qtyEstimated ? "Menge geschätzt (im Rezept nicht angegeben)" : "", i.ergaenzt ? "nur in der " + i.ergaenzt + " – ergänzt" : "", i.andereMenge ? "anders: " + i.andereMenge : ""].filter(Boolean).join(" · ")) + '</span>' : '') + '</span>' +
+        ((i.note || i.qtyEstimated || i.ergaenzt || i.andereMenge) ? '<span class="sub">' + esc([i.note, i.qtyEstimated ? "Menge geschätzt (im Rezept nicht angegeben)" : "", i.ergaenzt ? (i.ergaenzt === "Blog" ? "nur im Blog" : "nur in der " + i.ergaenzt) + " – ergänzt" : "", i.andereMenge ? "anders: " + i.andereMenge : ""].filter(Boolean).join(" · ")) + '</span>' : '') + '</span>' +
         (!orig && K.ersatzFuer && K.ersatzFuer(i).length ? '<button class="ibtn tausch" data-a="ersatz" data-id="' + esc(id) + '" data-n="' + ingN + '" aria-label="' + esc(i.name) + ' ersetzen" title="Ersetzen">⇄</button>' : '') + '</div>';
     }).join("");
     var stepList = orig && r.stepsOriginal ? r.stepsOriginal : r.steps;
