@@ -366,6 +366,32 @@ Z = {
   "kidneybohnen": ("=Kidneybohne reif, Konserve, abgetropft", None, 15, None, None),
   "sauerkraut": ("=Sauerkraut Konserve, abgetropft", None, None, None, None),
   "kakaopulver": ("=Kakaopulver schwach entölt", None, 7, 2, None),
+  # Blog-Test 29.10.: häufige Zutaten von Rezeptseiten, die vorher fehlten
+  "olive": ("=Oliven geschwärzt, in Salzlake, abgetropft", 4, 10, None, None),
+  "schwarze olive": ("=Oliven geschwärzt, in Salzlake, abgetropft", 4, 10, None, None),
+  "grüne olive": ("=Oliven grün, gesäuert, abgetropft", 4, 10, None, None),
+  "kaper": ("=Kapern gesäuert, abgetropft", None, 10, 4, None),
+  "sardelle": ("=Sardelle in Öl, Konserve, abgetropft", 4, None, None, None),
+  "sardellenfilet": ("=Sardelle in Öl, Konserve, abgetropft", 4, None, None, None),
+  "blätterteig": ("=Blätterteig eifrei, roh", 275, None, None, None),
+  "pizzateig": ("=Pizzateig (mit Hefe) roh", 400, None, None, None),
+  "ravioli": ("=Eier-Frischteigwaren Ravioli (Gemüsefüllung) roh", None, None, None, None),
+  "vegane ravioli": ("=Eier-Frischteigwaren Ravioli (Gemüsefüllung) roh", None, None, None, None),
+  "tortellini": ("=Eierteigwaren Tortellini (Fleischfüllung) getrocknet", None, None, None, None),
+  "vegane bratwurst": ("=Vegetarische Bratwurst (aus Tofu und Weizenprotein)", 50, None, None, None),
+  "vegane bratwürste": ("=Vegetarische Bratwurst (aus Tofu und Weizenprotein)", 50, None, None, None),
+  "vegane würstchen": ("=Vegetarische Bratwurst (aus Tofu und Weizenprotein)", 50, None, None, None),
+  "ajvar": ("=Ajvar Konserve", None, 15, 5, None),
+  "käseersatz": ("=Käsealternative, Basis Pflanzenfett, vegan", None, 7, 3, None),
+  "kochsahne": ("=Kaffeesahne mind. 10 % Fett", None, 15, 5, 1.0),
+  "pflanzliche kochsahne": ("=Sojakochcreme", None, 15, 5, 1.0),
+  "gulasch": ("=Rind Gulasch (Bug) roh", None, None, None, None),
+  "rindergulasch": ("=Rind Gulasch (Bug) roh", None, None, None, None),
+  "mini-tomate": ("=Tomate roh", 15, None, None, None),
+  "getrocknete tomate": ("=Tomate getrocknet", 6, 8, None, None),
+  "seitan-fix": ("=Weizenkleber/Weizengluten", None, 8, 3, None),
+  "glutenmehl": ("=Weizenkleber/Weizengluten", None, 8, 3, None),
+  "wraps": ("=Weizentortilla", 60, None, None, None),
 }
 
 # Zustände: "<schlüssel>@<zustand>" (roh | gekocht | abgetropft). Löffel-/Stückgewichte erbt der Eintrag vom Grundschlüssel.
@@ -381,7 +407,7 @@ V = {
   "couscous@gekocht": "=Couscous (Hartweizen) gekocht", "bulgur@gekocht": "=Bulgur (Hartweizen) gekocht", "mais@gekocht": "=Mais gekocht",
 }
 
-NAEHERUNG = {"agavendicksaft": "Agavendicksaft fehlt im BLS; Näherung über Ahornsirup", "enoki": "Enoki fehlt im BLS; Näherung über Austernpilz", "hanfsamen": "Hanfsamen fehlen im BLS; Näherung über Leinsamen", "tempeh": "Tempeh fehlt im BLS; Näherung über Tofu", "enoki pilze": "Enoki fehlt im BLS; Näherung über Austernpilz", "proteinpulver": "Näherung über Sojaproteinisolat", "chickenalternative": "Näherung über Fleischersatz (gluten-, milch- und sojahaltig)", "vegane sahne": "Näherung über Sahneersatz", "vegane mayo": "Näherung über Mayonnaise"}
+NAEHERUNG = {"agavendicksaft": "Agavendicksaft fehlt im BLS; Näherung über Ahornsirup", "enoki": "Enoki fehlt im BLS; Näherung über Austernpilz", "hanfsamen": "Hanfsamen fehlen im BLS; Näherung über Leinsamen", "tempeh": "Tempeh fehlt im BLS; Näherung über Tofu", "enoki pilze": "Enoki fehlt im BLS; Näherung über Austernpilz", "proteinpulver": "Näherung über Sojaproteinisolat", "chickenalternative": "Näherung über Fleischersatz (gluten-, milch- und sojahaltig)", "vegane sahne": "Näherung über Sahneersatz", "vegane mayo": "Näherung über Mayonnaise", "vegane ravioli": "Näherung über Ravioli mit Gemüsefüllung (Eierteig)", "vegane bratwurst": "Näherung über vegetarische Bratwurst", "vegane bratwürste": "Näherung über vegetarische Bratwurst", "vegane würstchen": "Näherung über vegetarische Bratwurst", "kochsahne": "Näherung über Kaffeesahne (10 % Fett)", "seitan-fix": "Näherung über Weizengluten"}
 
 PREPARED = re.compile(r"(gebraten|gekocht|frittiert|gedünstet|gebacken|getrocknet|tiefgefroren|Konserve|Pulver|mit |gesüßt|gegart|paniert|Saft|Sirup|Mus\b|Püree|Chips|Brei|Suppe|Salat|Eis\b|Kuchen)", re.I)
 

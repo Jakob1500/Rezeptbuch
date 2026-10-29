@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.6.6";
+  var VERSION = "0.6.7";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -126,6 +126,12 @@
   // Der Schlüssel für Vorrat/Einkauf/Nährwerte entsteht daraus mit normName().
   var EN_NAMES_RAW = [
     // Englisch, häufig in Blog- und Instagram-Rezepten (Korpus-Messung 28.10.)
+    // Blog-Test 29.10. (drveganblog, Bianca Zapatka u. a.)
+    "flat-leaf parsley=Petersilie", "flat leaf parsley=Petersilie", "italian parsley=Petersilie", "tomato passata=Passierte Tomaten", "passata=Passierte Tomaten", "heads garlic=Knoblauchknolle", "heads of garlic=Knoblauchknolle", "head garlic=Knoblauchknolle",
+    "vegan cooking cream=Pflanzliche Kochsahne", "cooking cream=Kochsahne", "plant-based cooking cream=Pflanzliche Kochsahne", "vegan cream=Pflanzliche Sahne", "vegan ravioli=Vegane Ravioli", "ravioli=Ravioli", "tortellini=Tortellini", "vegan tortellini=Vegane Tortellini",
+    "peppers=Paprika", "salt and black pepper=Salz und Pfeffer", "salt and freshly ground black pepper=Salz und Pfeffer", "salt and freshly ground pepper=Salz und Pfeffer", "salt and ground black pepper=Salz und Pfeffer", "salt & black pepper=Salz und Pfeffer", "kosher salt and black pepper=Salz und Pfeffer",
+    "plantbased milk=Pflanzendrink", "plant-based milk=Pflanzendrink", "plant milk=Pflanzendrink", "non-dairy milk=Pflanzendrink", "dairy-free milk=Pflanzendrink", "tomato flakes=Getrocknete Tomaten", "pasta cooking water=Nudelwasser", "cooking water=Nudelwasser",
+    "vegan puff pastry=Blätterteig", "puff pastry=Blätterteig", "pizza dough=Pizzateig", "vegan sausages=Vegane Würstchen", "lavash=Fladenbrot", "rocket=Rucola", "arugula=Rucola", "chili pepper=Chili", "chilli pepper=Chili", "ajvar=Ajvar",
     "bulb of garlic=Knoblauchknolle", "head of garlic=Knoblauchknolle", "garlic bulb=Knoblauchknolle", "garlic head=Knoblauchknolle", "white miso paste=Helle Misopaste", "white miso=Helle Misopaste", "miso=Misopaste", "silken tofu=Seidentofu", "firm tofu=Fester Tofu", "tofu=Tofu", "cherry tomatoes on the vine=Rispen-Cherrytomaten", "balsamic glaze=Balsamico-Creme", "thick balsamic vinegar=Balsamico-Creme",
     "buttermilk=Buttermilch", "evaporated milk=Kondensmilch", "sweetened condensed milk=Gezuckerte Kondensmilch", "condensed milk=Gezuckerte Kondensmilch", "heavy whipping cream=Schlagsahne", "whipping cream=Schlagsahne", "double cream=Sahne", "single cream=Sahne",
     "half and half=Kaffeesahne", "sour cream=Saure Sahne", "creme fraiche=Crème fraîche", "ghee=Ghee", "clarified butter=Butterschmalz", "shortening=Pflanzenfett", "margarine=Margarine",
@@ -290,7 +296,7 @@
     "plus more": "und etwas mehr", "or more": "oder mehr", "if needed": "bei Bedarf", "as needed": "nach Bedarf", "about": "ca.", "approx": "ca.", "each": "je",
     "whole": "ganz", "kosher": "", "unsalted": "ungesalzen", "salted": "gesalzen", "granulated": "", "extra-virgin": "nativ extra", "pure": "", "fine": "fein", "fine grain": "fein", "flaky": "Flocken",
     "freshly grated": "frisch gerieben", "freshly squeezed": "frisch gepresst", "boneless": "ohne Knochen", "skinless": "ohne Haut", "boneless skinless": "ohne Haut und Knochen", "lean": "mager",
-    "low-sodium": "salzarm", "low sodium": "salzarm", "reduced-sodium": "salzarm", "russet": "mehligkochend", "roma": "", "sharp": "kräftig", "semi-sweet": "zartbitter", "semisweet": "zartbitter",
+    "low-sodium": "salzarm", "low sodium": "salzarm", "reduced-sodium": "salzarm", "reduced-salt": "salzarm", "reduced salt": "salzarm", "refrigerated": "gekühlt", "store-bought": "gekauft", "reserved": "", "russet": "mehligkochend", "roma": "", "sharp": "kräftig", "semi-sweet": "zartbitter", "semisweet": "zartbitter",
     "active dry": "Trocken-", "instant": "Trocken-", "plain": "natur", "unbleached": "", "all-purpose": "", "full fat": "vollfett", "full-fat": "vollfett", "non dairy": "pflanzlich", "non-dairy": "pflanzlich", "dairy-free": "pflanzlich",
     "organic": "Bio", "quality": "", "good quality": "", "homemade": "selbst gemacht", "store-bought": "gekauft", "petite": "klein", "old-fashioned": "", "coarse": "grob", "table": "", "crumbled": "zerbröselt",
     "yellow": "gelb", "sweet": "süß", "mini": "Mini-", "baby": "Baby-", "seedless": "kernlos", "skin-on": "mit Haut", "bone-in": "mit Knochen", "thick-cut": "dick geschnitten", "sliced into rounds": "in Scheiben",
@@ -370,7 +376,7 @@
       "schwein", "pork", "speck", "bacon", "schinken", "ham", "salami", "chorizo", "wurst", "würstchen",
       "hackfleisch", "hack", "mett", "lamm", "lamb", "ente", "duck", "gans", "reh", "hirsch", "steak",
       "gyros", "döner", "pancetta", "prosciutto", "leberkäse", "frikadelle", "gelatine", "gelatin",
-      "bratwurst", "kassler", "geflügel", "putenbrust", "rinderbrühe", "hühnerbrühe", "chicken stock", "beef stock"],
+      "bratwurst", "kassler", "geflügel", "putenbrust"],
     fish: ["fisch", "fish", "lachs", "salmon", "thunfisch", "tuna", "kabeljau", "dorsch", "seelachs", "forelle",
       "hering", "makrele", "sardine", "sardelle", "anchovis", "anchovy", "garnele", "shrimp", "prawn", "krabbe",
       "scampi", "muschel", "tintenfisch", "calamari", "oktopus", "surimi", "worcestershire", "zander", "pangasius"],
@@ -462,6 +468,7 @@
     ["Snack", /\b(bites|bällchen|balls|energy|meatballs|wings|nuggets|strips|lollipops?|skewers?|spieße|stuffed dates|datteln|pumpkin seeds|kürbiskerne|nüsse|nuts|crackers?|chips|popcorn|board|platte|appetizer|vorspeise|fingerfood|häppchen|bruschetta|crostini|dumplings|gyoza|fritters|puffer|frühlingsrollen|spring rolls|samosas?|pakoras?)\b/]
   ];
   var TITEL_HAUPT = /\b(pot pie|shepherd'?s pie|cottage pie|chicken pie|meat pie|pizza|burger|tacos?|lasagne|lasagna|curry|bowl|pasta|risotto|bake\b|auflauf|gratin|casserole|stir[- ]fry|pfanne|sandwich|wraps?|burrito|enchiladas?|sushi)\b/;
+  var CAT_WORD_END = { torte: 1, tarte: 1, kuchen: 1, cake: 1 }; // "Tortellini", "Tartelette", "Pfannkuchen"? -> nur als Wortende
   var CAT_WORD_START = { latte: 1, dip: 1, drink: 1, shake: 1, bars: 1, pho: 1, poke: 1, bake: 1, rolls: 1, chips: 1, tee: 1, salsa: 1, beans: 1, riegel: 1, snack: 1, cake: 1, pudding: 1 };
   var CATEGORY_KEYWORDS = [
     ["Frühstück", ["frühstück", "breakfast", "porridge", "overnight oats", "müsli", "granola", "pancake",
@@ -848,6 +855,20 @@
     });
     return ok ? teile.map(zurueck) : null;
   }
+  // Schreibweisen von Rezeptseiten angleichen, bevor die Zeile gelesen wird (Blog-Test 29.10.):
+  // "2 Zehe/n Knoblauch", "1 große Zwiebel(n)", "450 g Hokkaidokürbis(se)" (Chefkoch) -> ohne Pluralzeichen;
+  // "(drained; one 15 oz (400 g) can …)" -> eine Klammerebene; "2-2 1/2 cups", "1/4-1/2 tsp" -> "2-2.5", "0.25-0.5";
+  // "firm or extra-firm tofu" -> "extra-firm tofu"; "n. B. Salz" -> "Salz, nach Belieben"
+  function bruchZahl(t) { var m = String(t).trim().match(/^(\d+)\s+(\d+)\/(\d+)$/); if (m) return +m[1] + m[2] / m[3]; m = String(t).trim().match(/^(\d+)\/(\d+)$/); if (m) return m[1] / m[2]; return parseFloat(String(t).replace(",", ".")); }
+  function vorbereiteZeile(raw) {
+    var t = String(raw).replace(/([a-zäöüß])(?:\((?:n|e|s|se|en|nen|er|es|n\/s)\)|\/(?:n|e|s|en|es|nen))(?=[\s,;).]|$)/g, "$1");
+    for (var k = 0; k < 4 && /\([^()]*\([^()]*\)/.test(t); k++) t = t.replace(/\(([^()]*)\)(?=[^(]*\))/g, "$1"); // innere Klammern auflösen
+    t = t.replace(/\b(oil|liquid|juice|water)\s+from\s+(?:the\s+)?([a-z][a-z\s-]*?)(?=\s*(?:\(|,|;|$))/i, "$1 ($2)");
+    t = t.replace(/^(\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:[.,]\d+)?)\s*[-–]\s*(\d+\s+\d+\/\d+|\d+\/\d+)(?=\s)/, function (m0, a, b) { var r2 = function (x) { return String(Math.round(bruchZahl(x) * 100) / 100); }; return r2(a) + "-" + r2(b); });
+    t = t.replace(/^(\d+(?:[.,]\d+)?\s*(?:[a-zA-Z]+\.?\s+)?)(?:extra[- ])?(firm|soft|silken|medium|large|small|fresh|dried|red|green|yellow|white|brown)\s+or\s+(?=[a-z-]+\s+[a-z])/i, "$1");
+    t = t.replace(/^(?:n\.\s?B\.?|nach Belieben)\s+(.+)$/i, function (m0, x) { return x + (/,/.test(x) ? " (nach Belieben)" : ", nach Belieben"); });
+    return t;
+  }
   function parseIngredientLine(line) {
     var raw = clean(stripEmoji(String(line || "")).replace(/[\u200b-\u200f\u2060-\u2064\ufeff]/g, "").replace(BULLET_RE, "").replace(/[„“”"«»]/g, ""));
     if (!raw) return null;
@@ -855,9 +876,9 @@
     var note = [];
     if (/\b(optional|nach belieben|nach geschmack|to taste)\b/i.test(raw)) res.optional = /optional/i.test(raw);
 
-    var rest = raw.replace(/^optional\s*:?\s*/i, "")
+    var rest = vorbereiteZeile(raw).replace(/^optional\s*:?\s*/i, "")
       .replace(/\s+(?:und\s*\/\s*oder|and\s*\/\s*or)\s+/gi, " oder ")                      // "Salz und / oder Sojasauce"
-      .replace(/\bn\.\s?B\.?(?=\s|$)/g, "nach Belieben")                                    // "Chiliflocken n. B."
+      .replace(/\bn\.\s?B\.?(?=[\s),;]|$)/g, "nach Belieben")                                    // "Chiliflocken n. B."
       .replace(/^(?:(?:einen?|eine[mr]?)\s+(?:halbe[nrsm]?)|half\s+an?|a\s+half)\s+/i, "0.5 ")  // "einen halben Teelöffel", "half a cup"
       .replace(/^(?:eineinhalb|anderthalb|one and a half)\s+/i, "1.5 ")
       .replace(/^(\d+(?:[.,]\d+)?)\s*([A-Za-zäöü]+)\.?\s*[-–]\s*(\d+(?:[.,]\d+)?)\s*\2s?\b\.?/i, "$1-$3 $2") // "1 cup - 2 cups water"
@@ -1028,6 +1049,7 @@
     res.key = normName(res.name);
     if (res.name === "Paprika" && res.key === "paprikapulver") res.key = "paprika";
     res.aisle = guessAisle(res.name + " " + res.key);
+    if (res.aisle === "Obst & Gemüse" && (/\b(aus der dose|aus dem glas|dose|konserve|canned|tinned|from a can|jarred)\b/i.test((res.note || "") + " " + raw) || res.unit === "Dose" || res.unit === "Glas")) res.aisle = "Trockenware & Konserven"; // "800 g Tomaten (aus der Dose)"
     res.staple = isStaple(res.name) && res.key !== "paprika";
     return res;
   }
@@ -1223,7 +1245,13 @@
   ];
   // Wörter, die wie Arbeitsschritte aussehen, aber Zutaten oder Geräte sind ("baking soda", "Backblech", "brown sugar", "the rest of", "cooked rice")
   var KEIN_ARBEITSSCHRITT = /\b(baking (?:soda|powder|sheet|sheets|dish|pan|pans|tray|paper|spray|mat)|back(?:pulver|papier|blech|form|ofen|matte|rost|zeit|röhre)\w*|brown(?:ed)? (?:sugar|rice|butter|bread)|brauner? zucker|(?:the )?rest of|der rest|cooked|gekocht\w*|cooking (?:spray|oil|time)|cookies?|cool (?:water|place)|kühlschrank\w*|cold water|kaltem wasser|frozen|tiefgekühlt\w*|roasted|geröstet\w*|fried|gebraten\w*|whisked|geschlagen\w*|kochend\w*|boiling water|sautéed)\b/gi;
-  function schrittArbeiten(s) { var t = String(s).replace(KEIN_ARBEITSSCHRITT, " "), o = []; ARBEIT.forEach(function (a) { if (a[1].test(t)) o.push(a[0]); }); return o; }
+  function schrittArbeiten(s) {
+    var t = String(s).replace(KEIN_ARBEITSSCHRITT, " "), o = [];
+    ARBEIT.forEach(function (a) { if (a[1].test(t)) o.push(a[0]); });
+    // "roast in a pan", "in der Pfanne rösten": Pfanne statt Ofen -> braten (wenige Minuten)
+    if (o.indexOf("rösten") !== -1 && /\b(pan|skillet|wok|pfanne|topf)\b/i.test(t) && !/\b(oven|ofen|backofen)\b/i.test(t)) o = o.filter(function (w) { return w !== "rösten"; }).concat(o.indexOf("braten") === -1 ? ["braten"] : []);
+    return o;
+  }
   // Alle Zeitangaben eines Textes in Minuten ("5–6 mins", "1 Std.", "20-25 Minuten"); bei Spannen der obere Wert.
   // Sekunden zählen nicht; "über Nacht" ist keine Zahl.
   function zeitangaben(s, oben) {
@@ -1258,6 +1286,8 @@
   // Satz mit Zeitangabe: alle Angaben zählen. Satz ohne: typische Dauer der Arbeitsschritte (gelernte Werte gehen vor).
   // Schneiden je Zutat. "Währenddessen …" läuft in der Wartezeit davor und verlängert nur, was übersteht.
   var ZEIT_FAKTOR = { ohneZeit: function (mitZeiten) { return mitZeiten >= 1 ? 0.25 : 1; }, schneidenJe: 2, schneidenMin: 2, bereitlegen: 3 };
+  var ALTERNATIVE = /^(alternativ(ely)?|or\b|oder\b|otherwise|for the (stove|stovetop|hob|oven|microwave|air ?fryer)|on the (stove|stovetop|hob)|in (the|a) (microwave|air ?fryer|instant pot|slow cooker)|im (ofen|airfryer|thermomix|slow ?cooker)|auf dem herd|in der (mikrowelle|heißluftfritteuse)|wer mag|if (you )?prefer)/i;
+  var PRUEFZEIT = /\b(check(ing)?|test(ing)?)\s+(from|after|at|around)\s+\d+\s*(min\w*|minutes?)|\bnach\s+\d+\s*(min\.?|minuten)\s+(prüfen|kontrollieren|testen|nachsehen)|\bab\s+\d+\s*(min\.?|minuten)\s+(prüfen|kontrollieren)/gi;
   function zeitAnalyse(r, gelernt) {
     var steps = (r && r.steps) || [], ings = (r && r.ingredients) || [];
     var map = ings.length ? stepIngredients(r) : [];
@@ -1271,10 +1301,14 @@
       var imSchritt = (map[si] || []).filter(function (k) { return schneidbar(ings[k]); });
       // Satzende, aber nicht nach Abkürzungen ("ca. 30 Minuten", "z. B. Reis", "ggf. Salz")
       var saetze = String(st).replace(/(\S*)([.!?;])\s+(?=[A-ZÄÖÜ„"0-9])/g, function (m0, wort, z) { return /^(ca|bzw|ggf|evtl|z\.\s?b|zB|min|max|std|el|tl|gr|stk|pck|approx|ca\.|etc|vs|nr)$/i.test(wort) || /^\d+$/.test(wort) && z === "." ? m0 : wort + z + "\u0002"; }).split("\u0002");
+      var vorherZeit = false;
       saetze.forEach(function (s) {
+        // Alternative zum vorigen Satz ("Alternatively, use a saucepan … 30 to 40 minutes", "Oder im Airfryer 12 Minuten") zählt nicht dazu
+        if (vorherZeit && ALTERNATIVE.test(s.trim())) { teile.push({ schritt: n, text: s, min: 0, art: "Alternative (nicht mitgezählt)" }); return; }
+        vorherZeit = zeitangaben(s.replace(PRUEFZEIT, "")).length > 0;
         if (/über nacht|overnight/i.test(s)) { ueberNacht = true; teile.push({ schritt: n, text: s, min: 0, art: "über Nacht (nicht mitgezählt)" }); return; }
         var zt = 0, warte = 0, warum = [];
-        var ang = zeitangaben(s);
+        var ang = zeitangaben(s.replace(PRUEFZEIT, "")); // "checking from 40 minutes", "nach 20 Minuten prüfen" ist keine zusätzliche Zeit
         if (SCHNEIDEN.test(s)) {
           var low = lower(s), k = imSchritt.filter(function (x) {
             return lower(ings[x].name + " " + (ings[x].nameOriginal || "")).split(/[\s,()-]+/).some(function (w) { return w.length >= 4 && low.indexOf(w.slice(0, 5)) !== -1; });
@@ -1297,7 +1331,7 @@
             // "bis goldbraun", "until soft": echter Garschritt, auch wenn das Rezept sonst Zeiten nennt
             // Handarbeit (kneten, formen) bekommt selten eine Zeitangabe im Rezept – sie zählt immer voll
             var hand = /^(kneten|formen)$/.test(w);
-            var d = (g && g.n >= 3 ? g.summe / g.n : def) * (hand || /\b(until|bis)\b/i.test(s) && !/\b(until|bis) (ready|zum servieren|serving)\b/i.test(s) ? 1 : ohneZeitFaktor);
+            var d = (/\b(briefly|quickly|kurz|kurzzeitig|einmal aufkochen|bring (it |them )?to (a|the) boil)\b/i.test(s) && !hand ? 0.4 : 1) * (g && g.n >= 3 ? g.summe / g.n : def) * (hand || /\b(until|bis)\b/i.test(s) && !/\b(until|bis) (ready|zum servieren|serving)\b/i.test(s) ? 1 : ohneZeitFaktor);
             zt += d; warum.push(w + " ≈ " + fmtQty(Math.round(d * 10) / 10) + " Min." + (g && g.n >= 3 ? " (gelernt)" : ""));
             if (PASSIV.test(s) && /^(backen|rösten|köcheln|kochen|marinieren|quellen|ruhen|kühlen)$/.test(w)) warte += d;
           });
@@ -1625,7 +1659,7 @@
   // Schritte bereinigen: Werbung/Erzähltext raus, Zutaten zurück, Überschriften, Bruchstücke, °F -> °C
   // ---------------------------------------------------------------------------
   var CTA = /(\bcomment\b|kommentier|\bdm\b|\bdms\b|inbox|link (?:is )?in (?:my |the )?bio|link in der bio|\bfollow\b|folge mir|folgt mir|folgt uns|folge uns|für mehr (?:\w+ )*rezepte|for more (?:\w+ )*recipes|save (?:this|for later)|speicher(?:t|e)? (?:dir|euch)|\bshare\b|teil(?:t|e) (?:das|den|es)|membership|subscribe|abonnier|newsletter|website|\bapp\b|use code|rabatt|discount|for less than|access to|giveaway|gewinnspiel|werbung|anzeige|sponsored|pinned (?:in )?comment|angepinnt|(?:full )?recipe (?:is )?(?:on|in|at)|rezept (?:gibt'?s |findest du )?(?:auf|im|in)|get (?:it|the recipe)|send (?:it|you)|schick(?:e)? (?:dir|euch)|my (?:cook)?book|mein (?:koch)?buch|amazon|tesco|out now|over \d+ (?:people|of you)|already cooking|abspeichern|speichern (?:&|und) |auf meinem profil|in meinem profil|highlight|nicht kennst|link in my|see my page)/i;
-  var FILLER = /^(genießen|geniessen|enjoy|guten appetit|lass(?:t)? es (?:dir|euch) schmecken|an guadn|have fun|viel spaß|fertig|done|serve!?|yum+|so good|lecker)[!.\s]*$/i;
+  var FILLER = /^(genießen|geniessen|enjoy|enjoy it|guten appetit|bon app[ée]tit|en guete|guten hunger|smacznego|buen provecho|lass(?:t)? es (?:dir|euch) schmecken|an guadn|have fun|viel spaß|fertig|done|serve!?|yum+|so good|lecker)[!.\s]*$/i;
   var EN_IMP = /^(?:[^,]{0,70},\s*)?(?:(?:then|next|now|finally|meanwhile|first|also|and)\s+)?(tear|blitz|spoon|scatter|crumble|soak|massage|lay|flip|bash|smash|pulse|char|toast|shred|halve|quarter|zest|juice|stir in|add|mix|stir|cook|bake|heat|preheat|place|pour|blend|combine|chop|slice|dice|mince|toss|serve|season|bring|reduce|simmer|roast|fry|saut[eé]|whisk|fold|transfer|top|garnish|drain|rinse|let|remove|spread|roll|cut|grate|squeeze|sprinkle|drizzle|marinate|coat|arrange|layer|divide|mash|boil|steam|grill|toast|warm|set|leave|allow|prepare|peel|soak|press|wrap|fill|form|shape|assemble|finish|throw|put|cover|line|flip|turn|repeat|store|keep|refrigerate|chill|freeze|melt|beat|knead|scoop|pulse|process|microplane|shred|crumble|massage|dress|plate|dish|use|scatter|sear|brown|char|deglaze|braise|poach|blanch|pur[eé]e|strain|sift|measure|grease|check|taste|adjust|return|stuff|blitz|smash|break|pat|crisp|lower|increase|rest|wait|cool|slide|pop|tip|sauté|squish|dice)\b/i;
   var DE_INF_END = /\b[a-zäöüß-]+(?:en|ern|eln)[.!…]*\s*$/;
   var DE_VERBS = /\b(backen|kochen|braten|garen|rösten|mixen|pürieren|schneiden|würfeln|hacken|reiben|verteilen|geben|vermischen|vermengen|verrühren|rühren|abschmecken|würzen|servieren|garnieren|abkühlen|erhitzen|vorheizen|anbraten|dünsten|schmoren|köcheln|aufkochen|abgießen|abtropfen|formen|ausrollen|kneten|einweichen|marinieren|bestreuen|beträufeln|füllen|lassen|hinzufügen|dazugeben|zugeben|unterheben|schwenken|binden|ablöschen|einkochen|entfernen|nehmen|legen|stellen|streichen|drücken|zerrupfen|zerdrücken|pressen|mischen|anrühren|aufgießen|aufgiessen|toppen|belegen|halbieren|schälen|waschen|abspülen|reduzieren|frittieren|grillen|dämpfen|blanchieren|abdecken|wenden|umdrehen|swirlen|gib|rühre|brate|lege|stelle|schneide|mische|koche|backe|würze|vorheizen|aufschlagen|schlagen)\b/i;
@@ -2212,14 +2246,20 @@
     if (!node) return null;
     var r = emptyRecipe();
     r.title = textOf(node.name);
+    // "Deftige Gulaschsuppe von badegast1" (Chefkoch hängt den Namen der Einsenderin an), "… by Jane Doe"
+    var autorName = textOf(node.author && (Array.isArray(node.author) ? node.author[0] : node.author));
+    if (/chefkoch\.(de|at|ch)/i.test(pageUrl || "") || (autorName && new RegExp("\\s(von|by)\\s+" + autorName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$", "i").test(r.title))) r.title = r.title.replace(/\s+(von|by)\s+[^\s].{0,40}$/i, "");
     var y = Array.isArray(node.recipeYield) ? node.recipeYield.map(textOf).join(" ") : textOf(node.recipeYield);
     r.servings = num(y);
+    // "1,25 kg", "500 g", "1 l": Menge statt Portionen -> Portionen aus der Energie schätzen, Menge als Hinweis
+    if (/\d\s*(kg|g|gramm|l|liter|ml)\b/i.test(y) && !/portion|serving|person|stück|stueck|pieces?|scheiben|slices?/i.test(y)) { r.yieldText = "ergibt " + clean(y.replace(/^\s*[\d.,]+\s+(?=[\d.,]+\s*(kg|g|l|ml))/i, "")).replace(/(\d)\.(\d)/, "$1,$2"); r.servings = null; r.servingsPending = "energie"; }
     var ings = node.recipeIngredient || node.ingredients || [];
     if (!Array.isArray(ings)) ings = [ings];
     // Mehrere Zutaten in einem Eintrag, getrennt durch Zeilenumbrüche ("200 g Mehl\n2 Eier")
     ings = [].concat.apply([], ings.map(function (s) { return typeof s === "string" && /\n|<br\s*\/?>/i.test(s) ? s.split(/\s*(?:\n|<br\s*\/?>)\s*/i) : [s]; }));
     r.ingredients = ings.map(function (s) { return parseIngredientLine(textOf(s)); }).filter(Boolean);
-    r.steps = flattenInstructions(node.recipeInstructions);
+    // Grußformeln und Werbung am Ende ("Guten Appetit!", "Eure Lieblingsgerichte von Chefkoch jetzt einfach gekocht …") sind keine Schritte
+    r.steps = flattenInstructions(node.recipeInstructions).filter(function (x) { var t = clean(String(x || "").replace(/^##\s*/, "")); return t && !FILLER.test(t) && !/^(eure|unsere|deine|meine) lieblings\w*\b.*\b(jetzt|von)\b/i.test(t) && !/^(mehr|weitere|noch mehr) rezepte\b|^(folge|follow) (mir|me|us|uns)\b|^(hast du|did you make)\b.*\?$/i.test(t); });
     r.timePrep = parseDuration(textOf(node.prepTime));
     r.timeCook = parseDuration(textOf(node.cookTime));
     r.timeTotal = parseDuration(textOf(node.totalTime)) || ((r.timePrep || 0) + (r.timeCook || 0)) || null;
@@ -2234,9 +2274,12 @@
       var n = node.nutrition;
       r.nutritionDeclared = {
         kcal: num(n.calories), protein: num(n.proteinContent), carbs: num(n.carbohydrateContent),
-        fat: num(n.fatContent), fiber: num(n.fiberContent), sugar: num(n.sugarContent), salt: num(n.sodiumContent),
-        perServing: true, basis: "laut Blog"
+        fat: num(n.fatContent), fiber: num(n.fiberContent), sugar: num(n.sugarContent),
+        // Blogs nennen Natrium (meist in mg); Salz = Natrium × 2,5
+        salt: n.sodiumContent != null && num(n.sodiumContent) != null ? Math.round(num(n.sodiumContent) * (/mg/i.test(textOf(n.sodiumContent)) || num(n.sodiumContent) > 20 ? 0.0025 : 2.5) * 10) / 10 : null,
+        perServing: !/^\s*100\s*(g|ml)\b/i.test(textOf(n.servingSize) || ""), basis: "laut Blog"
       };
+      if (!r.nutritionDeclared.perServing) r.nutritionDeclared.je = "100 g";
     }
     var author = node.author && (Array.isArray(node.author) ? node.author[0] : node.author);
     r.source.blogUrl = textOf(node.url) || pageUrl || "";
@@ -2305,9 +2348,10 @@
     CATEGORY_KEYWORDS.forEach(function (c) {
       var score = 0;
       c[1].forEach(function (k) {
-        if (titleKopf.indexOf(k) !== -1) score += 3;
-        else if (title.indexOf(k) !== -1) score += 1.5;
-        else if (CAT_WORD_START[k] ? new RegExp("(^|[^a-zäöüß])" + k).test(allText) : allText.indexOf(k) !== -1) score += (c[0] === "Hauptgericht" ? 0.6 : c[0] === "Sauce & Dip" || c[0] === "Suppe & Eintopf" || c[0] === "Getränk" ? 0.4 : 1);
+        var trifft = function (t) { return CAT_WORD_END[k] ? new RegExp(k + "(n|s|e|en)?(?![a-zäöüß])").test(t) : t.indexOf(k) !== -1; };
+        if (trifft(titleKopf)) score += 3;
+        else if (trifft(title)) score += 1.5;
+        else if (CAT_WORD_START[k] ? new RegExp("(^|[^a-zäöüß])" + k).test(allText) : trifft(allText)) score += (c[0] === "Hauptgericht" ? 0.6 : c[0] === "Sauce & Dip" || c[0] === "Suppe & Eintopf" || c[0] === "Getränk" ? 0.4 : 1);
       });
       scores[c[0]] = score;
       if (score > bestScore) { bestScore = score; best = c[0]; }
@@ -2487,7 +2531,7 @@
     if (!b) return a;
     var r = a;
     ["title", "servings", "timeTotal", "timePrep", "timeCook", "cuisine", "keywords", "blogCategory", "nutritionDeclared",
-      "elsewhere", "bakingForm", "yieldInfo", "servingsUnit", "ingredientsFromSteps", "hashtagTitle", "titleFromTranslation", "dishTitle", "description", "textFood", "titelSignal", "introZeile"].forEach(function (f) {
+      "elsewhere", "bakingForm", "yieldInfo", "servingsUnit", "ingredientsFromSteps", "hashtagTitle", "titleFromTranslation", "dishTitle", "description", "textFood", "titelSignal", "introZeile", "yieldText", "servingsPending", "ausArtikel"].forEach(function (f) {
       if ((r[f] == null || r[f] === "") && b[f] != null && b[f] !== "") { r[f] = b[f]; r.provenance[f] = src; }
     });
     if (ingredientQuality(b.ingredients) > ingredientQuality(r.ingredients) * 1.15) {
@@ -3111,6 +3155,18 @@
     steps.forEach(function (st) { if (!/^## /.test(st) && st.split(/\s+/).length <= 3 && !STEP_VERB.test(st)) r.logik.ohneVerb.push(st.slice(0, 60)); });
   }
   var STEP_VERB = /\b(\w+(en|ern|eln)|add|mix|stir|cook|bake|fry|blend|serve|chop|cut|boil|simmer|roast|pour|combine|season|whisk|place|top|let|heat|bring)\b/i;
+  var SCHRITT_OBERBEGRIFFE = [
+    [/spaghetti|penne|fusilli|rigatoni|tagliatelle|linguine|farfalle|makkaroni|maccheroni|tortiglioni|orecchiette|bandnudel|conchiglie|paccheri|bucatini|tortellini|ravioli|gnocchi|nudel|pasta/, ["pasta", "nudel", "noodle"]],
+    [/brühe|bouillon|fond\b|stock|broth/, ["brühe", "bouillon", "fond", "stock", "broth"]],
+    [/gulasch|rindfleisch|schweinefleisch|hackfleisch|rinderhack|gehacktes/, ["fleisch", "hack", "meat", "beef"]],
+    [/pizzateig|blätterteig|hefeteig|mürbeteig|quarkölteig|teig\b/, ["teig", "pizzaboden", "dough", "pastry"]],
+    [/sojasauce|sojasoße|tamari|shoyu/, ["soja", "soy"]],
+    [/frühlingszwiebel|lauchzwiebel/, ["lauchzwiebel", "frühlingszwiebel"]],
+    [/(^|\s)(oliven|raps|sonnenblumen|kokos|sesam|erdnuss|neutral\w*)?öl\b/, ["öl", "oil"]],
+    [/sahne|kochcreme|cuisine/, ["sahne", "cream"]],
+    [/käse|parmesan|mozzarella|cheddar|gouda|feta|pecorino/, ["käse", "cheese"]],
+    [/tomaten.*(dose|geschält|gehackt|passiert)|passierte|passata|dosentomate|stückige/, ["tomate", "tomato"]]
+  ];
   function stepIngredients(r) {
     // Übersetzte Schritte: zusätzlich im Original suchen (der Übersetzer wählt oft andere Wörter als die Zutatenliste)
     if (r.stepsOriginal && r.stepsTranslated && r.stepsOriginal.length === (r.steps || []).length && !r._origSuche) {
@@ -3127,6 +3183,11 @@
       var kernWort = gangTreffer(lower(i.name)); kernWort = kernWort && kernWort.wort.length >= 4 && !/^(salz|öl|wasser|milch|saft|paste|pulver|sauce|soße)$/.test(kernWort.wort) ? kernWort.wort : "";
       var w = names.split(/[\s,\/]+/).concat(kernWort ? [kernWort] : []).reduce(function (a, x) { a.push(x); var hy = x.split("-").pop(); if (hy !== x && hy.length >= 5) a.push(hy); return a; }, []).filter(function (x) { return x.length >= 3 && !ADJ_WORD.test(x) && !/^(und|oder|and|or|mit|with|von|für|frisch|frische|gehackt|getrocknet|gemahlen|gekocht|gekochte|braune|rote|grüne|weiße|schwarze|dunkle|helle|vegane|veganer|veganes|pflanzliche|pflanzlicher|neutrales|extra|fein|grob)$/.test(x); });
       return w.map(function (x) { return x.replace(/(e|en|n|s|er)$/, "").replace(/-$/, ""); }).filter(function (x) { return x.length >= 3 && !/^(aus|dem|der|die|das|den|vom|zum|glas|dose|pck|packung|koro|bio|light)$/.test(x); });
+    });
+    // Oberbegriffe, mit denen Schritte Zutaten meinen ("500 g Spaghetti" -> "die Pasta kochen", "Rinderbrühe" -> "mit Bouillon ablöschen")
+    ings.forEach(function (i, n) {
+      var nm = lower(i.name + " " + (i.key || ""));
+      SCHRITT_OBERBEGRIFFE.forEach(function (g) { if (g[0].test(nm)) g[1].forEach(function (w) { if (heads[n].indexOf(w) === -1) heads[n].push(w); }); });
     });
     var used = {};
     var res = steps.map(function (st, si) {
@@ -3481,7 +3542,7 @@
     // doppelte Zutaten zusammenfassen
     var seen = {};
     r.ingredients = r.ingredients.filter(function (i) {
-      var k = i.key + "|" + i.unit + "|" + i.qty + "|" + (i.group || "");
+      var k = i.key + "|" + i.unit + "|" + i.qty + "|" + (i.group || "") + "|" + lower(i.note || ""); // "90 g Mini-Tomaten (rote)" und "(gelbe)" bleiben beide
       if (seen[k]) return false; seen[k] = 1; return true;
     });
     // Titel: Caption-Titel leicht anpassen, Englisch direkt übersetzen; Original bleibt erhalten
@@ -3820,7 +3881,12 @@
   function gramsOf(ing, entry) {
     // "1 Stück vegane Butter (ca. 25 g)": Grammangabe in der Notiz hat Vorrang
     var ng = String(ing.note || "").match(/(?:^|[\s(,])(?:ca\.?\s*)?(\d+(?:[.,]\d+)?)\s*g\b/);
-    if (ng && /^(Stk|Pck|Dose|Glas|Becher|Scheibe|Stange|)$/.test(ing.unit) && !/\d+\s*g\s*(protein|eiweiß)/i.test(ing.note)) return parseFloat(ng[1].replace(",", ".")) * (ing.qty || 1);
+    if (ng && /^(Stk|Pck|Dose|Glas|Becher|Scheibe|Stange|)$/.test(ing.unit) && !/\d+\s*g\s*(protein|eiweiß)/i.test(ing.note)) {
+      var gN = parseFloat(ng[1].replace(",", "."));
+      // "4 vegane Bratwürste (ca. 200 g)", "2 Avocados (ca. 300 g)": bei Stückzahlen ist das meist die Gesamtmenge; "2 Dosen (je 400 g)" gilt je Stück
+      var gesamt = (ing.qty || 1) > 1 && /^(Stk|)$/.test(ing.unit) && !/\b(je|à|a|each|pro stück|per piece)\b/i.test(ing.note) || /\b(insgesamt|gesamt|total)\b/i.test(ing.note);
+      return gesamt ? gN : gN * (ing.qty || 1);
+    }
     if (ing.qty == null) return null;
     var q = ing.qtyMax != null ? (ing.qty + ing.qtyMax) / 2 : ing.qty;
     var d = entry.dichte || 1;
@@ -4435,6 +4501,32 @@
     if (li.length < 2) li = (m[1].match(/<p[^>]*>([\s\S]*?)<\/p>/gi) || []).map(function (x) { return clean(stripTags(x)); });
     return li.filter(function (x) { return x.length > 15 && !CTA.test(x); }).slice(0, 40);
   }
+  // Ältere Blogartikel ohne Rezeptkarte (Blog-Test 29.10., z. B. Bianca Zapatka 2017): Rezept steht als Listen im Artikeltext.
+  // Den Hauptinhalt in Text mit Zeilen umwandeln und wie eine Beschreibung lesen.
+  function htmlZuText(h) {
+    return stripTags(String(h)
+      .replace(/<(script|style|noscript|svg|nav|aside|footer|header|form|iframe|figure)\b[\s\S]*?<\/\1>/gi, " ")
+      .replace(/<li[^>]*>/gi, "\n- ").replace(/<br\s*\/?>/gi, "\n").replace(/<\/(p|div|h[1-6]|li|ul|ol|tr|section)>/gi, "\n").replace(/<h[1-6][^>]*>/gi, "\n"))
+      .replace(/&nbsp;|\u00a0/g, " ").replace(/[ \t]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  }
+  function rezeptAusArtikel(html, pageUrl) {
+    var haupt = html.match(/<div[^>]*class="[^"]*(?:entry-content|post-content|article-content|post-body|blog-post-content)[^"]*"[^>]*>([\s\S]*)/i) || html.match(/<article\b[^>]*>([\s\S]*?)<\/article>/i) || html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i);
+    if (!haupt) return null;
+    var inhalt = haupt[1].split(/<(?:div|section)[^>]*(?:class|id)="[^"]*(?:comments?|related|jp-relatedposts|sharedaddy|post-navigation|author-box)[^"]*"/i)[0];
+    var text = htmlZuText(inhalt);
+    if (!/(zutaten|ingredients|du brauchst|you need|you'll need)\s*:?/i.test(text)) return null;
+    var titel = clean(stripTags((html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i) || [])[1] || (html.match(/property="og:title"\s+content="([^"]+)"/i) || [])[1] || (html.match(/<title>([\s\S]*?)<\/title>/i) || [])[1] || "")).replace(/\s+[-|–]\s+[^-|–]+$/, "");
+    var r = parseText((titel ? titel + "\n\n" : "") + text.replace(/^[\s\S]*?(?=\n[^\n]*(zutaten|ingredients|du brauchst|you need|you'll need)\s*:?)/i, ""), "blog");
+    if (!r || r.ingredients.length < 2 || !r.steps.length) return null;
+    // Nur übernehmen, wenn es wie ein Rezept aussieht (sonst lieber nichts als Durcheinander aus Kommentaren und Linklisten)
+    var mitMenge = r.ingredients.filter(function (i) { return i.qty != null; }).length;
+    if (r.ingredients.length > 30 || r.steps.length > 25 || mitMenge < r.ingredients.length * 0.5) return null;
+    if (titel) { r.title = titel; r.titleGuessed = false; }
+    r.source.blogUrl = pageUrl || "";
+    r.ausArtikel = true; // ohne Rezeptkarte gelesen: etwas unsicherer
+    markProvenance(r, "blog");
+    return r;
+  }
   function parseRecipeHtml(html, pageUrl) {
     var s = String(html || "");
     var viaSchema = parseSchemaOrg(s, pageUrl) || parseMicrodata(s, pageUrl);
@@ -4453,7 +4545,7 @@
       var block = s.match(/class="[^"]*(?:tasty-recipes-ingredients|wprm-recipe-ingredients-container)[^"]*"[\s\S]*?<\/(?:ul|div)>/i);
       if (block) { s = block[0] + s; ings = all(/<li[^>]*>([\s\S]*?)<\/li>/gi).slice(0, 40); }
     }
-    if (!ings.length) return null;
+    if (!ings.length) return rezeptAusArtikel(String(html || ""), pageUrl);
     var steps = all(/<(?:div|li)[^>]*class="[^"]*(?:wprm-recipe-instruction-text|tasty-recipes-instructions?-item)[^"]*"[^>]*>([\s\S]*?)<\/(?:div|li)>/gi);
     if (!steps.length) {
       var ib = String(html).match(/class="[^"]*tasty-recipes-instructions[^"]*"[\s\S]*?<\/ol>/i);
@@ -4578,9 +4670,12 @@
     ["Süßes & Snacks", ["chips", "flips", "salzstangen", "brezeln", "popcorn", "cracker", "gummibärchen", "gummibären", "fruchtgummi", "lakritz", "bonbons", "kaugummi", "schokoriegel", "pralinen", "kekse", "plätzchen", "waffeln", "studentenfutter", "nussmischung", "müsliriegel", "proteinriegel", "eis am stiel", "süßigkeiten", "snacks"]],
     ["Getränke", ["wasser", "mineralwasser", "sprudel", "sprudelwasser", "limo", "limonade", "schorle", "saft", "eistee", "cola", "energy", "kaffeebohnen", "kaffeepads", "kaffeekapseln", "kaffee", "tee", "teebeutel", "sekt", "prosecco", "wein", "bier", "kombucha", "hafermilch", "haferdrink", "sojadrink", "mandeldrink"]],
     ["Brot & Backwaren", ["brezel", "laugenbrezel", "croissant", "semmel", "knäckebrot", "zwieback", "toastbrot", "vollkornbrot", "laugenstange"]],
-    ["Kühlregal", ["gouda", "emmentaler", "bergkäse", "hummus", "seitan", "räuchertofu", "veggie burger", "würstchen vegan", "aufschnitt", "joghurt", "pudding"]],
+    ["Obst & Gemüse", ["frische kräuter", "kräuterbund"]],
+    ["Fleisch & Fisch", ["gulasch", "rindergulasch", "sardelle", "sardellen", "sardellenfilet", "sardellenfilets", "anchovis", "bratwurst", "bratwürste"]],
+    ["Kühlregal", ["gouda", "emmentaler", "bergkäse", "hummus", "seitan", "räuchertofu", "veggie burger", "würstchen vegan", "vegane bratwurst", "vegane bratwürste", "vegane würstchen", "veganes würstchen", "käseersatz", "pizzateig", "blätterteig", "aufschnitt", "joghurt", "pudding"]],
     ["Tiefkühl", ["tiefkühlpizza", "pizza tk", "tk-pizza", "fischstäbchen", "pommes", "tk-erbsen", "rahmspinat", "eiswürfel", "speiseeis", "eis", "eiscreme"]],
-    ["Gewürze, Öle & Saucen", ["kapern", "mayo", "mayonnaise", "remoulade", "grillsauce", "bbq-sauce", "dressing", "ketchup", "olivenöl", "rapsöl", "sonnenblumenöl"]],
+    ["Trockenware & Konserven", ["trockenhefe", "seitan-fix", "glutenmehl", "ajvar", "gochujang"]],
+    ["Gewürze, Öle & Saucen", ["pulver", "lorbeer", "lorbeerblatt", "lorbeerblätter", "majoran", "kräuter", "italienische kräuter", "kräuter der provence", "brühe", "bouillon", "rinderbrühe", "hühnerbrühe", "chicken stock", "beef stock", "kapern", "mayo", "mayonnaise", "remoulade", "grillsauce", "bbq-sauce", "dressing", "ketchup", "olivenöl", "rapsöl", "sonnenblumenöl"]],
     ["Trockenware & Konserven", ["erdnussmus", "erdnussbutter", "mandelmus", "cashewmus", "nutella", "marmelade", "konfitüre", "aufstrich", "müsli", "cornflakes", "granola", "proteinpulver", "hefeflocken", "speisestärke", "stärke", "sesam", "tahin", "oliven", "cashew", "cashews", "erdnüsse", "walnüsse", "haselnüsse"]],
     ["Obst & Gemüse", ["zitronensaft", "limettensaft", "zitronenschale", "limettenschale", "äpfel", "apfel", "birne", "trauben", "kiwi", "pflaume", "nektarine", "pfirsich", "melone", "salatgurke", "eisbergsalat"]]
   ];

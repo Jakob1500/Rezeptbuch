@@ -699,5 +699,32 @@ check("Ü: Brüche vor der Übersetzung", K.vorUebersetzung("Add 3½ cups water"
   check("Kat: gelernte Zuordnung gilt für ähnliche Titel", r2.category === "Snack" && r2.categoryBasis === "gelernt", [r2.category, r2.categoryBasis]);
   check("Kat: Lernwerte im Export", JSON.stringify(K.lernExport(L, {}).kategorien).indexOf("lahmac") !== -1);
 }
+// 29.10.: Blog-Test mit echten Rezeptseiten (Chefkoch, Eat This, Dr. Vegan, Bianca Zapatka)
+{
+  const z = (l) => K.parseIngredientLine(l);
+  check("Blog: Chefkoch „Zehe/n“", z("2 Zehe/n Knoblauch (fein gewürfelt)").name === "Knoblauch" && z("2 Zehe/n Knoblauch").unit === "Zehe");
+  check("Blog: Chefkoch „Zwiebel(n)“", z("1 große Zwiebel(n) (fein gewürfelt)").name === "Zwiebel" && !/\bn\b/.test(z("1 große Zwiebel(n) (fein gewürfelt)").note));
+  check("Blog: „n. B.“ vorn wird Notiz", z("n. B. Salz und Pfeffer").name === "Salz und Pfeffer" && /nach Belieben/.test(z("n. B. Salz und Pfeffer").note));
+  check("Blog: verschachtelte Klammern", z("1 can chickpeas (drained and rinsed; one 15 oz (400 g) can gives about 1½ cups (240 g) drained)").name === "Kichererbsen");
+  check("Blog: Spanne mit Brüchen", z("2-2 1/2 cups all purpose flour").name === "Mehl" && z("1/4-1/2 tsp chili flakes").unit === "TL");
+  check("Blog: „firm or extra-firm tofu“", z("14 oz firm or extra-firm tofu (drained)").name === "Tofu");
+  check("Blog: „peppers“ sind Paprika", z("2 small peppers").name === "Paprika" && z("1/4 tsp black pepper").name !== "Paprika");
+  check("Blog: Tomaten aus der Dose im Konserven-Gang", z("800 g Tomaten, geschälte (aus der Dose)").aisle === "Trockenware & Konserven");
+  const ld = (j) => K.analyse({ caption: "", blogHtml: '<script type="application/ld+json">' + JSON.stringify(Object.assign({ "@type": "Recipe" }, j)) + "</script>", blogUrl: j.url || "https://www.chefkoch.de/rezepte/1/x.html", url: j.url || "https://www.chefkoch.de/rezepte/1/x.html" }).recipe;
+  const ck = ld({ name: "Pizza alla puttanesca von Henglein", recipeIngredient: ["90 g Mini-Tomaten (rote)", "90 g Mini-Tomaten (gelbe)", "1 Pck. Pizzateig (350 g)"], recipeInstructions: [{ text: "Den Pizzateig ausrollen und mit Tomaten belegen." }, { text: "12 Minuten backen." }, { text: "Guten Appetit!" }, { text: "Eure Lieblingsgerichte von Chefkoch jetzt einfach gekocht & würzig lecker!" }], recipeYield: "1" });
+  check("Blog: Chefkoch-Titel ohne „von …“", ck.title === "Pizza alla puttanesca", ck.title);
+  check("Blog: zwei gleichnamige Zutaten bleiben", ck.ingredients.filter(i => /Mini-Tomaten/.test(i.name)).length === 2);
+  check("Blog: Grußformel und Werbung keine Schritte", ck.steps.length === 2, ck.steps);
+  const kg = ld({ name: "Seitan", url: "https://blog.example/seitan", recipeIngredient: ["250 g Kichererbsen", "425 g Seitan-Fix"], recipeInstructions: [{ text: "Alles verkneten." }, { text: "45 Minuten dämpfen." }], recipeYield: ["1.25", "1.25 kg"], nutrition: { calories: "165 kcal", servingSize: "100 g", sodiumContent: "720 mg" } });
+  check("Blog: Ausbeute in kg ist keine Portionenzahl", kg.servings !== 1.25 && /1,25 kg/.test(kg.yieldText || ""), [kg.servings, kg.yieldText]);
+  check("Blog: Nährwerte je 100 g und Natrium -> Salz", kg.nutritionDeclared.perServing === false && kg.nutritionDeclared.salt === 1.8, kg.nutritionDeclared);
+  const alt = ld({ name: "Confit", url: "https://blog.example/confit", totalTime: "PT70M", recipeIngredient: ["20 garlic cloves", "1/2 cup olive oil", "300 g spaghetti"], recipeInstructions: [{ text: "Cover the garlic with oil and bake for 45 to 60 minutes, checking from 40 minutes. For the stovetop, use a small saucepan for about 40 to 50 minutes." }, { text: "Cook the spaghetti." }] });
+  check("Blog: Alternative und Prüfzeit verlängern die Zeit nicht", alt.timeTotal === 70, alt.timeTotal);
+  const art = K.analyse({ caption: "", blogHtml: '<html><head><title>Tortellini mit Tomatensoße - Blog</title></head><body><article><h1>Tortellini mit Tomatensoße</h1><div class="entry-content"><p>Heute gibt es Pasta.</p><p><b>Zutaten:</b></p><ul><li>250 g Tortellini</li><li>1 Zwiebel</li><li>200 ml passierte Tomaten</li></ul><p><b>Zubereitung:</b></p><ol><li>Tortellini nach Packungsanweisung kochen.</li><li>Zwiebel würfeln und in der Pfanne anbraten, Tomaten dazugeben.</li></ol></div></article></body></html>', blogUrl: "https://blog.example/t", url: "https://blog.example/t" }).recipe;
+  check("Blog: Artikel ohne Rezeptkarte wird gelesen", art.title === "Tortellini mit Tomatensoße" && art.ingredients.length === 3 && art.steps.length === 2, [art.title, art.ingredients.length, art.steps.length]);
+  check("Blog: „Tortellini“ ist keine Torte", art.category !== "Backen", art.category);
+  const sp = K.analyse({ caption: "Pasta\n\nZutaten\n500 g Spaghetti\n800 ml Rinderbrühe\n\nZubereitung\nDie Pasta kochen.\nMit Bouillon ablöschen.", url: "x" }).recipe, m = K.stepIngredients(sp);
+  check("Blog: Oberbegriffe im Schritt (Pasta, Bouillon)", m[0].includes(0) && m[1].includes(1), m);
+}
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);
