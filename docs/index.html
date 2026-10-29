@@ -468,7 +468,7 @@ a { color: var(--accent); }
 
 <script>(function (root) {
 "use strict";
-var VERSION = "0.7.1";
+var VERSION = "0.7.2";
 var SCHEMA_VERSION = 1;
 var AISLES = ["Obst & Gemüse", "Kühlregal", "Fleisch & Fisch", "Brot & Backwaren",
 "Trockenware & Konserven", "Gewürze, Öle & Saucen", "Tiefkühl", "Getränke", "Süßes & Snacks", "Drogerie & Haushalt", "Sonstiges"];
@@ -3423,10 +3423,16 @@ r[f] = b[f];
 r.provenance[f] = src;
 }
 });
-if (ingredientQuality(b.ingredients) > ingredientQuality(r.ingredients) * 1.15) {
+var blogGut = r.provenance.ingredients === "blog" && r.ingredients.length >= 3 && ingredientQuality(r.ingredients) >= r.ingredients.length * 0.7;
+if (!blogGut && ingredientQuality(b.ingredients) > ingredientQuality(r.ingredients) * 1.15) {
+var vorher = r.ingredients, vorherSrc = r.provenance.ingredients;
 r.ingredients = b.ingredients;
 r.provenance.ingredients = src;
+if (vorher && vorher.length)
+ergaenzeZutaten(r, vorher, vorherSrc);
 }
+else if (r.ingredients.length && b.ingredients && b.ingredients.length)
+ergaenzeZutaten(r, b.ingredients, src);
 var bLen = b.steps.join(" ").length, aLen = r.steps.join(" ").length;
 if (b.steps.length > r.steps.length && bLen > aLen * 1.1) {
 r.steps = b.steps;
@@ -3440,6 +3446,39 @@ if (b.source)
 Object.keys(b.source).forEach(function (k) { if (!r.source[k] && b.source[k])
 r.source[k] = b.source[k]; });
 return r;
+}
+var QUELL_NAME = { blog: "Blog", caption: "Beschreibung", comment: "Ergänzung", speech: "Ton", ocr: "Texterkennung", model: "Modell" };
+function zutatGleich(x, y) {
+var a = x.key || lower(x.name || ""), b = y.key || lower(y.name || "");
+if (!a || !b)
+return false;
+return a === b || (a.length >= 4 && b.length >= 4 && (a.indexOf(b) !== -1 || b.indexOf(a) !== -1));
+}
+function ergaenzeZutaten(r, neben, src) {
+if (["blog", "caption"].indexOf(src) === -1)
+return 0;
+var haupt = r.ingredients, name = QUELL_NAME[src] || src || "anderer Quelle";
+var neu = [], paare = [];
+neben.forEach(function (j) {
+if (!j || !j.name || j.ergaenzt)
+return;
+var h = haupt.filter(function (i) { return zutatGleich(i, j); })[0];
+if (h)
+paare.push([h, j]);
+else if (!neu.some(function (n) { return zutatGleich(n, j); }))
+neu.push(j);
+});
+if (!paare.length || neu.length > Math.max(2, neben.length * 0.4))
+return 0;
+neu.slice(0, 5).forEach(function (j) { var c = Object.assign({}, j); c.ergaenzt = name; haupt.push(c); });
+paare.forEach(function (p) {
+var h = p[0], j = p[1];
+if (h.qty != null && j.qty != null && !j.qtyEstimated && !h.qtyEstimated && (h.unit || "") === (j.unit || "") && Math.abs(h.qty - j.qty) / Math.max(h.qty, j.qty) > 0.25)
+h.andereMenge = (fmtQty(j.qty) + " " + (j.unit || "")).trim() + " laut " + name;
+});
+if (neu.length)
+r.zutatenErgaenzt = (r.zutatenErgaenzt || 0) + Math.min(5, neu.length);
+return neu.length;
 }
 function uniq(a) { var s = {}; return a.filter(function (x) { if (s[x])
 return false; s[x] = 1; return true; }); }
@@ -6338,7 +6377,7 @@ root.RezeptKern = api;
   function A(input) { return K.analyse(input, { lernen: [ZENTRAL, S.lernen] }); }
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.20.14";
+  var APP_VERSION = "0.20.15";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0 (creativecommons.org/licenses/by/4.0). Werte unverändert übernommen; Stück- und Löffelgewichte sind eigene Richtwerte der App. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -7757,7 +7796,7 @@ root.RezeptKern = api;
       if ((i.group || "") !== lastGroup) { lastGroup = i.group || ""; gh = '<div class="row ing-group"><span class="main"><span class="small muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.04em">' + esc(lastGroup || "Weitere Zutaten") + '</span></span></div>'; }
       return gh + '<div class="row ing"><span class="dot' + (have ? " have" : "") + '"><span class="sr">' + (have ? "vorhanden" : "fehlt") + '</span></span>' +
         '<span class="qty">' + esc(clean2(q + " " + unitText(i.unit))) + '</span><span class="main"><span>' + esc(name) + (i.optional ? ' <span class="muted small">(optional)</span>' : '') + '</span>' +
-        ((i.note || i.qtyEstimated) ? '<span class="sub">' + esc([i.note, i.qtyEstimated ? "Menge geschätzt (im Rezept nicht angegeben)" : ""].filter(Boolean).join(" · ")) + '</span>' : '') + '</span>' +
+        ((i.note || i.qtyEstimated || i.ergaenzt || i.andereMenge) ? '<span class="sub">' + esc([i.note, i.qtyEstimated ? "Menge geschätzt (im Rezept nicht angegeben)" : "", i.ergaenzt ? "nur in der " + i.ergaenzt + " – ergänzt" : "", i.andereMenge ? "anders: " + i.andereMenge : ""].filter(Boolean).join(" · ")) + '</span>' : '') + '</span>' +
         (!orig && K.ersatzFuer && K.ersatzFuer(i).length ? '<button class="ibtn tausch" data-a="ersatz" data-id="' + esc(id) + '" data-n="' + ingN + '" aria-label="' + esc(i.name) + ' ersetzen" title="Ersetzen">⇄</button>' : '') + '</div>';
     }).join("");
     var stepList = orig && r.stepsOriginal ? r.stepsOriginal : r.steps;

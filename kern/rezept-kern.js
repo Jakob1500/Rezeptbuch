@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.7.1";
+  var VERSION = "0.7.2";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -2570,9 +2570,13 @@
       "elsewhere", "bakingForm", "yieldInfo", "servingsUnit", "ingredientsFromSteps", "hashtagTitle", "titleFromTranslation", "dishTitle", "description", "textFood", "titelSignal", "introZeile", "yieldText", "servingsPending", "ausArtikel"].forEach(function (f) {
       if ((r[f] == null || r[f] === "") && b[f] != null && b[f] !== "") { r[f] = b[f]; r.provenance[f] = src; }
     });
-    if (ingredientQuality(b.ingredients) > ingredientQuality(r.ingredients) * 1.15) {
+    // Eine brauchbare Blog-Zutatenliste bleibt die Hauptliste (K); die Caption ergänzt nur
+    var blogGut = r.provenance.ingredients === "blog" && r.ingredients.length >= 3 && ingredientQuality(r.ingredients) >= r.ingredients.length * 0.7;
+    if (!blogGut && ingredientQuality(b.ingredients) > ingredientQuality(r.ingredients) * 1.15) {
+      var vorher = r.ingredients, vorherSrc = r.provenance.ingredients;
       r.ingredients = b.ingredients; r.provenance.ingredients = src;
-    }
+      if (vorher && vorher.length) ergaenzeZutaten(r, vorher, vorherSrc);
+    } else if (r.ingredients.length && b.ingredients && b.ingredients.length) ergaenzeZutaten(r, b.ingredients, src);
     var bLen = b.steps.join(" ").length, aLen = r.steps.join(" ").length;
     if (b.steps.length > r.steps.length && bLen > aLen * 1.1) { r.steps = b.steps; r.provenance.steps = src; }
     r.links = uniq((r.links || []).concat(b.links || []));
@@ -2583,6 +2587,35 @@
     return r;
   }
 
+  // Quellen ergänzen sich (Entscheidung K, Jakob 29.10.2026): Zutaten, die nur in der zweiten Quelle stehen
+  // (z. B. Caption neben dem Blog), kommen gekennzeichnet dazu. Bei Widerspruch gilt die Hauptliste (meist der Blog),
+  // die andere Menge steht als Hinweis dabei. Weichen die Listen stark ab (andere Sprache, andere Namen), wird nichts ergänzt.
+  var QUELL_NAME = { blog: "Blog", caption: "Beschreibung", comment: "Ergänzung", speech: "Ton", ocr: "Texterkennung", model: "Modell" };
+  function zutatGleich(x, y) {
+    var a = x.key || lower(x.name || ""), b = y.key || lower(y.name || "");
+    if (!a || !b) return false;
+    return a === b || (a.length >= 4 && b.length >= 4 && (a.indexOf(b) !== -1 || b.indexOf(a) !== -1));
+  }
+  function ergaenzeZutaten(r, neben, src) {
+    if (["blog", "caption"].indexOf(src) === -1) return 0; // Ton und Texterkennung sind zu unsicher für neue Zutaten
+    var haupt = r.ingredients, name = QUELL_NAME[src] || src || "anderer Quelle";
+    var neu = [], paare = [];
+    neben.forEach(function (j) {
+      if (!j || !j.name || j.ergaenzt) return;
+      var h = haupt.filter(function (i) { return zutatGleich(i, j); })[0];
+      if (h) paare.push([h, j]); else if (!neu.some(function (n) { return zutatGleich(n, j); })) neu.push(j);
+    });
+    // Sicherung: Passen weniger als 60 % zusammen, sind es wohl verschiedene Fassungen oder Sprachen – dann nichts mischen
+    if (!paare.length || neu.length > Math.max(2, neben.length * 0.4)) return 0;
+    neu.slice(0, 5).forEach(function (j) { var c = Object.assign({}, j); c.ergaenzt = name; haupt.push(c); });
+    paare.forEach(function (p) {
+      var h = p[0], j = p[1];
+      if (h.qty != null && j.qty != null && !j.qtyEstimated && !h.qtyEstimated && (h.unit || "") === (j.unit || "") && Math.abs(h.qty - j.qty) / Math.max(h.qty, j.qty) > 0.25)
+        h.andereMenge = (fmtQty(j.qty) + " " + (j.unit || "")).trim() + " laut " + name;
+    });
+    if (neu.length) r.zutatenErgaenzt = (r.zutatenErgaenzt || 0) + Math.min(5, neu.length);
+    return neu.length;
+  }
   function uniq(a) { var s = {}; return a.filter(function (x) { if (s[x]) return false; s[x] = 1; return true; }); }
 
   var STEP_NAMES = {
