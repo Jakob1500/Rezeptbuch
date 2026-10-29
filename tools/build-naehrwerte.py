@@ -392,6 +392,12 @@ Z = {
   "seitan-fix": ("=Weizenkleber/Weizengluten", None, 8, 3, None),
   "glutenmehl": ("=Weizenkleber/Weizengluten", None, 8, 3, None),
   "weizengluten": ("=Weizenkleber/Weizengluten", None, 8, 3, None),
+  "kritharaki": ("=Teigwaren eifrei, roh", None, None, None, None),
+  "orzo": ("=Teigwaren eifrei, roh", None, None, None, None),
+  "vegane kochcreme": ("=Sojakochcreme", None, 15, 5, 1.0),
+  "pflanzliche kochcreme": ("=Sojakochcreme", None, 15, 5, 1.0),
+  "kochcreme": ("=Sojakochcreme", None, 15, 5, 1.0),
+  "kürbispüree": ("=Kürbis Pumpkin (C. pepo) roh", None, 15, 5, 1.0),
   "rote beete": ("^Rote Rübe.*roh|^Rote Bete.*roh", 150, None, None, None),
   "barbecuesoße": ("=Barbecuesauce/Grillsauce", None, 17, 6, None),
   "barbecuesauce": ("=Barbecuesauce/Grillsauce", None, 17, 6, None),
@@ -416,7 +422,7 @@ V = {
   "couscous@gekocht": "=Couscous (Hartweizen) gekocht", "bulgur@gekocht": "=Bulgur (Hartweizen) gekocht", "mais@gekocht": "=Mais gekocht",
 }
 
-NAEHERUNG = {"agavendicksaft": "Agavendicksaft fehlt im BLS; Näherung über Ahornsirup", "enoki": "Enoki fehlt im BLS; Näherung über Austernpilz", "hanfsamen": "Hanfsamen fehlen im BLS; Näherung über Leinsamen", "tempeh": "Tempeh fehlt im BLS; Näherung über Tofu", "enoki pilze": "Enoki fehlt im BLS; Näherung über Austernpilz", "proteinpulver": "Näherung über Sojaproteinisolat", "chickenalternative": "Näherung über Fleischersatz (gluten-, milch- und sojahaltig)", "vegane sahne": "Näherung über Sahneersatz", "vegane mayo": "Näherung über Mayonnaise", "vegane ravioli": "Näherung über Ravioli mit Gemüsefüllung (Eierteig)", "vegane bratwurst": "Näherung über vegetarische Bratwurst", "vegane bratwürste": "Näherung über vegetarische Bratwurst", "vegane würstchen": "Näherung über vegetarische Bratwurst", "kochsahne": "Näherung über Kaffeesahne (10 % Fett)", "seitan-fix": "Näherung über Weizengluten"}
+NAEHERUNG = {"agavendicksaft": "Agavendicksaft fehlt im BLS; Näherung über Ahornsirup", "enoki": "Enoki fehlt im BLS; Näherung über Austernpilz", "hanfsamen": "Hanfsamen fehlen im BLS; Näherung über Leinsamen", "tempeh": "Tempeh fehlt im BLS; Näherung über Tofu", "enoki pilze": "Enoki fehlt im BLS; Näherung über Austernpilz", "proteinpulver": "Näherung über Sojaproteinisolat", "chickenalternative": "Näherung über Fleischersatz (gluten-, milch- und sojahaltig)", "vegane sahne": "Näherung über Sahneersatz", "vegane mayo": "Näherung über Mayonnaise", "vegane ravioli": "Näherung über Ravioli mit Gemüsefüllung (Eierteig)", "vegane bratwurst": "Näherung über vegetarische Bratwurst", "vegane bratwürste": "Näherung über vegetarische Bratwurst", "vegane würstchen": "Näherung über vegetarische Bratwurst", "kochsahne": "Näherung über Kaffeesahne (10 % Fett)", "seitan-fix": "Näherung über Weizengluten", "vegane kochcreme": "Näherung über Sojakochcreme", "kochcreme": "Näherung über Sojakochcreme", "kürbispüree": "Näherung über rohen Kürbis (püriert)"}
 
 PREPARED = re.compile(r"(gebraten|gekocht|frittiert|gedünstet|gebacken|getrocknet|tiefgefroren|Konserve|Pulver|mit |gesüßt|gegart|paniert|Saft|Sirup|Mus\b|Püree|Chips|Brei|Suppe|Salat|Eis\b|Kuchen)", re.I)
 

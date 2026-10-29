@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.6.7";
+  var VERSION = "0.6.8";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -127,6 +127,7 @@
   var EN_NAMES_RAW = [
     // Englisch, häufig in Blog- und Instagram-Rezepten (Korpus-Messung 28.10.)
     // Blog-Test 29.10. (drveganblog, Bianca Zapatka u. a.)
+    "pumpkin puree=Kürbispüree", "pumpkin purée=Kürbispüree", "canned pumpkin=Kürbispüree", "orzo=Orzo", "orzo pasta=Orzo",
     "flat-leaf parsley=Petersilie", "flat leaf parsley=Petersilie", "italian parsley=Petersilie", "tomato passata=Passierte Tomaten", "passata=Passierte Tomaten", "heads garlic=Knoblauchknolle", "heads of garlic=Knoblauchknolle", "head garlic=Knoblauchknolle",
     "vegan cooking cream=Pflanzliche Kochsahne", "cooking cream=Kochsahne", "plant-based cooking cream=Pflanzliche Kochsahne", "vegan cream=Pflanzliche Sahne", "vegan ravioli=Vegane Ravioli", "ravioli=Ravioli", "tortellini=Tortellini", "vegan tortellini=Vegane Tortellini",
     "peppers=Paprika", "salt and black pepper=Salz und Pfeffer", "salt and freshly ground black pepper=Salz und Pfeffer", "salt and freshly ground pepper=Salz und Pfeffer", "salt and ground black pepper=Salz und Pfeffer", "salt & black pepper=Salz und Pfeffer", "kosher salt and black pepper=Salz und Pfeffer",
@@ -2456,12 +2457,13 @@
   // Wie kommt ein Nährwert zustande? Beitrag jeder Zutat (für die Erklärung beim Antippen eines Labels)
   function naehrwertAnteile(r, tabelle, feld, opts) {
     var table = tabelle && tabelle.zutaten ? tabelle.zutaten : tabelle, eigene = (opts && opts.zuordnungen) || {};
-    var teile = [], summe = 0;
+    var teile = [], summe = 0, teilAnteil = teilrezeptAnteile(r, table, eigene);
     (r.ingredients || []).forEach(function (i) {
       if (i.teilrezept) return;
       var hit = eigene[i.key] ? { entry: eigene[i.key] } : findNutrientEntry(i.key, table, i.state);
       if (!hit || !hit.entry || !hit.entry.n) return;
       var g = gramsOf(i, hit.entry); if (g == null) return;
+      if (i.group && teilAnteil[i.group]) g = g * teilAnteil[i.group].faktor;
       var v = hit.entry.n[feld]; if (v == null) return;
       var beitrag = v * g / 100; summe += beitrag;
       teile.push({ name: i.name, gramm: Math.round(g), je100: v, menge: beitrag, bls: hit.entry.name || "" });
@@ -2470,6 +2472,39 @@
     teile.sort(function (a, b) { return b.menge - a.menge; });
     teile.forEach(function (t) { t.anteil = summe ? Math.round(t.menge / summe * 100) : 0; if (serv) t.menge = t.menge / serv; });
     return { feld: feld, summe: serv ? summe / serv : summe, proPortion: !!serv, teile: teile, offen: ((r.nutrition && r.nutrition.coverage && r.nutrition.coverage.offen) || []).map(function (o) { return o.name; }) };
+  }
+  // Vergleich mit den Nährwerten des Blogs (Jakob, 29.10.): unsere Rechnung gilt, der Blog ist Referenz.
+  // Große Abweichung (> 25 % und > 80 kcal bzw. > 5 g Eiweiß) wird gemerkt, um sie später zu prüfen.
+  function naehrwertVergleich(r) {
+    var d = r && r.nutritionDeclared, n = r && r.nutrition;
+    if (!d || !n || !n.values || !n.reliable || d.kcal == null) return null;
+    var eigen;
+    if (d.perServing === false) { // Blog je 100 g
+      // Gewicht des fertigen Gerichts: Ausbeute laut Rezept ("ergibt 1,25 kg"), sonst Summe der Zutaten (ohne Wasser aus den Schritten)
+      var ym = String(r.yieldText || "").match(/(\d+(?:[.,]\d+)?)\s*(kg|g|l|ml)\b/i), gew = ym ? parseFloat(ym[1].replace(",", ".")) * (/^(kg|l)$/i.test(ym[2]) ? 1000 : 1) : n.totalGrams;
+      if (!gew) return null;
+      var f = 100 / gew, mult = n.perServing && n.servings ? n.servings : 1;
+      eigen = { kcal: Math.round(n.values.kcal * mult * f), protein: n.values.protein != null ? round(n.values.protein * mult * f, 1) : null };
+    } else {
+      if (!n.perServing) return null;
+      eigen = { kcal: n.values.kcal, protein: n.values.protein };
+    }
+    var pct = function (a, b) { return b ? Math.round((a - b) / b * 100) : null; };
+    var abw = { kcal: pct(eigen.kcal, d.kcal), protein: d.protein != null && eigen.protein != null ? pct(eigen.protein, d.protein) : null };
+    var gross = Math.abs(abw.kcal) > 25 && Math.abs(eigen.kcal - d.kcal) > 80 || abw.protein != null && Math.abs(abw.protein) > 25 && Math.abs(eigen.protein - d.protein) > 5;
+    return { je: d.perServing === false ? "100 g" : "Portion", blog: { kcal: d.kcal, protein: d.protein }, eigen: eigen, abweichung: abw, gross: !!gross };
+  }
+  // Große Abweichung im Lernspeicher merken (höchstens 40, je Rezept einmal)
+  function merkeNaehrwertAbweichung(L, r) {
+    var v = naehrwertVergleich(r);
+    if (!L || !v || !v.gross) return null;
+    L.naehrwertAbweichungen = (L.naehrwertAbweichungen || []).filter(function (x) { return x.link !== (r.source.blogUrl || r.source.url); });
+    L.naehrwertAbweichungen.push({ titel: r.title, link: r.source.blogUrl || r.source.url || "", je: v.je, blog: v.blog, eigen: v.eigen, abweichung: v.abweichung,
+      portionen: r.servings || null, unbekannt: (r.nutrition.coverage.unmatched || []).slice(0, 8),
+      zutaten: (r.nutrition.details || []).slice().sort(function (a, b) { return b.gramm - a.gramm; }).slice(0, 12).map(function (x) { return x.name + " " + x.gramm + " g → " + x.bls; }),
+      datum: new Date().toISOString().slice(0, 10) });
+    L.naehrwertAbweichungen = L.naehrwertAbweichungen.slice(-40);
+    return v;
   }
   function focusFromNutrition(n, basis) {
     var out = [];
@@ -2747,7 +2782,8 @@
       zutatAlias: L.zutatAlias || {}, keineZutat: Object.keys(L.keineZutat || {}), keineFloskel: Object.keys(L.keineFloskel || {}) }, unbekannt: L.unbekannt || {},
       naehrwerte: naehrwertExport(meta && meta.zuord),
       teilenFehler: (L.fehler || []).filter(function (f) { return !f.gesendet; }),
-      zeiten: L.zeiten || {}, zeitFaktor: L.zeitFaktor || [], kategorien: L.kategorien || {}, // echte Kochzeit / geschätzte Zeit (Kochmodus oder eingetragen)
+      zeiten: L.zeiten || {}, zeitFaktor: L.zeitFaktor || [], kategorien: L.kategorien || {},
+      naehrwertAbweichungen: (L.naehrwertAbweichungen || []).filter(function (x) { return !x.gesendet; }), // Blog und Kombüse weit auseinander (zum Prüfen) // echte Kochzeit / geschätzte Zeit (Kochmodus oder eingetragen)
       gaenge: L.gaenge || {}, // Einkaufs-Gänge, die jemand von Hand geändert hat (C7)
       protokoll: (L.protokoll || []).filter(function (x) { return !x.gesendet; }),
       titel: (L.titel || []).filter(function (x) { return !x.gesendet; }).map(function (x) { return { konto: x.konto, link: x.link, automatisch: x.automatisch, original: x.original || undefined, neu: x.neu, datum: x.datum }; }) };
@@ -3945,16 +3981,40 @@
    * opts.zuordnungen = { zutatenschlüssel: Tabelleneintrag } – vom Nutzer "einmal zugeordnet", hat Vorrang.
    * Ergänzt recipe.nutrition, die berechneten Fokus-Labels und ggf. geschätzte Portionen (Regeln B2).
    */
+  // Anteil je Teilrezept-Abschnitt: genutzte Menge (Zutat mit i.teilrezept) ÷ Gesamtgewicht des Abschnitts (höchstens 1)
+  function teilrezeptAnteile(r, table, eigene) {
+    var out = {}, ings = r.ingredients || [];
+    ings.forEach(function (i) {
+      if (!i.teilrezept || i.qty == null) return;
+      var genutzt = gramsOf(i, { dichte: 1, el: 15, tl: 5, stk: null });
+      if (genutzt == null || genutzt <= 0) return;
+      var gesamt = 0;
+      ings.forEach(function (j) {
+        if (j.group !== i.teilrezept || j.teilrezept) return;
+        var hit = eigene[j.key] ? { entry: eigene[j.key] } : findNutrientEntry(j.key, table, j.state);
+        var g = gramsOf(j, hit ? hit.entry : { dichte: 1, el: 15, tl: 5 });
+        if (g != null) gesamt += g;
+      });
+      if (gesamt <= 0) return;
+      var o = out[i.teilrezept] || { genutzt: 0, gesamt: gesamt };
+      o.genutzt += genutzt; o.faktor = Math.min(1, o.genutzt / gesamt);
+      out[i.teilrezept] = o;
+    });
+    return out;
+  }
   function berechneNaehrwerte(r, tabelle, portionen, opts) {
     var table = tabelle && tabelle.zutaten ? tabelle.zutaten : tabelle;
     var eigene = (opts && opts.zuordnungen) || {};
     var total = {}, matched = [], unmatched = [], noQty = [], offen = [], grams = 0;
     NUTRIENT_KEYS.forEach(function (k) { total[k] = 0; });
+    // Teilrezepte anteilig (Jakob, 29.10.): "2 EL Soße" aus dem Abschnitt „Soße“ (der z. B. 150 g ergibt) -> nur 30/150 der Soßen-Zutaten zählen
+    var teilAnteil = teilrezeptAnteile(r, table, eigene);
     (r.ingredients || []).forEach(function (i) {
       if (i.teilrezept) return; // wird aus den Zutaten des Abschnitts gerechnet
       var hit = eigene[i.key] ? { key: i.key, entry: eigene[i.key], eigene: true } : findNutrientEntry(i.key, table, i.state);
       if (!hit) { if (!i.staple && !isSpice(i) && !isMinor(i)) { unmatched.push(i.name); offen.push({ name: i.name, key: i.key, grund: "unbekannt", unit: i.unit || "" }); } return; }
       var g = gramsOf(i, hit.entry);
+      if (g != null && i.group && teilAnteil[i.group] != null) g = g * teilAnteil[i.group].faktor;
       if (g == null) { if (!i.staple && i.qty == null) noQty.push(i.name); else if (!i.staple) { unmatched.push(i.name); offen.push({ name: i.name, key: i.key, grund: "stueck", unit: i.unit || "", bls: hit.entry.name }); } return; }
       matched.push({ name: i.name, key: i.key, gramm: Math.round(g), bls: hit.entry.name, zustand: hit.state || "", eigene: !!hit.eigene,
         herkunft: hit.eigene ? (hit.entry.geprueft ? "geprüft" : hit.entry.art === "eigen" ? "eigene Angabe" : hit.entry.art === "off" ? "Open Food Facts" : "von dir zugeordnet") : "" });
@@ -3991,6 +4051,7 @@
       coverage: { matched: matched.length, unmatched: unmatched, offen: offen, withoutQuantity: noQty, share: round(share, 2) },
       reliable: reliable, totalGrams: Math.round(grams),
       details: matched,
+      teilrezepte: Object.keys(teilAnteil).map(function (g) { return { gruppe: g, genutzt: Math.round(teilAnteil[g].genutzt), gesamt: Math.round(teilAnteil[g].gesamt), faktor: round(teilAnteil[g].faktor, 2) }; }),
       basis: "berechnet",
       source: tabelle && tabelle.meta ? tabelle.meta.quelle : "Bundeslebensmittelschlüssel (BLS) 4.0"
     };
@@ -4674,7 +4735,8 @@
     ["Fleisch & Fisch", ["gulasch", "rindergulasch", "sardelle", "sardellen", "sardellenfilet", "sardellenfilets", "anchovis", "bratwurst", "bratwürste"]],
     ["Kühlregal", ["gouda", "emmentaler", "bergkäse", "hummus", "seitan", "räuchertofu", "veggie burger", "würstchen vegan", "vegane bratwurst", "vegane bratwürste", "vegane würstchen", "veganes würstchen", "käseersatz", "pizzateig", "blätterteig", "aufschnitt", "joghurt", "pudding"]],
     ["Tiefkühl", ["tiefkühlpizza", "pizza tk", "tk-pizza", "fischstäbchen", "pommes", "tk-erbsen", "rahmspinat", "eiswürfel", "speiseeis", "eis", "eiscreme"]],
-    ["Trockenware & Konserven", ["trockenhefe", "seitan-fix", "seitan pulver", "seitanpulver", "weizengluten", "glutenmehl", "ajvar", "gochujang"]],
+    ["Trockenware & Konserven", ["trockenhefe", "seitan-fix", "seitan pulver", "seitanpulver", "weizengluten", "glutenmehl", "ajvar", "gochujang", "kritharaki", "orzo", "kürbispüree"]],
+    ["Kühlregal", ["kochcreme", "vegane kochcreme", "kochsahne", "hafersahne", "sojasahne"]],
     ["Obst & Gemüse", ["rote beete", "rote bete", "rote-bete", "rote-beete"]],
     ["Gewürze, Öle & Saucen", ["soße", "sauce", "barbecuesoße", "barbecuesauce", "bbq", "braune soße", "flüssigrauch", "liquid smoke", "kala namak"]],
     ["Gewürze, Öle & Saucen", ["pulver", "lorbeer", "lorbeerblatt", "lorbeerblätter", "majoran", "kräuter", "italienische kräuter", "kräuter der provence", "brühe", "bouillon", "rinderbrühe", "hühnerbrühe", "chicken stock", "beef stock", "kapern", "mayo", "mayonnaise", "remoulade", "grillsauce", "bbq-sauce", "dressing", "ketchup", "olivenöl", "rapsöl", "sonnenblumenöl"]],
@@ -4948,7 +5010,7 @@
     buildLabels: buildLabels, LABEL_GRUPPEN: LABEL_GRUPPEN, GRUNDVORRAT: GRUNDVORRAT, standardVorrat: standardVorrat, vorratsSchluessel: vorratsSchluessel,
     extractInlineIngredients: extractInlineIngredients, isStepLike: isStepLike, postType: postType, normalizeFancy: normalizeFancy, zuordnungsVorschlaege: zuordnungsVorschlaege,
     recipeId: recipeId, importNeue: importNeue, folgenVorschlag: folgenVorschlag, folgenAntwort: folgenAntwort, FOLGEN_ERNEUT_AB: FOLGEN_ERNEUT_AB, FOLGEN_AB: FOLGEN_AB, pruefeBlogTreffer: pruefeBlogTreffer,
-    kochAblauf: kochAblauf, FOKUS_INFO: FOKUS_INFO, lerneKategorie: lerneKategorie, kategorieWoerter: kategorieWoerter, naehrwertAnteile: naehrwertAnteile, rezeptPaket: rezeptPaket, rezeptAusPaket: rezeptAusPaket, paketKodieren: paketKodieren, paketLesen: paketLesen, einkaufsGang: einkaufsGang, blsGang: blsGang, resteSuche: resteSuche, wochenVorschlag: wochenVorschlag, ersatzFuer: ersatzFuer, ERSATZ: ERSATZ, kochbegriffeIn: kochbegriffeIn, KOCHBEGRIFFE: KOCHBEGRIFFE,
+    kochAblauf: kochAblauf, FOKUS_INFO: FOKUS_INFO, naehrwertVergleich: naehrwertVergleich, merkeNaehrwertAbweichung: merkeNaehrwertAbweichung, lerneKategorie: lerneKategorie, kategorieWoerter: kategorieWoerter, naehrwertAnteile: naehrwertAnteile, rezeptPaket: rezeptPaket, rezeptAusPaket: rezeptAusPaket, paketKodieren: paketKodieren, paketLesen: paketLesen, einkaufsGang: einkaufsGang, blsGang: blsGang, resteSuche: resteSuche, wochenVorschlag: wochenVorschlag, ersatzFuer: ersatzFuer, ERSATZ: ERSATZ, kochbegriffeIn: kochbegriffeIn, KOCHBEGRIFFE: KOCHBEGRIFFE,
     parseRecipeHtml: parseRecipeHtml, inferServings: inferServings, uebersetzeSchritte: uebersetzeSchritte, vorUebersetzung: vorUebersetzung, nachUebersetzung: nachUebersetzung, uebersetzeZutaten: uebersetzeZutaten, mergeFrameText: mergeFrameText, isEnglishTitle: isEnglishTitle, stepIngredients: stepIngredients, parseTranscript: parseTranscript, detectLang: detectLang, rezeptStil: rezeptStil, cleanSteps: cleanSteps, langOfText: langOfText, dropEnglishHalf: dropEnglishHalf
   };
 

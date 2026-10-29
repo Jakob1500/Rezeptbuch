@@ -221,6 +221,17 @@ const check = (name, cond, info) => { if (cond) ok++; else { bad++; console.log(
   const dsh = await page.$(".sheet") ? await page.innerText(".sheet") : "";
   check("Eigener Kombüse-Link: „Als Kopie speichern“", /Als Kopie speichern/.test(dsh), dsh.slice(0, 150));
   if (await klick('.sheet [data-a="paket-kopie"]')) check("Kopie geöffnet", /\(Kopie\)/.test(await page.innerText("body")));
+  // Blogseite: Vergleich Blog/Kombüse (F) und Hinweis ohne Rezeptkarte (G)
+  const blogHtml = '<html><head><title>Bolognese</title><script type="application/ld+json">' + JSON.stringify({ "@type": "Recipe", name: "Blog-Bolognese", recipeYield: "4", nutrition: { calories: "814 kcal", proteinContent: "43.8 g" }, recipeIngredient: ["500 g Rinderhackfleisch", "500 g Spaghetti", "800 g Tomaten, geschälte (aus der Dose)", "2 EL Olivenöl"], recipeInstructions: [{ text: "Hackfleisch anbraten." }, { text: "Tomaten dazugeben und 20 Minuten köcheln." }, { text: "Pasta kochen." }] }) + '</script></head><body></body></html>';
+  await page.evaluate((h) => { location.hash = "u=" + encodeURIComponent("https://blog.example/bolognese/") + "&t=" + encodeURIComponent(h); }, blogHtml); await page.waitForTimeout(1500);
+  for (let k = 0; k < 4; k++) { if (!(await page.$(".sheet"))) break; await page.keyboard.press("Escape"); await page.waitForTimeout(400); }
+  let bt = await page.innerText("body");
+  check("Blog: Vergleich „Laut Blog … Kombüse rechnet“", /Laut Blog: 814 kcal[\s\S]*Kombüse rechnet/.test(bt), (bt.match(/Laut Blog.{0,120}/) || [bt.slice(0, 200)])[0]);
+  const artHtml = '<html><head><title>Ofenkartoffeln - Blog</title></head><body><article><h1>Ofenkartoffeln</h1><div class="entry-content"><p>Einfach und lecker.</p><p><b>Zutaten:</b></p><ul><li>1 kg Kartoffeln</li><li>2 EL Olivenöl</li><li>1 TL Salz</li></ul><p><b>Zubereitung:</b></p><ol><li>Kartoffeln würfeln und mit Öl und Salz mischen.</li><li>30 Minuten bei 200 °C backen.</li></ol></div></article></body></html>';
+  await page.evaluate((h) => { location.hash = "u=" + encodeURIComponent("https://blog.example/ofenkartoffeln/") + "&t=" + encodeURIComponent(h); }, artHtml); await page.waitForTimeout(1500);
+  for (let k = 0; k < 4; k++) { if (!(await page.$(".sheet"))) break; await page.keyboard.press("Escape"); await page.waitForTimeout(400); }
+  bt = await page.innerText("body");
+  check("Blog: Hinweis „Ohne Rezeptkarte gelesen“", /Ohne Rezeptkarte gelesen/.test(bt), bt.slice(0, 300));
   check("keine JavaScript-Fehler", errors.length === 0, errors);
   await page.screenshot({ path: path.join(require("os").tmpdir(), "einstellungen.png") });
   await browser.close(); srv.close();

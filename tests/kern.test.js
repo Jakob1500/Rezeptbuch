@@ -726,5 +726,29 @@ check("Ü: Brüche vor der Übersetzung", K.vorUebersetzung("Add 3½ cups water"
   const sp = K.analyse({ caption: "Pasta\n\nZutaten\n500 g Spaghetti\n800 ml Rinderbrühe\n\nZubereitung\nDie Pasta kochen.\nMit Bouillon ablöschen.", url: "x" }).recipe, m = K.stepIngredients(sp);
   check("Blog: Oberbegriffe im Schritt (Pasta, Bouillon)", m[0].includes(0) && m[1].includes(1), m);
 }
+// 29.10. abends: Go von Jakob für A, F, G, I
+{
+  const NWT = JSON.parse(require("fs").readFileSync(require("path").join(__dirname, "../daten/naehrwerte.json"), "utf8"));
+  const z = (l) => K.parseIngredientLine(l);
+  check("A: Seitan Pulver und Weizengluten haben Nährwerte", !!K.findNutrientEntry(z("200 g Seitan Pulver").key, NWT.zutaten) && !!K.findNutrientEntry(z("200 g Weizengluten").key, NWT.zutaten));
+  check("A: Rote Beete (mit ee) hat Nährwerte und Gang", !!K.findNutrientEntry(z("130 g Rote Beete").key, NWT.zutaten) && z("130 g Rote Beete").aisle === "Obst & Gemüse");
+  check("A: Kritharaki, vegane Kochcreme, Kürbispüree", ["250 g Kritharaki", "200 ml vegane Kochcreme", "425 g pumpkin puree"].every(l => K.findNutrientEntry(z(l).key, NWT.zutaten)));
+  const cap = "Big Mac Wrap\n\nZutaten:\n5 Salatblätter\n200 g Veganes Hack\n2 EL Big Mac Soße\n\nBig Mac Soße:\n100 g Vegane Mayonnaise\n1 TL Senf\n3 EL Gurkenwasser\n\nZubereitung:\n1. Alle Zutaten für die Soße verrühren.\n2. Hack anbraten.\n3. Alles auf den Salatblättern anrichten und mit der Soße toppen.";
+  const bm = K.analyse({ caption: cap, url: "x" }).recipe; K.berechneNaehrwerte(bm, NWT, null, {});
+  const tr = (bm.nutrition.teilrezepte || [])[0];
+  check("I: Teilrezept anteilig (2 EL von gut 150 g Soße)", tr && tr.genutzt === 30 && tr.faktor < 0.3, bm.nutrition.teilrezepte);
+  const ant = K.naehrwertAnteile(bm, NWT, "kcal", {}), mayo = ant.teile.find(t => /Mayo/.test(t.name));
+  check("I: Erklärung rechnet mit demselben Anteil", mayo && mayo.gramm < 30, mayo);
+  const ld = (j) => { const r = K.analyse({ caption: "", blogHtml: '<script type="application/ld+json">' + JSON.stringify(Object.assign({ "@type": "Recipe" }, j)) + "</script>", blogUrl: "https://blog.example/" + j.name, url: "https://blog.example/" + j.name }).recipe; K.berechneNaehrwerte(r, NWT, null, {}); return r; };
+  const bo = ld({ name: "Bolognese", recipeYield: "4", nutrition: { calories: "814 kcal", proteinContent: "43.8 g" }, recipeIngredient: ["500 g Rinderhackfleisch", "500 g Spaghetti", "800 g Tomaten, geschälte (aus der Dose)", "2 EL Olivenöl"], recipeInstructions: [{ text: "Hackfleisch anbraten." }, { text: "Tomaten dazugeben und köcheln." }, { text: "Pasta kochen." }] });
+  const v1 = K.naehrwertVergleich(bo);
+  check("F: Vergleich mit dem Blog, kleine Abweichung", v1 && v1.blog.kcal === 814 && Math.abs(v1.abweichung.kcal) < 10 && !v1.gross, v1);
+  const pz = ld({ name: "Pizza", recipeYield: "1", nutrition: { calories: "344 kcal", proteinContent: "3.5 g" }, recipeIngredient: ["1 Pck. Pizzateig (350 g)", "180 g Tomaten", "50 g Oliven", "2 EL Olivenöl"], recipeInstructions: [{ text: "Teig belegen." }, { text: "15 Minuten backen." }] });
+  const L = K.neuerLernspeicher(), v2 = K.merkeNaehrwertAbweichung(L, pz);
+  check("F: große Abweichung wird gemerkt und exportiert", v2 && v2.gross && L.naehrwertAbweichungen.length === 1 && K.lernExport(L, {}).naehrwertAbweichungen.length === 1);
+  const sei = ld({ name: "Seitan", recipeYield: ["1.25", "1.25 kg"], nutrition: { calories: "165 kcal", proteinContent: "28 g", servingSize: "100 g" }, recipeIngredient: ["250 g Kichererbsen", "425 g Seitan-Fix", "1 EL Rapsöl"], recipeInstructions: [{ text: "Mit 500 ml Wasser verkneten." }, { text: "45 Minuten dämpfen." }] });
+  const v3 = K.naehrwertVergleich(sei);
+  check("F: Blogwert je 100 g mit dem Gewicht der Ausbeute verglichen", v3 && v3.je === "100 g" && Math.abs(v3.abweichung.kcal) < 15, v3);
+}
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);
