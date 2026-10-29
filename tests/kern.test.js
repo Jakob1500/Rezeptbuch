@@ -232,7 +232,7 @@ const nw = K.berechneNaehrwerte(curry, NW);
 check("Curry kcal plausibel", nw.values.kcal > 380 && nw.values.kcal < 560, nw.values);
 check("Curry pro Portion", nw.perServing && nw.servings === 4);
 check("Curry Abdeckung", nw.reliable && nw.coverage.unmatched.length <= 1, nw.coverage);
-check("Curry eisenreich berechnet", curry.focus.some(f => f.label === "eisenreich" && f.basis === "berechnet"), curry.focus);
+check("Curry viel Eisen berechnet", curry.focus.some(f => f.label === "viel Eisen" && f.basis === "berechnet"), curry.focus);
 check("Curry proteinreich bleibt Creator-Angabe", curry.focus.some(f => f.label === "proteinreich" && f.basis === "laut Creator"), curry.focus);
 const bowl = K.analyse({ caption: "Hähnchen-Bowl\nZutaten (2 Portionen):\n300 g Hähnchenbrust\n150 g Reis\n1 Avocado\n2 EL Olivenöl\nZubereitung:\nReis kochen.\nHähnchen braten und alles anrichten." }).recipe;
 const nb = K.berechneNaehrwerte(bowl, NW);
@@ -785,6 +785,12 @@ check("Ü: Brüche vor der Übersetzung", K.vorUebersetzung("Add 3½ cups water"
   const s4 = K.lernStand(L4, { jetzt: T, spaeter: sp3 });
   check("M: ab 80 % der Protokoll-Einträge dringend, Später greift nicht", s4.dringend && s4.faellig && !s4.darfSpaeter, s4);
   check("M: ab 80 % der Dateigröße dringend", K.lernStand(K.neuerLernspeicher(), { jetzt: T, groesse: 1700000 }).dringend);
+}
+{
+  // N/O: Labels je Portion, ehrlich benannt; weitere Nährstoffe
+  check("N: Label-Regel nennt Bezugswert und je Portion", /4,2 mg/.test(K.FOKUS_INFO["viel Eisen"].regel) && /je Portion/.test(K.FOKUS_INFO["viel Eisen"].regel) && K.FOKUS_INFO["viel Eisen"].anteil({ iron: 6.2 }) === "44 % des Tagesbedarfs");
+  check("O: Jod, B12, Vitamin D, Zink, Folat als Labels", ["viel Jod", "viel Vitamin B12", "viel Vitamin D", "viel Zink", "viel Folat"].every(l => K.FOKUS_INFO[l] && K.FOKUS_INFO[l].nrv));
+  check("O: Schwelle Jod 45 µg", /ab 45 µg/.test(K.FOKUS_INFO["viel Jod"].regel), K.FOKUS_INFO["viel Jod"].regel);
 }
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);
