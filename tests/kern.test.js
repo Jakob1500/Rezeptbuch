@@ -750,5 +750,13 @@ check("Ü: Brüche vor der Übersetzung", K.vorUebersetzung("Add 3½ cups water"
   const v3 = K.naehrwertVergleich(sei);
   check("F: Blogwert je 100 g mit dem Gewicht der Ausbeute verglichen", v3 && v3.je === "100 g" && Math.abs(v3.abweichung.kcal) < 15, v3);
 }
+{
+  const NWT = JSON.parse(require("fs").readFileSync(require("path").join(__dirname, "../daten/naehrwerte.json"), "utf8"));
+  const r = K.analyse({ caption: "Soße\n\nZutaten\n400 g gehackte Tomaten\n2 Tomaten\n1 TL Paprikapulver\n1 Zwiebel\n\nZubereitung\nZwiebel würfeln und anbraten.\nTomaten und Paprikapulver dazugeben und köcheln.", url: "x" }).recipe;
+  K.berechneNaehrwerte(r, NWT, null, {});
+  const d = r.nutrition.details;
+  check("Nährwert: gehackte Tomaten = Dosentomaten, frische Tomaten = roh", d.some(x => /Konserve/.test(x.bls)) && d.some(x => x.bls === "Tomate roh"), d.map(x => x.name + ":" + x.bls));
+  check("Nährwert: Paprikapulver ist kein Gemüsepaprika", !d.some(x => /Paprikapulver/.test(x.name)) && r.nutrition.coverage.unmatched.indexOf("Paprikapulver") === -1, d);
+}
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

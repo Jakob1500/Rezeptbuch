@@ -2460,7 +2460,7 @@
     var teile = [], summe = 0, teilAnteil = teilrezeptAnteile(r, table, eigene);
     (r.ingredients || []).forEach(function (i) {
       if (i.teilrezept) return;
-      var hit = eigene[i.key] ? { entry: eigene[i.key] } : findNutrientEntry(i.key, table, i.state);
+      var hit = eigene[i.key] ? { entry: eigene[i.key] } : findNutrientEntry(nwSchluessel(i), table, nwZustand(i));
       if (!hit || !hit.entry || !hit.entry.n) return;
       var g = gramsOf(i, hit.entry); if (g == null) return;
       if (i.group && teilAnteil[i.group]) g = g * teilAnteil[i.group].faktor;
@@ -3892,7 +3892,7 @@
     }
     if (table[key]) return { key: key, entry: table[key] };
     var nk = normIndex(table)[key];
-    if (nk) return { key: nk, entry: table[nk] };
+    if (nk && !(/(pulver|flocken)$/.test(key) && !/(pulver|flocken)$/.test(nk))) return { key: nk, entry: table[nk] }; // "paprikapulver" -> nicht Gemüsepaprika
     var words = key.split(" ");
     // "rote linsen getrocknet" -> letztes Nomen zuerst, dann Wortgruppen
     for (var n = words.length - 1; n >= 1; n--) {
@@ -3907,12 +3907,19 @@
       if (k.length < 3 || k.indexOf(" ") !== -1 || k.indexOf("@") !== -1) return;
       var hit = false;
       if (key.length > k.length && key.slice(-k.length) === k) hit = true;
-      else if (key.length > k.length && key.indexOf(k) === 0 && !PREFIX_BLOCK.some(function (b) { return key.indexOf(b) === 0; })) hit = true;
+      else if (key.length > k.length && key.indexOf(k) === 0 && !PREFIX_BLOCK.some(function (b) { return key.indexOf(b) === 0; }) && !/(pulver|gewürz|flocken)$/.test(key)) hit = true; // "Paprikapulver" ≠ Paprika
       if (hit && (!best || k.length > best.length)) best = k;
     });
     return best ? { key: best, entry: table[best] } : null;
   }
 
+  // Schlüssel für die Nährwertsuche (Blog-Test 29.10.): "400 g gehackte Tomaten", "Tomaten (aus der Dose)" sind Dosentomaten, nicht rohe Tomaten
+  function nwSchluessel(i) {
+    var k = i.key || "", t = lower((i.raw || "") + " " + (i.note || "") + " " + (i.name || ""));
+    if (/^tomate$/.test(k) && /(dose|konserve|gehackt|geschält|stückig|canned|tinned|diced|crushed|peeled)/.test(t)) return "gehackte tomaten";
+    return k;
+  }
+  function nwZustand(i) { return nwSchluessel(i) === "gehackte tomaten" ? "" : i.state; }
   // Menge einer Zutat in Gramm (null = unbekannt)
   function gramsOf(ing, entry) {
     // "1 Stück vegane Butter (ca. 25 g)": Grammangabe in der Notiz hat Vorrang
@@ -3991,7 +3998,7 @@
       var gesamt = 0;
       ings.forEach(function (j) {
         if (j.group !== i.teilrezept || j.teilrezept) return;
-        var hit = eigene[j.key] ? { entry: eigene[j.key] } : findNutrientEntry(j.key, table, j.state);
+        var hit = eigene[j.key] ? { entry: eigene[j.key] } : findNutrientEntry(nwSchluessel(j), table, nwZustand(j));
         var g = gramsOf(j, hit ? hit.entry : { dichte: 1, el: 15, tl: 5 });
         if (g != null) gesamt += g;
       });
@@ -4011,7 +4018,7 @@
     var teilAnteil = teilrezeptAnteile(r, table, eigene);
     (r.ingredients || []).forEach(function (i) {
       if (i.teilrezept) return; // wird aus den Zutaten des Abschnitts gerechnet
-      var hit = eigene[i.key] ? { key: i.key, entry: eigene[i.key], eigene: true } : findNutrientEntry(i.key, table, i.state);
+      var hit = eigene[i.key] ? { key: i.key, entry: eigene[i.key], eigene: true } : findNutrientEntry(nwSchluessel(i), table, nwZustand(i));
       if (!hit) { if (!i.staple && !isSpice(i) && !isMinor(i)) { unmatched.push(i.name); offen.push({ name: i.name, key: i.key, grund: "unbekannt", unit: i.unit || "" }); } return; }
       var g = gramsOf(i, hit.entry);
       if (g != null && i.group && teilAnteil[i.group] != null) g = g * teilAnteil[i.group].faktor;

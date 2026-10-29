@@ -3279,7 +3279,7 @@ var teile = [], summe = 0, teilAnteil = teilrezeptAnteile(r, table, eigene);
 (r.ingredients || []).forEach(function (i) {
 if (i.teilrezept)
 return;
-var hit = eigene[i.key] ? { entry: eigene[i.key] } : findNutrientEntry(i.key, table, i.state);
+var hit = eigene[i.key] ? { entry: eigene[i.key] } : findNutrientEntry(nwSchluessel(i), table, nwZustand(i));
 if (!hit || !hit.entry || !hit.entry.n)
 return;
 var g = gramsOf(i, hit.entry);
@@ -5032,7 +5032,7 @@ return base;
 if (table[key])
 return { key: key, entry: table[key] };
 var nk = normIndex(table)[key];
-if (nk)
+if (nk && !(/(pulver|flocken)$/.test(key) && !/(pulver|flocken)$/.test(nk)))
 return { key: nk, entry: table[nk] };
 var words = key.split(" ");
 for (var n = words.length - 1; n >= 1; n--) {
@@ -5050,13 +5050,20 @@ return;
 var hit = false;
 if (key.length > k.length && key.slice(-k.length) === k)
 hit = true;
-else if (key.length > k.length && key.indexOf(k) === 0 && !PREFIX_BLOCK.some(function (b) { return key.indexOf(b) === 0; }))
+else if (key.length > k.length && key.indexOf(k) === 0 && !PREFIX_BLOCK.some(function (b) { return key.indexOf(b) === 0; }) && !/(pulver|gewürz|flocken)$/.test(key))
 hit = true;
 if (hit && (!best || k.length > best.length))
 best = k;
 });
 return best ? { key: best, entry: table[best] } : null;
 }
+function nwSchluessel(i) {
+var k = i.key || "", t = lower((i.raw || "") + " " + (i.note || "") + " " + (i.name || ""));
+if (/^tomate$/.test(k) && /(dose|konserve|gehackt|geschält|stückig|canned|tinned|diced|crushed|peeled)/.test(t))
+return "gehackte tomaten";
+return k;
+}
+function nwZustand(i) { return nwSchluessel(i) === "gehackte tomaten" ? "" : i.state; }
 function gramsOf(ing, entry) {
 var ng = String(ing.note || "").match(/(?:^|[\s(,])(?:ca\.?\s*)?(\d+(?:[.,]\d+)?)\s*g\b/);
 if (ng && /^(Stk|Pck|Dose|Glas|Becher|Scheibe|Stange|)$/.test(ing.unit) && !/\d+\s*g\s*(protein|eiweiß)/i.test(ing.note)) {
@@ -5127,7 +5134,7 @@ var gesamt = 0;
 ings.forEach(function (j) {
 if (j.group !== i.teilrezept || j.teilrezept)
 return;
-var hit = eigene[j.key] ? { entry: eigene[j.key] } : findNutrientEntry(j.key, table, j.state);
+var hit = eigene[j.key] ? { entry: eigene[j.key] } : findNutrientEntry(nwSchluessel(j), table, nwZustand(j));
 var g = gramsOf(j, hit ? hit.entry : { dichte: 1, el: 15, tl: 5 });
 if (g != null)
 gesamt += g;
@@ -5150,7 +5157,7 @@ var teilAnteil = teilrezeptAnteile(r, table, eigene);
 (r.ingredients || []).forEach(function (i) {
 if (i.teilrezept)
 return;
-var hit = eigene[i.key] ? { key: i.key, entry: eigene[i.key], eigene: true } : findNutrientEntry(i.key, table, i.state);
+var hit = eigene[i.key] ? { key: i.key, entry: eigene[i.key], eigene: true } : findNutrientEntry(nwSchluessel(i), table, nwZustand(i));
 if (!hit) {
 if (!i.staple && !isSpice(i) && !isMinor(i)) {
 unmatched.push(i.name);
