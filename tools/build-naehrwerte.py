@@ -452,11 +452,11 @@ def pick(query):
     return sorted(cands, key=score)[0]
 
 KEEP = ["ENERCC", "PROT625", "FAT", "CHO", "FIBT", "SUGAR", "NACL", "FE", "CA", "MG", "ZN", "K",
-        "VITC", "VITB12", "VITD", "FOL", "FASAT", "FAPUN3", "ID"]
+        "VITC", "VITB12", "VITD", "FOL", "FASAT", "FAPUN3", "ID", "RIBF"]
 SHORT = {"ENERCC": "kcal", "PROT625": "protein", "FAT": "fat", "CHO": "carbs", "FIBT": "fiber",
          "SUGAR": "sugar", "NACL": "salt", "FE": "iron", "CA": "calcium", "MG": "magnesium", "ZN": "zinc",
          "K": "potassium", "VITC": "vitC", "VITB12": "vitB12", "VITD": "vitD", "FOL": "folate",
-         "FASAT": "satFat", "FAPUN3": "omega3", "ID": "iodine"}
+         "FASAT": "satFat", "FAPUN3": "omega3", "ID": "iodine", "RIBF": "vitB2"}
 
 out, missing = {}, []
 for key, (q, piece, el, tl, dens) in Z.items():
@@ -497,7 +497,7 @@ meta = {
   "hinweis": "Auszug; Nährwerte je 100 g essbarer Anteil. Stück-/Löffelgewichte sind Richtwerte des Rezeptspeichers.",
   "einheiten": {"kcal": "kcal", "protein": "g", "fat": "g", "carbs": "g", "fiber": "g", "sugar": "g", "salt": "g",
                 "iron": "mg", "calcium": "mg", "magnesium": "mg", "zinc": "mg", "potassium": "mg", "vitC": "mg",
-                "vitB12": "µg", "vitD": "µg", "folate": "µg", "satFat": "g", "omega3": "g", "iodine": "µg"}
+                "vitB12": "µg", "vitD": "µg", "folate": "µg", "satFat": "g", "omega3": "g", "iodine": "µg", "vitB2": "mg"}
 }
 json.dump({"meta": meta, "zutaten": out}, open(os.path.join(ROOT, "daten/naehrwerte.json"), "w", encoding="utf-8"),
           ensure_ascii=False, separators=(",", ":"))

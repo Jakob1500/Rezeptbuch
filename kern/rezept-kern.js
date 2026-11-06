@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.7.5";
+  var VERSION = "0.7.6";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -2437,7 +2437,7 @@
   // Omega-3: ≥ 0,6 g je 100 kcal (die EU-Regel verlangt zusätzlich 0,6 g je 100 g).
   var NRV = [ // Feld, Bezugswert je Tag, Einheit, Name, Label (Reihenfolge = Reihenfolge der Labels)
     ["iron", 14, "mg", "Eisen", "eisenreich"], ["calcium", 800, "mg", "Calcium", "calciumreich"], ["magnesium", 375, "mg", "Magnesium", "magnesiumreich"], ["zinc", 10, "mg", "Zink", "zinkreich"],
-    ["iodine", 150, "µg", "Jod", "jodreich"], ["vitB12", 2.5, "µg", "Vitamin B12", "vitamin-B12-reich"], ["vitD", 5, "µg", "Vitamin D", "vitamin-D-reich"], ["folate", 200, "µg", "Folat", "folatreich"], ["vitC", 80, "mg", "Vitamin C", "vitamin-C-reich"]];
+    ["iodine", 150, "µg", "Jod", "jodreich"], ["vitB12", 2.5, "µg", "Vitamin B12", "vitamin-B12-reich"], ["vitD", 5, "µg", "Vitamin D", "vitamin-D-reich"], ["folate", 200, "µg", "Folat", "folatreich"], ["vitC", 80, "mg", "Vitamin C", "vitamin-C-reich"], ["vitB2", 1.4, "mg", "Vitamin B2", "vitamin-B2-reich"]];
   var NRV_ANTEIL = 0.3;
   var FOCUS_RULES = [
     ["proteinreich", function (n) { return n.protein != null && (n.protein * 4) / n.kcal >= 0.2; }],
@@ -4064,7 +4064,7 @@
   }
 
   var NUTRIENT_KEYS = ["kcal", "protein", "fat", "carbs", "fiber", "sugar", "salt", "iron", "calcium", "magnesium",
-    "zinc", "potassium", "vitC", "vitB12", "vitD", "folate", "satFat", "omega3", "iodine"];
+    "zinc", "potassium", "vitC", "vitB12", "vitD", "folate", "satFat", "omega3", "iodine", "vitB2"];
 
   /**
    * Berechnet Nährwerte pro Portion. tabelle = Inhalt von daten/naehrwerte.json.
