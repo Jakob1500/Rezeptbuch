@@ -474,7 +474,7 @@ a { color: var(--accent); }
   function A(input) { return K.analyse(input, { lernen: [ZENTRAL, S.lernen] }); }
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.20.23";
+  var APP_VERSION = "0.20.24";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0 (creativecommons.org/licenses/by/4.0). Werte unverändert übernommen; Stück- und Löffelgewichte sind eigene Richtwerte der App. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -690,6 +690,7 @@ a { color: var(--accent); }
     if (!(r.ingredients || []).length) return true; // keine Zutaten erkannt (z. B. „Link in Bio“): Ernährung unbekannt, nicht ausblenden
     if (d === "vegan") return (r.diet || []).indexOf("vegan") !== -1;
     if (d === "vegetarisch") return (r.diet || []).indexOf("vegetarisch") !== -1;
+    if (d === "pescetarisch") return (r.diet || []).indexOf("vegetarisch") !== -1 || (r.diet || []).indexOf("pescetarisch") !== -1;
     return true;
   }
   // Warum ein Rezept wegen der Einstellungen ausgeblendet ist ("" = nicht ausgeblendet)
@@ -1435,7 +1436,7 @@ a { color: var(--accent); }
   function schnellListe(k, mine) {
     if (k === "gekocht") return mine.filter(function (e) { return e.lastCooked; }).sort(function (a, b) { return b.lastCooked - a.lastCooked; });
     if (k === "fav") return mine.filter(function (e) { return e.fav; });
-    if (k === "schnell") return mine.filter(function (e) { return e.recipe.timeTotal && e.recipe.timeTotal <= 20 && K.completeness(e.recipe).enough && e.nochmal !== false; }).sort(function (a, b) { return a.recipe.timeTotal - b.recipe.timeTotal; });
+    if (k === "schnell") return mine.filter(function (e) { return e.recipe.timeTotal && e.recipe.timeTotal <= schnellGrenze() && K.completeness(e.recipe).enough && e.nochmal !== false; }).sort(function (a, b) { return a.recipe.timeTotal - b.recipe.timeTotal; });
     if (k === "vorrat") return mine.map(function (e) { return { e: e, m: missingOf(e.recipe) }; }).filter(function (x) { return x.m.total >= 3 && x.e.nochmal !== false && K.completeness(x.e.recipe).enough; })
       .sort(function (a, b) { return a.m.missing - b.m.missing || (a.e.recipe.timeTotal || 999) - (b.e.recipe.timeTotal || 999); }).map(function (x) { return x.e; });
     if (k === "nie") return mine.filter(function (e) { return !e.cooked && !e.lastCooked && !e.example && K.completeness(e.recipe).enough; });
@@ -1443,14 +1444,16 @@ a { color: var(--accent); }
     return null;
   }
   function schnellSub(k, list) {
-    if (k === "schnell") return "bis 20 Min.";
+    if (k === "schnell") return "bis " + schnellGrenze() + " Min.";
     if (k === "lange") return list.length ? "seit über 3 Wochen" : "noch keine";
     if (k === "vorrat") { var fast = list.filter(function (e) { return missingOf(e.recipe).missing <= 2; }).length; return fast ? fast + " fast komplett" : "noch keine"; }
     return list.length ? list.length + (list.length === 1 ? " Rezept" : " Rezepte") : "noch keine";
   }
   // Rezepte, die nicht zur eingestellten Ernährung passen (auch die bewusst gespeicherten) – eigenes Label in der Suche
-  function nichtDiaetName() { return S.prefs.diet === "vegan" ? "Nicht vegan" : S.prefs.diet === "vegetarisch" ? "Nicht vegetarisch" : ""; }
-  function passtZurDiaet(r) { return !(r.ingredients || []).length || (r.diet || []).indexOf(S.prefs.diet) !== -1; }
+  // Zeit unter der Woche (Erstbefragung E5): Grenze für „Schnell“; „egal“ = 20 Minuten wie bisher
+  function schnellGrenze() { return S.prefs.zeitWoche || 20; }
+  function nichtDiaetName() { return S.prefs.diet === "vegan" ? "Nicht vegan" : S.prefs.diet === "vegetarisch" ? "Nicht vegetarisch" : S.prefs.diet === "pescetarisch" ? "Nicht pescetarisch" : ""; }
+  function passtZurDiaet(r) { var d = r.diet || []; return !(r.ingredients || []).length || d.indexOf(S.prefs.diet) !== -1 || (S.prefs.diet === "pescetarisch" && d.indexOf("vegetarisch") !== -1); }
   function nichtDiaetListe() { return nichtDiaetName() ? entries().filter(function (e) { return !e.example && !passtZurDiaet(e.recipe); }) : []; }
   function suchAktiv() { return !!(UI.q.trim() || activeFilters().length || UI.ohne.length || UI.chip); }
   // Dieselbe Suche auf „Rezepte“ (hinter der Lupe) und auf „Kategorien“ (oben)
@@ -2394,18 +2397,40 @@ a { color: var(--accent); }
       '<div class="field"><label for="pname">Vorname (für die Begrüßung, freiwillig)</label><input class="input" id="pname" value="' + esc(p.name) + '" autocomplete="given-name"></div>' +
       '<div class="group"><div class="row"><span class="main"><span class="title">Personen im Haushalt</span><span class="sub">Rezepte werden darauf umgerechnet</span></span>' +
       '<span class="stepper" role="group" aria-label="Personen"><button data-a="pref-persons" data-d="-1" aria-label="Weniger">−</button><output>' + p.persons + '</output><button data-a="pref-persons" data-d="1" aria-label="Mehr">+</button></span></div></div>' +
-      '<div class="field"><label>Ernährung</label><div class="seg" role="group" aria-label="Ernährung">' + [["alles", "Alles"], ["vegetarisch", "Vegetarisch"], ["vegan", "Vegan"]].map(function (x) {
+      '<div class="field"><label>Ernährung</label><div class="seg" role="group" aria-label="Ernährung">' + [["alles", "Alles"], ["pescetarisch", "Pesce\u00adtarisch"], ["vegetarisch", "Vege\u00adtarisch"], ["vegan", "Vegan"]].map(function (x) {
         return '<button data-a="pref-diet" data-v="' + x[0] + '" aria-pressed="' + (p.diet === x[0]) + '">' + x[1] + '</button>'; }).join("") + '</div></div>' + nutriRow() + origRow() +
       '<div class="field"><label>Titel englischer Rezepte</label><div class="seg" role="group" aria-label="Titel englischer Rezepte">' + [["fragen", "Fragen"], ["de", "Deutsch"], ["en", "Englisch"]].map(function (x) {
         return '<button data-a="pref-titelsprache" data-v="' + x[0] + '" aria-pressed="' + ((p.titelSprache || "fragen") === x[0]) + '">' + x[1] + '</button>'; }).join("") + '</div></div>' +
       '<div class="field"><label>Darstellung</label><div class="seg" role="group" aria-label="Darstellung">' + [["system", "Wie iPhone"], ["hell", "Hell"], ["dunkel", "Dunkel"]].map(function (x) {
         return '<button data-a="pref-theme" data-v="' + x[0] + '" aria-pressed="' + (p.theme === x[0]) + '">' + x[1] + '</button>'; }).join("") + '</div></div></section>';
   }
-  function onboardSheet() {
+  // Fragen beim ersten Start. Allergien (E2) kommen als eigene Seite mit dem Allergie-Update dazu.
+  var OB_FRAGEN = {
+    diet: { titel: "Wie ernährst du dich?", text: "Passt ein neues Rezept nicht dazu, fragt die App nach, bevor sie es speichert.", feld: "diet",
+      werte: [["alles", "Ich esse alles"], ["pescetarisch", "Pescetarisch", "vegetarisch und Fisch"], ["vegetarisch", "Vegetarisch"], ["vegan", "Vegan"]] },
+    persons: { titel: "Für wie viele Personen kochst du meistens?", text: "Mengen in den Rezepten werden darauf umgerechnet.", feld: "persons",
+      werte: [[1, "1 Person"], [2, "2 Personen"], [3, "3 Personen"], [4, "4 Personen"], [5, "5 oder mehr"]] },
+    zeit: { titel: "Wie viel Zeit hast du unter der Woche zum Kochen?", text: "Danach richtet sich, was als „Schnell“ vorgeschlagen wird.", feld: "zeitWoche",
+      werte: [[20, "bis 20 Minuten"], [30, "bis 30 Minuten"], [45, "bis 45 Minuten"], [0, "Ist mir egal"]] }
+  };
+  function obSchritte() { return UI.ob && UI.ob.nachtrag ? ["diet", "zeit"] : ["diet", "persons", "zeit", "ende"]; }
+  function onboardSheet(nachtrag) {
+    if (nachtrag != null || !UI.ob) UI.ob = { i: 0, nachtrag: !!nachtrag };
+    var st = obSchritte(), k = st[UI.ob.i], punkte = '<div class="coach" style="position:static;padding:0;background:none;box-shadow:none"><div class="dots" aria-hidden="true">' + st.map(function (x, n) { return '<i' + (n === UI.ob.i ? ' class="on"' : '') + '></i>'; }).join("") + '</div></div>';
+    var kopf = '<p class="small muted" style="margin:0">' + (UI.ob.nachtrag ? "Zwei neue Fragen" : "Frage " + Math.min(UI.ob.i + 1, st.length - 1) + " von " + (st.length - 1)) + '</p>';
+    if (k !== "ende") {
+      var f = OB_FRAGEN[k], akt = S.prefs[f.feld];
+      sheet(punkte + kopf + '<h2>' + esc(f.titel) + '</h2><p class="small muted">' + esc(f.text) + '</p><div class="group" role="radiogroup" aria-label="' + esc(f.titel) + '">' +
+        f.werte.map(function (w) { var an = String(akt) === String(w[0]) || (k === "persons" && w[0] === 5 && akt >= 5);
+          return '<button class="row" role="radio" aria-checked="' + an + '" data-a="ob-wahl" data-k="' + k + '" data-v="' + w[0] + '" data-keep="1"><span class="main"><span class="title">' + esc(w[1]) + '</span>' + (w[2] ? '<span class="sub">' + esc(w[2]) + '</span>' : '') + '</span>' + (an ? ic("check") : '') + '</button>'; }).join("") + '</div>' +
+        '<div class="btnrow">' + (UI.ob.i ? '<button class="btn soft" data-a="ob-zurueck" data-keep="1">Zurück</button>' : '') + '<button class="btn ghost" data-a="ob-weiter" data-keep="1">Überspringen</button></div>' +
+        '<p class="small muted">Alles lässt sich später in den Einstellungen ändern und bleibt auf diesem iPhone.</p>');
+      return;
+    }
     var v = scVersion() || (komplettBereit() ? "komplett" : "einfach");
     var opt = function (k, titel, text) { var aus = k === "komplett" && !komplettBereit(); return '<label class="row checkrow"' + (aus ? ' aria-disabled="true" style="opacity:.55"' : '') + '><input type="radio" name="scv" value="' + k + '"' + (v === k ? ' checked' : '') + (aus ? ' disabled' : '') + '><span class="main"><span class="title">' + titel + (k === "komplett" ? (komplettBereit() ? ' <span class="badge ok">Empfohlen</span>' : ' ' + KOMPLETT_BALD) : '') + '</span><span class="sub">' + (aus ? 'Ton und Blog werden noch getestet und kommen mit einem späteren Update.' : text) + '</span></span></label>'; };
-    sheet('<h2>Willkommen in der Kombüse</h2><p class="small muted">Vier Angaben, damit Portionen, Vorschläge und der Import zu dir passen. Du kannst alles später in den Einstellungen ändern.</p>' +
-      profileFields().replace(/<div class="field"><label>Titel englischer Rezepte[\s\S]*?<\/div><\/div>/, "").replace(/<div class="field"><label>Darstellung[\s\S]*?<\/div><\/div>/, "") +
+    sheet(punkte + '<h2>Fast fertig</h2><p class="small muted">Noch dein Vorname für die Begrüßung (freiwillig), ob Nährwerte angezeigt werden und wie Rezepte aus Instagram kommen.</p>' +
+      '<div class="field"><label for="pname">Vorname (freiwillig)</label><input class="input" id="pname" value="' + esc(S.prefs.name) + '" autocomplete="given-name"></div>' + nutriRow() +
       '<section class="sec"><div class="sec-head"><h2>Wie sollen Rezepte aus Instagram kommen?</h2></div><div class="group">' +
       opt("komplett", SC_VERSIONEN.komplett, "Hört bei Reels mit und holt den Blog. Vollständigere Rezepte.") +
       opt("einfach", SC_VERSIONEN.einfach, "Schneller und sparsamer.") + '</div></section>' +
@@ -2865,6 +2890,13 @@ a { color: var(--accent); }
   }
   // Wer „Einfach“ nutzt, bekommt einen Hinweis auf „Komplett“, sobald diese Version freigegeben ist und Rezepte aus Reels unvollständig sind
   var WASNEU_VERSION = 2; // 1: neuer Kurzbefehl „In die Kombüse“ (App 0.20.0) · 2: Kurzbefehl mit einem Tipp laden (0.20.2)
+  var ERSTBEFRAGUNG_VERSION = 2; // 2: eine Frage pro Seite, pescetarisch, Zeit unter der Woche (06.11.2026)
+  function obNachtragFertig() { S.prefs.erstbefragung = ERSTBEFRAGUNG_VERSION; save("prefs"); UI.ob = null; closeSheet(); render(); toast("Danke – gespeichert"); }
+  function erstbefragungNachtrag() {
+    if (!S.prefs.onboarded || (S.prefs.erstbefragung || 1) >= ERSTBEFRAGUNG_VERSION || einwilligungFehlt()) return;
+    var versuche = 0;
+    (function zeigen() { if (($("#layer").innerHTML || $("#coach").innerHTML) && versuche++ < 40) { setTimeout(zeigen, 1500); return; } if ((S.prefs.erstbefragung || 1) < ERSTBEFRAGUNG_VERSION) { S.prefs.erstbefragung = ERSTBEFRAGUNG_VERSION; save("prefs"); onboardSheet(true); } })(); // nur einmal fragen, auch wenn das Fenster weggewischt wird
+  }
   function wasNeuPruefen() {
     if (!S.prefs.onboarded || (S.meta.wasNeu || 0) >= WASNEU_VERSION || einwilligungFehlt()) return;
     var v = scVersion() || "einfach", link = (window.KURZBEFEHL_LINKS || {})[v];
@@ -3137,11 +3169,16 @@ a { color: var(--accent); }
       case "open": closeSheet(); UI.detail = id; if (S.recipes[id]) { S.recipes[id].viewedAt = Date.now(); save("recipes"); } render(); window.scrollTo(0, 0); break;
       case "filters": filterSheet(); break;
       case "sort": UI.sort = el.dataset.v; render(); break;
-      case "onboard": onboardSheet(); break;
+      case "onboard": onboardSheet(false); break;
+      case "ob-wahl": var obk = el.dataset.k, obv = el.dataset.v, obf = OB_FRAGEN[obk].feld;
+        S.prefs[obf] = obk === "diet" ? obv : +obv; if (obk === "persons") UI.servings = {}; save("prefs"); render();
+        UI.ob.i++; if (UI.ob.i >= obSchritte().length) { obNachtragFertig(); break; } setTimeout(function () { onboardSheet(); }, 180); break;
+      case "ob-weiter": UI.ob.i++; if (UI.ob.i >= obSchritte().length) { obNachtragFertig(); break; } onboardSheet(); break;
+      case "ob-zurueck": UI.ob.i = Math.max(0, UI.ob.i - 1); onboardSheet(); break;
       case "onboard-save":
         var nm = $("#pname"); if (nm) S.prefs.name = nm.value.trim().slice(0, 30);
         var scv = document.querySelector('input[name="scv"]:checked'); if (scv) S.prefs.kurzbefehl = scv.value;
-        S.prefs.onboarded = true; S.meta.wasNeu = WASNEU_VERSION; save("prefs"); save("meta"); closeSheet(); render();
+        S.prefs.onboarded = true; S.prefs.erstbefragung = ERSTBEFRAGUNG_VERSION; UI.ob = null; S.meta.wasNeu = WASNEU_VERSION; save("prefs"); save("meta"); closeSheet(); render();
         if (el.dataset.sc) coachStarten("teilen"); // Schritt für Schritt mit Bildern, Schritt 1 lädt den Kurzbefehl
         break;
       case "pref-persons": S.prefs.persons = Math.max(1, Math.min(12, (S.prefs.persons || 2) + (+el.dataset.d))); save("prefs"); el.parentNode.querySelector("output").textContent = S.prefs.persons; UI.servings = {}; render(); break;
@@ -3454,6 +3491,7 @@ a { color: var(--accent); }
     if (imSafari() && !S.meta.guides.installieren) coachMerken("installieren");
     else if (einwilligungFehlt()) setTimeout(einwilligungSheet, 300);
     if (!imSafari()) setTimeout(wasNeuPruefen, 1500);
+    if (!imSafari()) setTimeout(erstbefragungNachtrag, 2500);
     if (!imSafari()) setTimeout(lernPopupPruefen, 4000);
     if (upd) toast(upd + (upd === 1 ? " Rezept" : " Rezepte") + " mit der verbesserten Erkennung neu ausgewertet");
     setTimeout(meldeUnbekannte, 3000);

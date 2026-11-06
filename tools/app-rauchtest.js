@@ -27,7 +27,11 @@ const check = (name, cond, info) => { if (cond) ok++; else { bad++; console.log(
   const klick = async (sel) => { await coachWeg(); const el = await page.$(sel); if (el) { await el.click(); await page.waitForTimeout(300); await coachWeg(); return true; } return false; };
   await klick('[data-a="einwilligung-ok"]');
   check("Einführung beim ersten Start", /Willkommen in der Kombüse/.test(gesehen.join("\n")), gesehen[0]);
-  await klick('[data-a="onboard"]'); await klick('[data-a="onboard-save"]');
+  if (!(await page.$('[data-a="ob-wahl"]'))) await klick('[data-a="onboard"]');
+  const obSeiten = []; // Erstbefragung: eine Frage pro Seite
+  for (let k = 0; k < 6 && (await page.$('[data-a="ob-wahl"]')); k++) { obSeiten.push((await page.innerText("#layer .sheet h2")).trim()); await page.$eval('[data-a="ob-weiter"]', e => e.click()); await page.waitForTimeout(250); }
+  check("Erstbefragung: drei Fragen, dann Abschluss", obSeiten.length === 3 && !!(await page.$('[data-a="onboard-save"]')), obSeiten.join(" / "));
+  await page.$eval('[data-a="onboard-save"]:not([data-sc])', e => e.click()); await page.waitForTimeout(300); await coachWeg();
   await klick('[data-a="close-sheet"]');
   await page.evaluate((c) => { location.hash = "u=" + encodeURIComponent("https://www.instagram.com/p/TEST1/") + "&t=" + encodeURIComponent(c); }, caption);
   await page.waitForTimeout(1500);
