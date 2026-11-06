@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.7.4";
+  var VERSION = "0.7.5";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -2016,7 +2016,10 @@
     r.elsewhere = findElsewhere(text, r);
     {
       // Fließtext; lange Zeilen mit Zahl vorn ("15 Minuten und eine Handvoll Zutaten – …") sind Text, keine Zutat
-      var istProsa = function (l) { var c = clean(stripEmoji(l)), q = readQuantity(c); return c && !looksLikeIngredient(c) && !(q && !q.fromWord && (c.length < 80 || readUnit(q.rest))) && !/^\s*\d+\s*[.)]/.test(c); };
+      // Teil-Überschriften („Sauce:“, „Für die Soße:“, „Dressing“) benennen einen Teil, nicht das Gericht
+      // (nur Teile wie Soße, Dressing, Teig – „For the cake:“ nennt dagegen oft das Gericht)
+      var istTeilKopf = function (c) { return SUBHEAD_WORD.test(c.replace(/[:：]\s*$/, "").trim()); };
+      var istProsa = function (l) { var c = clean(stripEmoji(l)), q = readQuantity(c); return c && !istTeilKopf(c) && !looksLikeIngredient(c) && !(q && !q.fromWord && (c.length < 80 || readUnit(q.rest))) && !/^\s*\d+\s*[.)]/.test(c); };
       var prose = String(text || "").split(/\n/).filter(istProsa).join("\n");
       var dp = dishPhrase(prose); if (dp) { r.dishTitle = dp; }
       r.introZeile = (textVorDopp != null ? resegment(preferGerman(normalizeFancy(textVorDopp))).split(/\n/).filter(istProsa).join("\n") : prose).split("\n").map(function (l) { return clean(stripEmoji(l)); }).filter(Boolean)[0] || "";
@@ -3655,6 +3658,12 @@
       var pick = (main.length ? main : r.ingredients).slice(0, 2).map(function (i) { return base(i.name); });
       r.title = pick.join(" & ");
       r.titleGuessed = true; r.titleFromIngredients = pick;
+    }
+    // Titel ist nur die Hauptzutat und das Rezept hat einen Soßen-Teil („Soße:“): „Blumenkohl mit Tahin-Soße“ (Teil-Überschrift als Zusatz, nicht als Gericht)
+    if (r.title && !GENERIC_TITLE.test(clean(r.title)) && !/^salad$/i.test(r.title) && r.ingredients.some(function (i) { return !i.group && lower(i.name) === lower(r.title); })) {
+      var soTeil = r.ingredients.filter(function (i) { return i.group && /^(soße|sosse|sauce|dressing|dip|pesto|marinade)$/i.test(i.group); });
+      var leit = soTeil.filter(function (i) { return !i.staple && !isSpice(i) && i.aisle !== "Obst & Gemüse" && /^[A-ZÄÖÜ]/.test(i.name) && !/öl$|^wasser|essig$|zucker|sirup|salz/.test(i.key); })[0];
+      if (leit) { var gname = /^(sauce|sosse)$/i.test(soTeil[0].group) ? "Soße" : capFirst(lower(soTeil[0].group)); r.title = clean(r.title) + " mit " + leit.name.split(/\s+/).pop() + "-" + gname; r.titleGuessed = true; r.titleOriginal = null; }
     }
     // R1: ausdrücklich genanntes Gericht schlägt einen geratenen Titel; R2: Hauptzutat ergänzen
     if (r.titelSignal && (r.titleGuessed || !r.title || (lower(r.title).indexOf(lower(r.titelSignal)) !== -1 && lower(r.title) !== lower(r.titelSignal) && !hasFoodWord(r.title.replace(new RegExp(r.titelSignal.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), ""))) || !hasFoodWord(r.title))) { r.title = r.titelSignal; r.titleOriginal = null; r.titleGuessed = false; r.titelAusSignal = true; }

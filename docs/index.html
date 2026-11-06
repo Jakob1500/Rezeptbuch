@@ -468,7 +468,7 @@ a { color: var(--accent); }
 
 <script>(function (root) {
 "use strict";
-var VERSION = "0.7.4";
+var VERSION = "0.7.5";
 var SCHEMA_VERSION = 1;
 var AISLES = ["Obst & Gemüse", "Kühlregal", "Fleisch & Fisch", "Brot & Backwaren",
 "Trockenware & Konserven", "Gewürze, Öle & Saucen", "Tiefkühl", "Getränke", "Süßes & Snacks", "Drogerie & Haushalt", "Sonstiges"];
@@ -2772,7 +2772,8 @@ r.thermomixSettings = /\d+\s*(sek|sec|min)\.?\s*\/\s*(stufe|speed)/i.test(text) 
 r.creatorClaims = findClaims(text);
 r.elsewhere = findElsewhere(text, r);
 {
-var istProsa = function (l) { var c = clean(stripEmoji(l)), q = readQuantity(c); return c && !looksLikeIngredient(c) && !(q && !q.fromWord && (c.length < 80 || readUnit(q.rest))) && !/^\s*\d+\s*[.)]/.test(c); };
+var istTeilKopf = function (c) { return SUBHEAD_WORD.test(c.replace(/[:：]\s*$/, "").trim()); };
+var istProsa = function (l) { var c = clean(stripEmoji(l)), q = readQuantity(c); return c && !istTeilKopf(c) && !looksLikeIngredient(c) && !(q && !q.fromWord && (c.length < 80 || readUnit(q.rest))) && !/^\s*\d+\s*[.)]/.test(c); };
 var prose = String(text || "").split(/\n/).filter(istProsa).join("\n");
 var dp = dishPhrase(prose);
 if (dp) {
@@ -4754,6 +4755,16 @@ r.title = pick.join(" & ");
 r.titleGuessed = true;
 r.titleFromIngredients = pick;
 }
+if (r.title && !GENERIC_TITLE.test(clean(r.title)) && !/^salad$/i.test(r.title) && r.ingredients.some(function (i) { return !i.group && lower(i.name) === lower(r.title); })) {
+var soTeil = r.ingredients.filter(function (i) { return i.group && /^(soße|sosse|sauce|dressing|dip|pesto|marinade)$/i.test(i.group); });
+var leit = soTeil.filter(function (i) { return !i.staple && !isSpice(i) && i.aisle !== "Obst & Gemüse" && /^[A-ZÄÖÜ]/.test(i.name) && !/öl$|^wasser|essig$|zucker|sirup|salz/.test(i.key); })[0];
+if (leit) {
+var gname = /^(sauce|sosse)$/i.test(soTeil[0].group) ? "Soße" : capFirst(lower(soTeil[0].group));
+r.title = clean(r.title) + " mit " + leit.name.split(/\s+/).pop() + "-" + gname;
+r.titleGuessed = true;
+r.titleOriginal = null;
+}
+}
 if (r.titelSignal && (r.titleGuessed || !r.title || (lower(r.title).indexOf(lower(r.titelSignal)) !== -1 && lower(r.title) !== lower(r.titelSignal) && !hasFoodWord(r.title.replace(new RegExp(r.titelSignal.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), ""))) || !hasFoodWord(r.title))) {
 r.title = r.titelSignal;
 r.titleOriginal = null;
@@ -6386,7 +6397,7 @@ root.RezeptKern = api;
   function A(input) { return K.analyse(input, { lernen: [ZENTRAL, S.lernen] }); }
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.20.18";
+  var APP_VERSION = "0.20.19";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0 (creativecommons.org/licenses/by/4.0). Werte unverändert übernommen; Stück- und Löffelgewichte sind eigene Richtwerte der App. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)

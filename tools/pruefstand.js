@@ -101,9 +101,13 @@ faelle.forEach(f => {
 });
 
 // ---- Ausgabe und Vergleich mit der Messlatte
-const standDatei = path.join(root, "tests/pruefstand-stand.json");
+// Messlatte nur mit derselben Fallmenge vergleichen: ohne die privaten Exporte (150 Rezepte) gilt eine eigene Messlatte
+// je Anzahl (z. B. tests/pruefstand-stand-31.json) – sonst erscheinen Unterschiede der Fallmenge als „SCHLECHTER“.
+const haupt = path.join(root, "tests/pruefstand-stand.json");
+const hauptStand = fs.existsSync(haupt) ? JSON.parse(fs.readFileSync(haupt, "utf8")) : null;
+const standDatei = !hauptStand || hauptStand.rezepte === faelle.length ? haupt : path.join(root, `tests/pruefstand-stand-${faelle.length}.json`);
 const alt = fs.existsSync(standDatei) ? JSON.parse(fs.readFileSync(standDatei, "utf8")) : null;
-console.log(`Prüfstand · Kern ${K.VERSION} · ${faelle.length} echte Rezepte\n`);
+console.log(`Prüfstand · Kern ${K.VERSION} · ${faelle.length} echte Rezepte · Messlatte: ${alt ? path.basename(standDatei) + " (Kern " + alt.kern + ")" : "keine für diese Fallmenge (mit --speichern anlegen)"}\n`);
 let schlechter = 0;
 Object.keys(KLASSEN).forEach(k => {
   const a = alt && alt.zaehler[k] != null ? alt.zaehler[k] : null, d = a == null ? "" : zaehler[k] - a;

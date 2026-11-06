@@ -818,5 +818,17 @@ check("Ü: Brüche vor der Übersetzung", K.vorUebersetzung("Add 3½ cups water"
   const r2 = K.analyse({ caption: capEn, blogHtml: blog, blogUrl: "https://blog.example/linsen", url: "x" }).recipe;
   check("K: keine doppelten Zutaten bei anderer Sprache", r2.ingredients.length === 6, r2.ingredients.map(i => i.name));
 }
+{
+  // Teil-Überschriften („Soße:“, „Für die Marinade:“) sind kein Gerichtsname (06.11.)
+  const cap = "BESTER ROSENKOHL 😍\n\nREZEPT (2 Portionen):\n-500 g Rosenkohl, halbiert\n-1 EL Öl\n-Salz nach Geschmack\nAuf einem Blech verteilen und 25 Minuten backen.\nSoße:\n-3 EL Tahini\n-1 Knoblauchzehe\n-Saft von 1/2 Zitrone\n-3 EL Wasser\nMixen.\nÜber den Rosenkohl geben und genießen!";
+  const r = K.analyse({ caption: cap, url: "https://www.instagram.com/p/T1/" }).recipe;
+  check("Teil-Überschrift: „Soße:“ wird nicht zum Titel", !/^Soße/i.test(r.title), r.title);
+  check("Teil-Überschrift: Hauptzutat mit Soßen-Teil", /^Rosenkohl mit Tahin\w*-Soße$/.test(r.title), r.title);
+  const cap2 = "Mein Lieblingsessen 🤍\n\nFür die Marinade:\n2 EL Sojasauce\n1 TL Ahornsirup\n1 Knoblauchzehe\n\nAußerdem:\n400 g Tofu\n200 g Reis\n\nTofu würfeln und 20 Minuten marinieren. Reis kochen. Tofu knusprig braten und mit dem Reis servieren.";
+  const r2 = K.analyse({ caption: cap2, url: "https://www.instagram.com/p/T2/" }).recipe;
+  check("Teil-Überschrift: „Für die Marinade:“ wird nicht zum Titel", !/marinade/i.test(r2.title), r2.title);
+  const cap3 = "Bunter Linsensalat\n\nZutaten:\n200 g Linsen\n1 Gurke\n1 Paprika\n\nDressing:\n3 EL Olivenöl\n1 EL Senf\n2 EL Essig\n\nLinsen kochen. Gemüse würfeln. Mit dem Dressing mischen.";
+  check("Teil-Überschrift: vorhandener Titel bleibt", K.analyse({ caption: cap3, url: "x" }).recipe.title === "Bunter Linsensalat");
+}
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);
