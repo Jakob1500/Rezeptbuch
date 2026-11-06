@@ -6,8 +6,8 @@
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>Kombüse</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="theme-color" content="#F4F5F3" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#FCFBF8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E0C0A" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Kombüse">
@@ -29,19 +29,19 @@
    auf hellen Flächen mit feinen Trennlinien, große Zahlen für Zeit und kcal, Tab-Leiste unten.
    Monochrom; ein ruhiges Grün nur für Aktionen und "vorhanden". Systemschrift (kein Abruf bei Google). */
 :root {
-  --bg: #F4F5F3; --surface: #FFFFFF; --surface-2: #ECEEEB; --ink: #121513; --muted: #646B66; --line: #E3E6E2;
-  --accent: #0B7A55; --accent-ink: #FFFFFF; --accent-soft: #E1F0E9; --brand: #FF8A1F; --brand-ink: #1A0E00; --brand-text: #A34E00; --brand-soft: #FFF0E2; --warn: #9A5B00; --warn-soft: #F7EEDC; --danger: #B3261E;
+  --bg: #FCFBF8; --surface: #FFFFFF; --surface-2: #F3F0EB; --ink: #1F1B17; --muted: #6E675F; --line: #EEEAE3;
+  --accent: #A9541E; --accent-ink: #FFFFFF; --accent-soft: #FBEBDD; --brand: #C8682A; --brand-ink: #1A0E00; --brand-text: #A9541E; --brand-soft: #FBEBDD; --warn: #9A5B00; --warn-soft: #F7EEDC; --danger: #B3261E;
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-display: -apple-system-headline, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
   --r-group: 16px; --r-ctl: 12px;
   --tabbar-h: 60px;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #000000; --surface: #121513; --surface-2: #1C201D; --ink: #F1F3F1; --muted: #8F9791; --line: #242925;
-  --accent: #3DC48F; --accent-ink: #04140D; --accent-soft: #10271D; --brand: #FF9F45; --brand-ink: #1A0E00; --brand-text: #FF9F45; --brand-soft: #2B1A0B; --warn: #E3A94A; --warn-soft: #2A2113; --danger: #FF8A80; color-scheme: dark; } }
+  --bg: #0E0C0A; --surface: #1A1714; --surface-2: #24201C; --ink: #F4F1EC; --muted: #A39A90; --line: #2E2924;
+  --accent: #E8915A; --accent-ink: #1A0E00; --accent-soft: #2E1D11; --brand: #EE9F63; --brand-ink: #1A0E00; --brand-text: #F0A56E; --brand-soft: #2B1A0B; --warn: #E3A94A; --warn-soft: #2A2113; --danger: #FF8A80; color-scheme: dark; } }
 :root[data-theme="dark"] {
-  --bg: #000000; --surface: #121513; --surface-2: #1C201D; --ink: #F1F3F1; --muted: #8F9791; --line: #242925;
-  --accent: #3DC48F; --accent-ink: #04140D; --accent-soft: #10271D; --brand: #FF9F45; --brand-ink: #1A0E00; --brand-text: #FF9F45; --brand-soft: #2B1A0B; --warn: #E3A94A; --warn-soft: #2A2113; --danger: #FF8A80; color-scheme: dark; }
+  --bg: #0E0C0A; --surface: #1A1714; --surface-2: #24201C; --ink: #F4F1EC; --muted: #A39A90; --line: #2E2924;
+  --accent: #E8915A; --accent-ink: #1A0E00; --accent-soft: #2E1D11; --brand: #EE9F63; --brand-ink: #1A0E00; --brand-text: #F0A56E; --brand-soft: #2B1A0B; --warn: #E3A94A; --warn-soft: #2A2113; --danger: #FF8A80; color-scheme: dark; }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { min-height: 100%; overscroll-behavior-y: none; }
@@ -180,7 +180,7 @@ textarea.input { min-height: 140px; resize: vertical; line-height: 1.4; }
 .sheet { background: var(--bg); border-radius: 20px 20px 0 0; max-height: 88vh; overflow-y: auto; padding-block: 10px calc(20px + env(safe-area-inset-bottom, 0px));
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 16px; max-width: 640px; width: 100%; margin: 0 auto; }
 .sheet:focus { outline: none; }
-.sheet .grab { width: 38px; height: 5px; border-radius: 3px; background: var(--line); justify-self: center; }
+.sheet .grab { touch-action: none; width: 38px; height: 5px; border-radius: 3px; background: var(--line); justify-self: center; }
 .sheet h2 { font-size: 1.25rem; }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tabbar-h) + 16px + env(safe-area-inset-bottom, 0px)); z-index: 40;
   background: var(--ink); color: var(--bg); border-radius: 999px; padding: 10px 18px; font-size: 0.92rem; font-weight: 600; max-width: calc(100% - 32px); }
@@ -193,7 +193,7 @@ textarea.input { min-height: 140px; resize: vertical; line-height: 1.4; }
 .progress { height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
 .progress i { display: block; height: 100%; background: var(--accent); }
 .progress.voll i { background: var(--warn); }
-.meme { position: relative; display: block; width: 100%; padding: 0; border: 0; border-radius: 16px; overflow: hidden; background: #10271D; margin: 4px 0 12px; cursor: pointer; }
+.meme { position: relative; display: block; width: 100%; padding: 0; border: 0; border-radius: 16px; overflow: hidden; background: #2E1D11; margin: 4px 0 12px; cursor: pointer; }
 .meme svg, .meme img { display: block; width: 100%; height: auto; }
 .meme img { max-height: 46vh; object-fit: contain; background: #000; }
 .meme span { position: absolute; left: 10px; right: 10px; text-align: center; color: #fff; font-family: Impact, "Arial Black", "Helvetica Neue", Arial, sans-serif; font-weight: 900; text-transform: uppercase; font-size: clamp(15px, 4.8vw, 22px); line-height: 1.08; letter-spacing: 0.01em; text-shadow: 2px 2px 0 #000, -2px 2px 0 #000, 2px -2px 0 #000, -2px -2px 0 #000, 0 2px 0 #000, 2px 0 0 #000, 0 -2px 0 #000, -2px 0 0 #000; }
@@ -218,16 +218,16 @@ a { color: var(--accent); }
 .wochen { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x mandatory; margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding-inline: max(16px, env(safe-area-inset-left, 0px)); }
 .wochen::-webkit-scrollbar { display: none; }
 .wkarte { flex: none; width: 280px; scroll-snap-align: start; background: var(--surface); border-radius: var(--r-group); padding: 12px 14px; display: grid; gap: 10px; }
-.wkarte.erste { background: #121513; color: #F3F1EC; }
+.wkarte.erste { background: #1F1B17; color: #F4F1EC; }
 .wkarte .wk-main { border: 0; background: none; color: inherit; text-align: left; padding: 0; display: grid; gap: 2px; }
 .wkarte .wtag { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--brand-text); }
-.wkarte.erste .wtag { color: #FF9F45; }
+.wkarte.erste .wtag { color: #F0A56E; }
 .wkarte .title { font-weight: 650; font-size: 1rem; line-height: 1.25; }
 .wkarte .sub { font-size: 0.82rem; color: var(--muted); }
-.wkarte.erste .sub { color: #C9CCC6; }
+.wkarte.erste .sub { color: #CFC7BD; }
 .wkarte .wk-act { display: flex; gap: 8px; }
 .wkarte .wk-act .btn { flex: 1; min-height: 40px; padding: 8px 10px; font-size: 0.9rem; }
-.wkarte.erste .btn.soft { background: #2A302C; color: #F3F1EC; }
+.wkarte.erste .btn.soft { background: #2E2924; color: #F4F1EC; }
 .kacheln { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .kachel { border: 0; background: var(--surface); border-radius: 18px; padding: 16px; min-height: 120px; display: flex; flex-direction: column; justify-content: space-between; gap: 14px; text-align: left; color: var(--ink); }
 .kachel { position: relative; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
@@ -309,7 +309,7 @@ a { color: var(--accent); }
 .coach.oben { align-items: start; padding-top: calc(16px + env(safe-area-inset-top, 0px)); }
 .coach .card { position: relative; z-index: 1; }
 .spot-ring { position: fixed; border-radius: 14px; box-shadow: 0 0 0 3px var(--brand), 0 0 0 200vmax rgba(0, 0, 0, .5); cursor: pointer; animation: spot-puls 1.6s ease-in-out infinite; }
-@keyframes spot-puls { 50% { box-shadow: 0 0 0 3px var(--brand), 0 0 0 9px rgba(255, 138, 31, .35), 0 0 0 200vmax rgba(0, 0, 0, .5); } }
+@keyframes spot-puls { 50% { box-shadow: 0 0 0 3px var(--brand), 0 0 0 9px rgba(200, 104, 42, .35), 0 0 0 200vmax rgba(0, 0, 0, .5); } }
 .spot-pfeil { position: fixed; width: 30px; height: 30px; color: var(--brand); pointer-events: none; }
 .spot-pfeil svg { width: 100%; height: 100%; fill: currentColor; stroke: #fff; stroke-width: 1.5; stroke-linejoin: round; filter: drop-shadow(0 1px 3px rgba(0, 0, 0, .4)); }
 .spot-pfeil.u { animation: pfeil-u .9s ease-in-out infinite alternate; }
@@ -390,7 +390,7 @@ a { color: var(--accent); }
 .ill .m-zwei .m-btn + .m-btn { border-left: 1px solid #dcdce0; font-weight: 650; }
 .ill .m-banner { display: flex; align-items: center; gap: 6px; padding: 7px 8px; margin-top: 4px; background: #FFF0E2; border-radius: 10px; font-size: 10px; }
 .ill .m-banner > svg { width: 15px; height: 15px; color: #A34E00; }
-.ill .m-orange { background: #FF8A1F; color: #1A0E00; font-weight: 700; padding: 5px 9px; border-radius: 8px; margin-left: auto; }
+.ill .m-orange { background: #C8682A; color: #1A0E00; font-weight: 700; padding: 5px 9px; border-radius: 8px; margin-left: auto; }
 .ill .m-safari { display: flex; align-items: center; gap: 8px; padding: 8px 12px 10px; background: #f7f7f9; border-top: 1px solid #e5e5ea; font-size: 15px; }
 .ill .m-adresse { flex: 1; background: #e9e9ee; border-radius: 10px; padding: 5px 8px; font-size: 10px; text-align: center; }
 .ill .m-home { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px 8px; padding: 8px 12px; }
@@ -398,10 +398,10 @@ a { color: var(--accent); }
 .ill .m-homeicon i, .ill .m-homeicon img { width: 38px; height: 38px; border-radius: 10px; }
 .ill .m-homeicon .m-zeile { width: 26px; height: 5px; margin: 0; background: rgba(255, 255, 255, .7); }
 /* Die Stelle zum Antippen: leuchtet, ein Pfeil zeigt darauf */
-.ill .ziel { position: relative; cursor: pointer; pointer-events: auto; box-shadow: 0 0 0 2.5px #FF8A1F; animation: ziel-puls 1.6s ease-in-out infinite; z-index: 1; }
+.ill .ziel { position: relative; cursor: pointer; pointer-events: auto; box-shadow: 0 0 0 2.5px #C8682A; animation: ziel-puls 1.6s ease-in-out infinite; z-index: 1; }
 .ill .m-li.ziel { border-radius: 8px; background: #FFF0E2; }
-@keyframes ziel-puls { 0%, 100% { box-shadow: 0 0 0 2.5px #FF8A1F, 0 0 0 2.5px rgba(255, 138, 31, .5); } 50% { box-shadow: 0 0 0 2.5px #FF8A1F, 0 0 0 9px rgba(255, 138, 31, 0); } }
-.ill .pfeil { position: absolute; width: 26px; height: 26px; color: #FF8A1F; pointer-events: none; z-index: 2; }
+@keyframes ziel-puls { 0%, 100% { box-shadow: 0 0 0 2.5px #C8682A, 0 0 0 2.5px rgba(200, 104, 42, .5); } 50% { box-shadow: 0 0 0 2.5px #C8682A, 0 0 0 9px rgba(200, 104, 42, 0); } }
+.ill .pfeil { position: absolute; width: 26px; height: 26px; color: #C8682A; pointer-events: none; z-index: 2; }
 .ill .pfeil svg { width: 100%; height: 100%; fill: currentColor; stroke: #fff; stroke-width: 1.6; stroke-linejoin: round; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .35)); }
 .ill .pfeil.u { top: calc(100% + 3px); left: 50%; margin-left: -13px; animation: pfeil-u .9s ease-in-out infinite alternate; }
 .ill .pfeil.o { bottom: calc(100% + 3px); left: 50%; margin-left: -13px; animation: pfeil-o .9s ease-in-out infinite alternate; }
@@ -468,7 +468,7 @@ a { color: var(--accent); }
 
 <script>(function (root) {
 "use strict";
-var VERSION = "0.7.6";
+var VERSION = "0.7.7";
 var SCHEMA_VERSION = 1;
 var AISLES = ["Obst & Gemüse", "Kühlregal", "Fleisch & Fisch", "Brot & Backwaren",
 "Trockenware & Konserven", "Gewürze, Öle & Saucen", "Tiefkühl", "Getränke", "Süßes & Snacks", "Drogerie & Haushalt", "Sonstiges"];
@@ -3264,7 +3264,7 @@ return r;
 }
 var NRV = [
 ["iron", 14, "mg", "Eisen", "eisenreich"], ["calcium", 800, "mg", "Calcium", "calciumreich"], ["magnesium", 375, "mg", "Magnesium", "magnesiumreich"], ["zinc", 10, "mg", "Zink", "zinkreich"],
-["iodine", 150, "µg", "Jod", "jodreich"], ["vitB12", 2.5, "µg", "Vitamin B12", "vitamin-B12-reich"], ["vitD", 5, "µg", "Vitamin D", "vitamin-D-reich"], ["folate", 200, "µg", "Folat", "folatreich"], ["vitC", 80, "mg", "Vitamin C", "vitamin-C-reich"], ["vitB2", 1.4, "mg", "Vitamin B2", "vitamin-B2-reich"]
+["iodine", 150, "µg", "Jod", "jodreich"], ["vitB12", 2.5, "µg", "Vitamin B12", "vitamin-B12-reich"], ["vitD", 5, "µg", "Vitamin D", "vitamin-D-reich"], ["folate", 200, "µg", "Folat", "folatreich"], ["vitC", 80, "mg", "Vitamin C", "vitamin-C-reich"]
 ];
 var NRV_ANTEIL = 0.3;
 var FOCUS_RULES = [
@@ -3736,7 +3736,7 @@ function lernExport(L, meta) {
 var R = lernRegeln([L]);
 var fl = {};
 Object.keys(R.floskeln).forEach(function (a) { fl[a] = Object.keys(R.floskeln[a]); });
-return { app: "rezeptbuch-lernen", version: LERN_VERSION, kern: VERSION, app_version: (meta && meta.app) || "", datum: new Date().toISOString().slice(0, 10),
+var daten = { app: "rezeptbuch-lernen", version: LERN_VERSION, kern: VERSION, app_version: (meta && meta.app) || "", datum: new Date().toISOString().slice(0, 10),
 rezepte: L.rezepte || 0, regeln: { floskeln: fl, ignorieren: Object.keys(L.ignorieren || {}), keinSchritt: Object.keys(L.keinSchritt || {}), istSchritt: Object.keys(L.istSchritt || {}),
 zutatAlias: L.zutatAlias || {}, keineZutat: Object.keys(L.keineZutat || {}), keineFloskel: Object.keys(L.keineFloskel || {}) }, unbekannt: L.unbekannt || {},
 naehrwerte: naehrwertExport(meta && meta.zuord),
@@ -3746,6 +3746,67 @@ naehrwertAbweichungen: (L.naehrwertAbweichungen || []).filter(function (x) { ret
 gaenge: L.gaenge || {},
 protokoll: (L.protokoll || []).filter(function (x) { return !x.gesendet; }),
 titel: (L.titel || []).filter(function (x) { return !x.gesendet; }).map(function (x) { return { konto: x.konto, link: x.link, automatisch: x.automatisch, original: x.original || undefined, neu: x.neu, datum: x.datum }; }) };
+return meta && meta.alles ? daten : lernNurNeu(L, daten);
+}
+var LERN_OBJ = ["unbekannt", "naehrwerte", "zeiten", "kategorien", "gaenge"], LERN_LISTEN = ["ignorieren", "keinSchritt", "istSchritt", "keineZutat", "keineFloskel"];
+function lernNurNeu(L, d) {
+var G = (L && L.gesendet) || null;
+if (!G)
+return d;
+var neu = function (sek, obj) { var g = G[sek] || {}, o = {}; Object.keys(obj || {}).forEach(function (k) { if (g[k] !== JSON.stringify(obj[k]))
+o[k] = obj[k]; }); return o; };
+LERN_OBJ.forEach(function (sek) { d[sek] = neu(sek, d[sek]); });
+d.regeln.floskeln = neu("floskeln", d.regeln.floskeln);
+d.regeln.zutatAlias = neu("zutatAlias", d.regeln.zutatAlias);
+LERN_LISTEN.forEach(function (sek) { var g = G[sek] || {}; d.regeln[sek] = (d.regeln[sek] || []).filter(function (x) { return !g[x]; }); });
+d.zeitFaktor = (d.zeitFaktor || []).slice(G.zeitFaktorN || 0);
+d.nurNeu = true;
+return d;
+}
+function lernGesendetMerken(L, voll) {
+if (!L || !voll)
+return;
+var G = L.gesendet = L.gesendet || {};
+var merke = function (sek, obj) { var g = G[sek] = G[sek] || {}; Object.keys(obj || {}).forEach(function (k) { g[k] = JSON.stringify(obj[k]); }); };
+LERN_OBJ.forEach(function (sek) { merke(sek, voll[sek]); });
+merke("floskeln", voll.regeln && voll.regeln.floskeln);
+merke("zutatAlias", voll.regeln && voll.regeln.zutatAlias);
+LERN_LISTEN.forEach(function (sek) { var g = G[sek] = G[sek] || {}; ((voll.regeln && voll.regeln[sek]) || []).forEach(function (x) { g[x] = 1; }); });
+G.zeitFaktorN = (voll.zeitFaktor || []).length;
+}
+function lernAbgleich(L, Z) {
+if (!L || !Z || !Z.stand || L.abgleichStand === Z.stand)
+return 0;
+var u = Z.uebernommen || {}, n = 0, G = L.gesendet || {};
+Object.keys(u.kategorien || {}).forEach(function (w) { var k = (L.kategorien || {})[w]; if (!k)
+return; Object.keys(u.kategorien[w]).forEach(function (c) { if (k[c] == null)
+return; k[c] -= u.kategorien[w][c]; if (k[c] <= 0)
+delete k[c]; n++; }); if (!Object.keys(k).length)
+delete L.kategorien[w]; if (G.kategorien)
+delete G.kategorien[w]; });
+Object.keys(u.zeiten || {}).forEach(function (a) { var z = (L.zeiten || {})[a]; if (!z)
+return; z.n -= u.zeiten[a].n || 0; z.summe -= u.zeiten[a].summe || 0; if (z.n <= 0)
+delete L.zeiten[a]; if (G.zeiten)
+delete G.zeiten[a]; n++; });
+(u.unbekannt || []).forEach(function (x) { var k = lower(x); if (L.unbekannt && L.unbekannt[k] != null) {
+delete L.unbekannt[k];
+if (G.unbekannt)
+delete G.unbekannt[k];
+n++;
+} });
+var norm = function (l) { return String(l || "").split("?")[0].replace(/\/$/, ""); }, erl = {};
+(u.erledigt || []).forEach(function (l) { erl[norm(l)] = 1; });
+if (L.fehler) {
+var vorher = L.fehler.length;
+L.fehler = L.fehler.filter(function (f) { return !erl[norm(f.link)]; });
+n += vorher - L.fehler.length;
+}
+LERN_LISTEN.forEach(function (sek) { Object.keys(Z[sek] || {}).forEach(function (x) { if (L[sek] && L[sek][x]) {
+delete L[sek][x];
+n++;
+} }); });
+L.abgleichStand = Z.stand;
+return n;
 }
 function zeitAusreisser(o) {
 o = o || {};
@@ -6372,7 +6433,7 @@ translateTitle: translateTitle, polishTitle: polishTitle, translateIngredient: t
 buildLabels: buildLabels, LABEL_GRUPPEN: LABEL_GRUPPEN, GRUNDVORRAT: GRUNDVORRAT, standardVorrat: standardVorrat, vorratsSchluessel: vorratsSchluessel,
 extractInlineIngredients: extractInlineIngredients, isStepLike: isStepLike, postType: postType, normalizeFancy: normalizeFancy, zuordnungsVorschlaege: zuordnungsVorschlaege,
 recipeId: recipeId, importNeue: importNeue, folgenVorschlag: folgenVorschlag, folgenAntwort: folgenAntwort, FOLGEN_ERNEUT_AB: FOLGEN_ERNEUT_AB, FOLGEN_AB: FOLGEN_AB, pruefeBlogTreffer: pruefeBlogTreffer,
-kochAblauf: kochAblauf, FOKUS_INFO: FOKUS_INFO, FOKUS_ALT: FOKUS_ALT, NRV: NRV, naehrwertVergleich: naehrwertVergleich, merkeNaehrwertAbweichung: merkeNaehrwertAbweichung, lerneKategorie: lerneKategorie, kategorieWoerter: kategorieWoerter, naehrwertAnteile: naehrwertAnteile, rezeptPaket: rezeptPaket, rezeptAusPaket: rezeptAusPaket, paketKodieren: paketKodieren, paketLesen: paketLesen, einkaufsGang: einkaufsGang, blsGang: blsGang, resteSuche: resteSuche, wochenVorschlag: wochenVorschlag, ersatzFuer: ersatzFuer, ERSATZ: ERSATZ, kochbegriffeIn: kochbegriffeIn, KOCHBEGRIFFE: KOCHBEGRIFFE,
+kochAblauf: kochAblauf, FOKUS_INFO: FOKUS_INFO, FOKUS_ALT: FOKUS_ALT, NRV: NRV, naehrwertVergleich: naehrwertVergleich, merkeNaehrwertAbweichung: merkeNaehrwertAbweichung, lerneKategorie: lerneKategorie, lernGesendetMerken: lernGesendetMerken, lernAbgleich: lernAbgleich, kategorieWoerter: kategorieWoerter, naehrwertAnteile: naehrwertAnteile, rezeptPaket: rezeptPaket, rezeptAusPaket: rezeptAusPaket, paketKodieren: paketKodieren, paketLesen: paketLesen, einkaufsGang: einkaufsGang, blsGang: blsGang, resteSuche: resteSuche, wochenVorschlag: wochenVorschlag, ersatzFuer: ersatzFuer, ERSATZ: ERSATZ, kochbegriffeIn: kochbegriffeIn, KOCHBEGRIFFE: KOCHBEGRIFFE,
 parseRecipeHtml: parseRecipeHtml, inferServings: inferServings, uebersetzeSchritte: uebersetzeSchritte, vorUebersetzung: vorUebersetzung, nachUebersetzung: nachUebersetzung, uebersetzeZutaten: uebersetzeZutaten, mergeFrameText: mergeFrameText, isEnglishTitle: isEnglishTitle, stepIngredients: stepIngredients, parseTranscript: parseTranscript, detectLang: detectLang, rezeptStil: rezeptStil, cleanSteps: cleanSteps, langOfText: langOfText, dropEnglishHalf: dropEnglishHalf
 };
 if (typeof module !== "undefined" && module.exports)
@@ -6397,7 +6458,7 @@ root.RezeptKern = api;
   function A(input) { return K.analyse(input, { lernen: [ZENTRAL, S.lernen] }); }
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.20.21";
+  var APP_VERSION = "0.20.22";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0 (creativecommons.org/licenses/by/4.0). Werte unverändert übernommen; Stück- und Löffelgewichte sind eigene Richtwerte der App. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -7105,7 +7166,7 @@ root.RezeptKern = api;
   }
   function beereSvg(g) {
     var ex = g.extra || [], o = '<svg viewBox="0 0 320 240" role="img" aria-hidden="true"><defs><radialGradient id="mb" cx="38%" cy="32%" r="75%"><stop offset="0" stop-color="#FFB15C"/><stop offset="1" stop-color="#F27A12"/></radialGradient></defs>' +
-      '<rect width="320" height="240" fill="#10271D"/><circle cx="160" cy="128" r="96" fill="#173A2B"/>';
+      '<rect width="320" height="240" fill="#2E1D11"/><circle cx="160" cy="128" r="96" fill="#3A2616"/>';
     var cx = 160, cy = 132;
     if (ex.indexOf("topf") >= 0) o += '<g fill="none" stroke="#B7D3C5" stroke-width="4" stroke-linecap="round" opacity=".7"><path d="M118 62c-8-10 8-16 0-28"/><path d="M202 62c-8-10 8-16 0-28"/></g>';
     o += '<path d="M160 76c2-12 8-20 18-26" stroke="#8C6B47" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M176 52c12-14 30-18 44-14-8 14-26 20-44 14z" fill="#3DC48F"/>';
@@ -7168,7 +7229,7 @@ root.RezeptKern = api;
   function lernSenden() {
     var data = K.lernExport(S.lernen, { app: APP_VERSION, zuord: S.zuord });
     var text = JSON.stringify(data, null, 1), name = "Kombuese-Gelerntes-" + data.datum + ".json";
-    var done = function () { S.lernen.rezepteSeitSenden = 0; S.lernen.gesendetAm = Date.now(); S.meta.lernSpaeter = null; save("meta"); (S.lernen.fehler || []).forEach(function (f) { f.gesendet = true; }); (S.lernen.protokoll || []).forEach(function (x) { x.gesendet = true; delete x.beschreibung; }); (S.lernen.titel || []).forEach(function (x) { x.gesendet = true; }); (S.lernen.naehrwertAbweichungen || []).forEach(function (x) { x.gesendet = true; }); (S.lernen.fehler || []).forEach(function (x) { delete x.beschreibung; }); save("lernen"); closeSheet(); render(); toast("Danke! Gelerntes geteilt"); };
+    var done = function () { K.lernGesendetMerken(S.lernen, K.lernExport(S.lernen, { app: APP_VERSION, zuord: S.zuord, alles: true })); S.lernen.rezepteSeitSenden = 0; S.lernen.gesendetAm = Date.now(); S.meta.lernSpaeter = null; save("meta"); (S.lernen.fehler || []).forEach(function (f) { f.gesendet = true; }); (S.lernen.protokoll || []).forEach(function (x) { x.gesendet = true; delete x.beschreibung; }); (S.lernen.titel || []).forEach(function (x) { x.gesendet = true; }); (S.lernen.naehrwertAbweichungen || []).forEach(function (x) { x.gesendet = true; }); (S.lernen.fehler || []).forEach(function (x) { delete x.beschreibung; }); save("lernen"); closeSheet(); render(); toast("Danke! Gelerntes geteilt"); };
     try {
       var file = new File([text], name, { type: "application/json" });
       if (navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: "Kombüse: Gelerntes für Jakob", text: "Gelerntes aus meiner Kombüse (nur Regeln, keine Rezepte)" }).then(done, function () { /* abgebrochen */ }); return; }
@@ -8934,6 +8995,36 @@ root.RezeptKern = api;
     }, { passive: true });
     document.addEventListener("touchcancel", function () { start = null; $("#app").style.transform = ""; }, { passive: true });
   })();
+  // Weitere Wischaktionen (Entscheidungen 06.11.): Kochmodus links/rechts = Schritt, Einkaufsliste rechts = abhaken
+  // (links = eigenen Eintrag löschen), offenes Fenster nach unten = schließen.
+  (function () {
+    var w = null, WEG = 70;
+    document.addEventListener("touchstart", function (ev) {
+      w = null; if (ev.touches.length !== 1) return;
+      var t = ev.touches[0], tgt = ev.target, art = null, el = null;
+      if (t.clientX <= 28) return; // Rand gehört dem Zurück-Wischen
+      if (tgt.closest("#layer .cook")) { art = "koch"; el = tgt.closest(".cook"); }
+      else if ((el = tgt.closest("#layer .sheet")) && el.scrollTop <= 0 && t.clientY - el.getBoundingClientRect().top < 56) art = "fenster"; // nur am oberen Rand (Griff), sonst scrollt man
+      else if ((el = tgt.closest("#app .row")) && el.querySelector('[data-a="done"]')) art = "einkauf";
+      if (art && !tgt.closest("input, textarea, select, .timer")) w = { art: art, el: el, x: t.clientX, y: t.clientY };
+    }, { passive: true });
+    document.addEventListener("touchmove", function (ev) {
+      if (!w) return; var t = ev.touches[0], dx = t.clientX - w.x, dy = t.clientY - w.y;
+      if (w.art === "fenster") { if (dy > 0 && Math.abs(dx) < dy) w.el.style.transform = "translateY(" + Math.min(dy * 0.5, 120) + "px)"; return; }
+      if (Math.abs(dy) > 30 && Math.abs(dy) > Math.abs(dx)) { if (w.art === "einkauf") w.el.style.transform = ""; w = null; return; }
+      if (w.art === "einkauf") w.el.style.transform = "translateX(" + Math.max(-80, Math.min(80, dx * 0.5)) + "px)";
+    }, { passive: true });
+    document.addEventListener("touchend", function (ev) {
+      if (!w) return; var t = ev.changedTouches[0], dx = t.clientX - w.x, dy = t.clientY - w.y, a = w; w = null;
+      if (a.el) a.el.style.transform = "";
+      var klick = function (sel) { var b = a.el.querySelector(sel) || (a.art === "koch" ? $("#layer " + sel) : null); if (b) b.click(); };
+      if (a.art === "fenster") { if (dy > 90 && Math.abs(dx) < dy * 0.6) closeSheet(); return; }
+      if (Math.abs(dx) < WEG || Math.abs(dy) > Math.abs(dx) * 0.6) return;
+      if (a.art === "koch") klick(dx < 0 ? '[data-a="cook-next"]' : '[data-a="cook-prev"]');
+      else if (a.art === "einkauf") { if (dx > 0) klick('[data-a="done"]'); else klick('[data-a="extra-weg"]'); }
+    }, { passive: true });
+    document.addEventListener("touchcancel", function () { if (w && w.el) w.el.style.transform = ""; w = null; }, { passive: true });
+  })();
   document.addEventListener("click", function (ev) {
     var el = ev.target.closest("[data-a]");
     if (!el) return;
@@ -9295,6 +9386,8 @@ root.RezeptKern = api;
     return Promise.all(["recipes", "pantry", "shopping", "follow", "zuord", "meta", "prefs", "lernen", "plan", "listen"].map(function (k) { return dbGet(k).then(function (v) { if (v) S[k] = (k === "meta" || k === "prefs") ? Object.assign(S[k], v) : v; }); }));
   }).then(function () {
     if (!S.lernen || S.lernen.app !== "rezeptbuch-lernen") S.lernen = K.neuerLernspeicher();
+    // Was Jakob zentral übernommen hat, lokal abräumen (nicht doppelt zählen, nicht erneut senden)
+    try { if (K.lernAbgleich(S.lernen, ZENTRAL)) save("lernen"); } catch (x) { /* Lernspeicher bleibt */ }
     // einmalig: schon früher geänderte Titel ins Gelernte übernehmen
     if (!S.lernen.titelNachgetragen) { Object.keys(S.recipes).forEach(function (rid) { if (S.recipes[rid].userTitle) titelLernen(rid); }); S.lernen.titelNachgetragen = true; save("lernen"); }
     applyTheme();

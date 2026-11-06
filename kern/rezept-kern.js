@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.7.6";
+  var VERSION = "0.7.7";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -2437,7 +2437,8 @@
   // Omega-3: ≥ 0,6 g je 100 kcal (die EU-Regel verlangt zusätzlich 0,6 g je 100 g).
   var NRV = [ // Feld, Bezugswert je Tag, Einheit, Name, Label (Reihenfolge = Reihenfolge der Labels)
     ["iron", 14, "mg", "Eisen", "eisenreich"], ["calcium", 800, "mg", "Calcium", "calciumreich"], ["magnesium", 375, "mg", "Magnesium", "magnesiumreich"], ["zinc", 10, "mg", "Zink", "zinkreich"],
-    ["iodine", 150, "µg", "Jod", "jodreich"], ["vitB12", 2.5, "µg", "Vitamin B12", "vitamin-B12-reich"], ["vitD", 5, "µg", "Vitamin D", "vitamin-D-reich"], ["folate", 200, "µg", "Folat", "folatreich"], ["vitC", 80, "mg", "Vitamin C", "vitamin-C-reich"], ["vitB2", 1.4, "mg", "Vitamin B2", "vitamin-B2-reich"]];
+    ["iodine", 150, "µg", "Jod", "jodreich"], ["vitB12", 2.5, "µg", "Vitamin B12", "vitamin-B12-reich"], ["vitD", 5, "µg", "Vitamin D", "vitamin-D-reich"], ["folate", 200, "µg", "Folat", "folatreich"], ["vitC", 80, "mg", "Vitamin C", "vitamin-C-reich"]];
+  // Vitamin B2 wird berechnet (Feld vitB2), bekommt aber kein Label (Jakob, Entscheidungen 06.11.: „B2 nur als Wert“)
   var NRV_ANTEIL = 0.3;
   var FOCUS_RULES = [
     ["proteinreich", function (n) { return n.protein != null && (n.protein * 4) / n.kcal >= 0.2; }],
@@ -2820,7 +2821,7 @@
   function lernExport(L, meta) {
     var R = lernRegeln([L]);
     var fl = {}; Object.keys(R.floskeln).forEach(function (a) { fl[a] = Object.keys(R.floskeln[a]); });
-    return { app: "rezeptbuch-lernen", version: LERN_VERSION, kern: VERSION, app_version: (meta && meta.app) || "", datum: new Date().toISOString().slice(0, 10),
+    var daten = { app: "rezeptbuch-lernen", version: LERN_VERSION, kern: VERSION, app_version: (meta && meta.app) || "", datum: new Date().toISOString().slice(0, 10),
       rezepte: L.rezepte || 0, regeln: { floskeln: fl, ignorieren: Object.keys(L.ignorieren || {}), keinSchritt: Object.keys(L.keinSchritt || {}), istSchritt: Object.keys(L.istSchritt || {}),
       zutatAlias: L.zutatAlias || {}, keineZutat: Object.keys(L.keineZutat || {}), keineFloskel: Object.keys(L.keineFloskel || {}) }, unbekannt: L.unbekannt || {},
       naehrwerte: naehrwertExport(meta && meta.zuord),
@@ -2830,6 +2831,46 @@
       gaenge: L.gaenge || {}, // Einkaufs-Gänge, die jemand von Hand geändert hat (C7)
       protokoll: (L.protokoll || []).filter(function (x) { return !x.gesendet; }),
       titel: (L.titel || []).filter(function (x) { return !x.gesendet; }).map(function (x) { return { konto: x.konto, link: x.link, automatisch: x.automatisch, original: x.original || undefined, neu: x.neu, datum: x.datum }; }) };
+    return meta && meta.alles ? daten : lernNurNeu(L, daten);
+  }
+  // ---- Nur Neues senden und Abgleich mit der App-Version (Jakob, Entscheidungen 06.11.2026, Punkt 5 A)
+  // L.gesendet = Abdruck dessen, was schon an Jakob ging: je Abschnitt Schlüssel -> JSON des Werts.
+  // Ein Eintrag geht erneut mit, wenn er neu ist oder sich geändert hat (z. B. eine Zutat ist öfter unbekannt).
+  var LERN_OBJ = ["unbekannt", "naehrwerte", "zeiten", "kategorien", "gaenge"], LERN_LISTEN = ["ignorieren", "keinSchritt", "istSchritt", "keineZutat", "keineFloskel"];
+  function lernNurNeu(L, d) {
+    var G = (L && L.gesendet) || null; if (!G) return d;
+    var neu = function (sek, obj) { var g = G[sek] || {}, o = {}; Object.keys(obj || {}).forEach(function (k) { if (g[k] !== JSON.stringify(obj[k])) o[k] = obj[k]; }); return o; };
+    LERN_OBJ.forEach(function (sek) { d[sek] = neu(sek, d[sek]); });
+    d.regeln.floskeln = neu("floskeln", d.regeln.floskeln); d.regeln.zutatAlias = neu("zutatAlias", d.regeln.zutatAlias);
+    LERN_LISTEN.forEach(function (sek) { var g = G[sek] || {}; d.regeln[sek] = (d.regeln[sek] || []).filter(function (x) { return !g[x]; }); });
+    d.zeitFaktor = (d.zeitFaktor || []).slice(G.zeitFaktorN || 0);
+    d.nurNeu = true;
+    return d;
+  }
+  // nach dem Senden: Abdruck aktualisieren (mit dem vollständigen Export, nicht dem gefilterten)
+  function lernGesendetMerken(L, voll) {
+    if (!L || !voll) return;
+    var G = L.gesendet = L.gesendet || {};
+    var merke = function (sek, obj) { var g = G[sek] = G[sek] || {}; Object.keys(obj || {}).forEach(function (k) { g[k] = JSON.stringify(obj[k]); }); };
+    LERN_OBJ.forEach(function (sek) { merke(sek, voll[sek]); });
+    merke("floskeln", voll.regeln && voll.regeln.floskeln); merke("zutatAlias", voll.regeln && voll.regeln.zutatAlias);
+    LERN_LISTEN.forEach(function (sek) { var g = G[sek] = G[sek] || {}; ((voll.regeln && voll.regeln[sek]) || []).forEach(function (x) { g[x] = 1; }); });
+    G.zeitFaktorN = (voll.zeitFaktor || []).length;
+  }
+  // Beim Start: was Jakob zentral übernommen hat (daten/gelernt-zentral.json: stand + uebernommen), lokal abräumen –
+  // es wirkt dann über die zentralen Regeln und wird nicht noch einmal gesendet. Läuft je zentralem Stand einmal.
+  // uebernommen = { kategorien: {wort: {Kategorie: n}}, zeiten: {aktion: {n, summe}}, unbekannt: [namen], erledigt: [links] }
+  function lernAbgleich(L, Z) {
+    if (!L || !Z || !Z.stand || L.abgleichStand === Z.stand) return 0;
+    var u = Z.uebernommen || {}, n = 0, G = L.gesendet || {};
+    Object.keys(u.kategorien || {}).forEach(function (w) { var k = (L.kategorien || {})[w]; if (!k) return; Object.keys(u.kategorien[w]).forEach(function (c) { if (k[c] == null) return; k[c] -= u.kategorien[w][c]; if (k[c] <= 0) delete k[c]; n++; }); if (!Object.keys(k).length) delete L.kategorien[w]; if (G.kategorien) delete G.kategorien[w]; });
+    Object.keys(u.zeiten || {}).forEach(function (a) { var z = (L.zeiten || {})[a]; if (!z) return; z.n -= u.zeiten[a].n || 0; z.summe -= u.zeiten[a].summe || 0; if (z.n <= 0) delete L.zeiten[a]; if (G.zeiten) delete G.zeiten[a]; n++; });
+    (u.unbekannt || []).forEach(function (x) { var k = lower(x); if (L.unbekannt && L.unbekannt[k] != null) { delete L.unbekannt[k]; if (G.unbekannt) delete G.unbekannt[k]; n++; } });
+    var norm = function (l) { return String(l || "").split("?")[0].replace(/\/$/, ""); }, erl = {}; (u.erledigt || []).forEach(function (l) { erl[norm(l)] = 1; });
+    if (L.fehler) { var vorher = L.fehler.length; L.fehler = L.fehler.filter(function (f) { return !erl[norm(f.link)]; }); n += vorher - L.fehler.length; }
+    LERN_LISTEN.forEach(function (sek) { Object.keys(Z[sek] || {}).forEach(function (x) { if (L[sek] && L[sek][x]) { delete L[sek][x]; n++; } }); });
+    L.abgleichStand = Z.stand;
+    return n;
   }
   // Kochzeit-Ausreißer erkennen (Vorschlag L, Go 29.10.2026): hat jemand zu früh oder gar nicht auf „Fertig“ gedrückt?
   // o = { min: gemessene Minuten, geschaetzt: Schätzung/Angabe des Rezepts, schritte: Anzahl Schritte, besucht: angesehene Schritte,
@@ -5113,7 +5154,7 @@
     buildLabels: buildLabels, LABEL_GRUPPEN: LABEL_GRUPPEN, GRUNDVORRAT: GRUNDVORRAT, standardVorrat: standardVorrat, vorratsSchluessel: vorratsSchluessel,
     extractInlineIngredients: extractInlineIngredients, isStepLike: isStepLike, postType: postType, normalizeFancy: normalizeFancy, zuordnungsVorschlaege: zuordnungsVorschlaege,
     recipeId: recipeId, importNeue: importNeue, folgenVorschlag: folgenVorschlag, folgenAntwort: folgenAntwort, FOLGEN_ERNEUT_AB: FOLGEN_ERNEUT_AB, FOLGEN_AB: FOLGEN_AB, pruefeBlogTreffer: pruefeBlogTreffer,
-    kochAblauf: kochAblauf, FOKUS_INFO: FOKUS_INFO, FOKUS_ALT: FOKUS_ALT, NRV: NRV, naehrwertVergleich: naehrwertVergleich, merkeNaehrwertAbweichung: merkeNaehrwertAbweichung, lerneKategorie: lerneKategorie, kategorieWoerter: kategorieWoerter, naehrwertAnteile: naehrwertAnteile, rezeptPaket: rezeptPaket, rezeptAusPaket: rezeptAusPaket, paketKodieren: paketKodieren, paketLesen: paketLesen, einkaufsGang: einkaufsGang, blsGang: blsGang, resteSuche: resteSuche, wochenVorschlag: wochenVorschlag, ersatzFuer: ersatzFuer, ERSATZ: ERSATZ, kochbegriffeIn: kochbegriffeIn, KOCHBEGRIFFE: KOCHBEGRIFFE,
+    kochAblauf: kochAblauf, FOKUS_INFO: FOKUS_INFO, FOKUS_ALT: FOKUS_ALT, NRV: NRV, naehrwertVergleich: naehrwertVergleich, merkeNaehrwertAbweichung: merkeNaehrwertAbweichung, lerneKategorie: lerneKategorie, lernGesendetMerken: lernGesendetMerken, lernAbgleich: lernAbgleich, kategorieWoerter: kategorieWoerter, naehrwertAnteile: naehrwertAnteile, rezeptPaket: rezeptPaket, rezeptAusPaket: rezeptAusPaket, paketKodieren: paketKodieren, paketLesen: paketLesen, einkaufsGang: einkaufsGang, blsGang: blsGang, resteSuche: resteSuche, wochenVorschlag: wochenVorschlag, ersatzFuer: ersatzFuer, ERSATZ: ERSATZ, kochbegriffeIn: kochbegriffeIn, KOCHBEGRIFFE: KOCHBEGRIFFE,
     parseRecipeHtml: parseRecipeHtml, inferServings: inferServings, uebersetzeSchritte: uebersetzeSchritte, vorUebersetzung: vorUebersetzung, nachUebersetzung: nachUebersetzung, uebersetzeZutaten: uebersetzeZutaten, mergeFrameText: mergeFrameText, isEnglishTitle: isEnglishTitle, stepIngredients: stepIngredients, parseTranscript: parseTranscript, detectLang: detectLang, rezeptStil: rezeptStil, cleanSteps: cleanSteps, langOfText: langOfText, dropEnglishHalf: dropEnglishHalf
   };
 

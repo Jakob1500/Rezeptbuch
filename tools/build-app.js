@@ -49,7 +49,7 @@ fs.writeFileSync(path.join(docs, "index.html"), page);
 fs.copyFileSync(path.join(root, "daten/bls-suche.json"), path.join(docs, "bls-suche.json"));
 fs.writeFileSync(path.join(docs, "manifest.webmanifest"), JSON.stringify({
   name: "Kombüse – Rezepte aus Instagram", short_name: "Kombüse", lang: "de", start_url: "./", scope: "./", display: "standalone",
-  background_color: "#F4F5F3", theme_color: "#F4F5F3",
+  background_color: "#FCFBF8", theme_color: "#FCFBF8",
   icons: [{ src: "icon-192.png", sizes: "192x192", type: "image/png" }, { src: "icon-512.png", sizes: "512x512", type: "image/png" },
           { src: "icon.svg", sizes: "any", type: "image/svg+xml" }]
 }, null, 1));

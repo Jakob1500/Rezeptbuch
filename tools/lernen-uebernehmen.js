@@ -10,6 +10,10 @@
  *   Optionen: --min 2   Regel erst übernehmen, wenn sie von mindestens 2 Nutzern kommt (Standard 1)
  *             --ohne "text"  einzelne Regel oder Zutat nicht übernehmen, mehrfach möglich
  *             --ersetzen     zentral vorhandene Nährwerte durch neue Angaben ersetzen
+ *             --erledigt <link>  gemeldeter Beitrag ist behoben: die Meldung verschwindet nach dem Update aus den Apps
+ *             --unbekannt-erledigt "name"  unbekannte Zutat ist jetzt bekannt: verschwindet aus den Apps
+ *   Mit --schreiben bekommt die Datei einen neuen „stand“; die Apps räumen dann einmal ab, was übernommen wurde
+ *   (uebernommen.erledigt / .unbekannt, und Zutaten, deren Nährwert jetzt zentral steht).
  *
  * Die Dateien enthalten nur Regeln und Zutatennamen, keine Rezepte und keine Personendaten.
  */
@@ -18,11 +22,13 @@ const K = require("../kern/rezept-kern.js");
 const ZPFAD = path.join(__dirname, "../daten/gelernt-zentral.json");
 
 const args = process.argv.slice(2), files = [], ohne = {};
-let schreiben = false, min = 1;
+let schreiben = false, min = 1; const erledigt = [], unbErledigt = [];
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--schreiben") schreiben = true;
   else if (args[i] === "--min") min = +args[++i] || 1;
   else if (args[i] === "--ohne") ohne[K.lernNorm(args[++i])] = 1;
+  else if (args[i] === "--erledigt") erledigt.push(args[++i]);
+  else if (args[i] === "--unbekannt-erledigt") unbErledigt.push(String(args[++i]).toLowerCase());
   else files.push(args[i]);
 }
 if (!files.length) { console.error("Aufruf: node tools/lernen-uebernehmen.js <dateien.json …> [--schreiben] [--min N] [--ohne \"text\"]"); process.exit(1); }
@@ -121,7 +127,10 @@ if (nwBericht.length) console.log(`\nNährwerte (${nwBericht.length}):\n  ` + nw
 const unb = Object.entries(unbekannt).sort((a, b) => b[1] - a[1]);
 if (unb.length) console.log(`\nZutaten ohne Nährwert (für das Nährwert-Training, ${unb.length}):\n  ` + unb.slice(0, 60).map(([k, n]) => `${k} (${n}×)`).join(", "));
 if (schreiben) {
-  zentral.stand = new Date().toISOString().slice(0, 10);
+  // Abgleich in den Apps (Entscheidung 06.11.): nur, was in DIESER Runde übernommen wurde
+  const nwNeu = Object.keys(nwEin).filter(k => zentral.naehrwerte[k]).map(k => String((nwEin[k][0] && nwEin[k][0].zutat) || k).toLowerCase());
+  zentral.uebernommen = { erledigt, unbekannt: [...new Set(unbErledigt.concat(nwNeu))] };
+  zentral.stand = new Date().toISOString().slice(0, 16);
   fs.writeFileSync(ZPFAD, JSON.stringify(zentral, null, 1) + "\n");
   console.log(`\nGespeichert in daten/gelernt-zentral.json – jetzt „node tools/build-app.js“ und veröffentlichen.`);
 } else if (neu.length) console.log(`\nNur Bericht. Zum Übernehmen: --schreiben anhängen (einzelne Regeln mit --ohne "text" auslassen).`);

@@ -830,5 +830,19 @@ check("Ü: Brüche vor der Übersetzung", K.vorUebersetzung("Add 3½ cups water"
   const cap3 = "Bunter Linsensalat\n\nZutaten:\n200 g Linsen\n1 Gurke\n1 Paprika\n\nDressing:\n3 EL Olivenöl\n1 EL Senf\n2 EL Essig\n\nLinsen kochen. Gemüse würfeln. Mit dem Dressing mischen.";
   check("Teil-Überschrift: vorhandener Titel bleibt", K.analyse({ caption: cap3, url: "x" }).recipe.title === "Bunter Linsensalat");
 }
+{
+  // Lernspeicher: nur Neues senden, Abgleich mit zentral Übernommenem (06.11.)
+  const L = K.neuerLernspeicher(); L.unbekannt = { "spitzkohl": 1, "kewpie mayo": 2 }; L.kategorien = { knoblauch: { Backen: 2 } };
+  L.fehler = [{ link: "https://www.instagram.com/reel/AAA/", grund: "gemeldet" }];
+  const voll = K.lernExport(L, { app: "t", alles: true });
+  check("Lernen: erster Export enthält alles", Object.keys(K.lernExport(L, { app: "t" }).unbekannt).length === 2);
+  K.lernGesendetMerken(L, voll);
+  check("Lernen: danach nichts Neues", Object.keys(K.lernExport(L, { app: "t" }).unbekannt).length === 0 && Object.keys(K.lernExport(L, { app: "t" }).kategorien).length === 0);
+  L.unbekannt["kewpie mayo"] = 3; L.unbekannt["daikon"] = 1;
+  check("Lernen: Geändertes und Neues geht mit", JSON.stringify(Object.keys(K.lernExport(L, { app: "t" }).unbekannt).sort()) === '["daikon","kewpie mayo"]');
+  const n = K.lernAbgleich(L, { stand: "2026-11-07", uebernommen: { kategorien: { knoblauch: { Backen: 2 } }, unbekannt: ["Spitzkohl"], erledigt: ["https://www.instagram.com/reel/AAA"] } });
+  check("Lernen: Abgleich räumt Übernommenes ab", n === 3 && !L.kategorien.knoblauch && L.unbekannt.spitzkohl == null && L.fehler.length === 0, n);
+  check("Lernen: Abgleich je Stand nur einmal", K.lernAbgleich(L, { stand: "2026-11-07", uebernommen: { unbekannt: ["daikon"] } }) === 0);
+}
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);
