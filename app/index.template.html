@@ -474,7 +474,7 @@ a { color: var(--accent); }
   function A(input) { return K.analyse(input, { lernen: [ZENTRAL, S.lernen] }); }
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.20.20";
+  var APP_VERSION = "0.20.21";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0 (creativecommons.org/licenses/by/4.0). Werte unverändert übernommen; Stück- und Löffelgewichte sind eigene Richtwerte der App. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -2982,6 +2982,35 @@ a { color: var(--accent); }
   }
 
   // ------------------------------------------------------------------ Aktionen
+  // Wischen vom linken Rand nach rechts = zurück (wie in iOS-Apps). Offenes Fenster wird geschlossen; im Kochmodus aus,
+  // damit man beim Kochen nicht versehentlich herausfällt.
+  (function () {
+    var start = null, ziel = null, RAND = 28, WEG = 80;
+    function zurueckZiel() {
+      if ($("#layer .cook")) return null;
+      if ($("#layer .sheet")) return "sheet";
+      var sel = ['[data-a="back"]', '[data-a="cat-back"]', '[data-a="liste-zurueck"]', '[data-a="suche-zu"]'];
+      for (var k = 0; k < sel.length; k++) { var b = $("#app " + sel[k]); if (b) return b; }
+      return null;
+    }
+    document.addEventListener("touchstart", function (ev) {
+      var t = ev.touches[0]; start = null;
+      if (ev.touches.length !== 1 || t.clientX > RAND) return;
+      ziel = zurueckZiel(); if (ziel) start = { x: t.clientX, y: t.clientY };
+    }, { passive: true });
+    document.addEventListener("touchmove", function (ev) {
+      if (!start) return; var t = ev.touches[0], dx = t.clientX - start.x, dy = Math.abs(t.clientY - start.y);
+      if (dy > 40 && dy > dx) { start = null; $("#app").style.transform = ""; return; }
+      if (ziel !== "sheet" && dx > 0) $("#app").style.transform = "translateX(" + Math.min(dx * 0.35, 60) + "px)";
+    }, { passive: true });
+    document.addEventListener("touchend", function (ev) {
+      if (!start) return; var t = ev.changedTouches[0], dx = t.clientX - start.x, dy = Math.abs(t.clientY - start.y);
+      $("#app").style.transform = ""; var z = ziel; start = null; ziel = null;
+      if (dx < WEG || dy > dx * 0.6) return;
+      if (z === "sheet") closeSheet(); else if (z && document.contains(z)) z.click();
+    }, { passive: true });
+    document.addEventListener("touchcancel", function () { start = null; $("#app").style.transform = ""; }, { passive: true });
+  })();
   document.addEventListener("click", function (ev) {
     var el = ev.target.closest("[data-a]");
     if (!el) return;
