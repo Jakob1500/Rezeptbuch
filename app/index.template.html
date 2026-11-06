@@ -474,7 +474,7 @@ a { color: var(--accent); }
   function A(input) { return K.analyse(input, { lernen: [ZENTRAL, S.lernen] }); }
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.20.19";
+  var APP_VERSION = "0.20.20";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0 (creativecommons.org/licenses/by/4.0). Werte unverändert übernommen; Stück- und Löffelgewichte sind eigene Richtwerte der App. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -686,6 +686,7 @@ a { color: var(--accent); }
   function dietOk(r) {
     if (!ohneOk(r, S.prefs.ohne)) return false;
     var d = S.prefs.diet;
+    if (r.ernaehrungBewusst) return true; // bewusst trotz Ernährung gespeichert (Pop-up beim Import)
     if (!(r.ingredients || []).length) return true; // keine Zutaten erkannt (z. B. „Link in Bio“): Ernährung unbekannt, nicht ausblenden
     if (d === "vegan") return (r.diet || []).indexOf("vegan") !== -1;
     if (d === "vegetarisch") return (r.diet || []).indexOf("vegetarisch") !== -1;
@@ -706,6 +707,15 @@ a { color: var(--accent); }
     var grund = [S.prefs.diet !== "alles" ? S.prefs.diet : "", S.prefs.ohne.length ? "ohne " + S.prefs.ohne.join(", ") : ""].filter(Boolean).join(" · ");
     return '<p class="foot">' + (UI.alleZeigen ? 'Alle Rezepte werden gezeigt, auch die ' + n + ' ausgeblendeten (' + esc(grund) + '). <button class="btn ghost" style="width:auto;display:inline;padding:0;min-height:0" data-a="ausgeblendet-zeigen">Wieder ausblenden</button>'
       : n + (n === 1 ? ' Rezept ist' : ' Rezepte sind') + ' ausgeblendet (' + esc(grund) + '). <button class="btn ghost" style="width:auto;display:inline;padding:0;min-height:0" data-a="ausgeblendet-zeigen">Trotzdem zeigen</button> · Ändern in den Einstellungen.') + '</p>';
+  }
+  // Neues Rezept passt nicht zur Ernährung: nachfragen, ob es trotzdem in die Kombüse soll (Jakob, 06.11.)
+  function ernaehrungFragen(id) {
+    var e = S.recipes[id]; if (!e || e.example || !nichtDiaetName() || passtZurDiaet(e.recipe)) return false;
+    var ev = e.recipe.dietEvidence || {}, wo = [ev.meat, ev.fish, ev.dairy, ev.egg, ev.honey].filter(Boolean).join(", ");
+    sheet('<h2>' + esc(nichtDiaetName()) + '</h2><p>„' + esc(titleOf(e)) + '“ passt nicht zu deiner Ernährung (' + esc(S.prefs.diet) + ')' + (wo ? ' – erkannt: ' + esc(wo) : '') + '.</p>' +
+      '<p class="small muted">Gespeichert erscheint es überall wie die anderen Rezepte und zusätzlich unter „' + esc(nichtDiaetName()) + '“ in der Suche.</p>' +
+      '<div class="btnrow"><button class="btn soft" data-a="ernaehrung-nein" data-id="' + id + '">Nicht speichern</button><button class="btn" data-a="ernaehrung-ja" data-id="' + id + '">Trotzdem speichern</button></div>');
+    return true;
   }
   // Nach dem Speichern sagen, wenn das neue Rezept ausgeblendet wird
   function gespeichertText(id, basis) {
@@ -932,6 +942,7 @@ a { color: var(--accent); }
     if (!e.example && S.lernen && K.merkeNaehrwertAbweichung) K.merkeNaehrwertAbweichung(S.lernen, r);
     if (e.input.caption) { try { e.typ = K.recipeLikelihood(res, e.input.caption, e.input.url).typ || e.typ; } catch (x) { /* egal */ } }
     if (e.edit) applyEdit(r, e.edit);
+    if (e.ernaehrungBewusst) r.ernaehrungBewusst = true;
     e.recipe = r; e.updatedAt = Date.now();
     katAnwenden(e);
   }
@@ -1407,6 +1418,10 @@ a { color: var(--accent); }
     if (k === "vorrat") { var fast = list.filter(function (e) { return missingOf(e.recipe).missing <= 2; }).length; return fast ? fast + " fast komplett" : "noch keine"; }
     return list.length ? list.length + (list.length === 1 ? " Rezept" : " Rezepte") : "noch keine";
   }
+  // Rezepte, die nicht zur eingestellten Ernährung passen (auch die bewusst gespeicherten) – eigenes Label in der Suche
+  function nichtDiaetName() { return S.prefs.diet === "vegan" ? "Nicht vegan" : S.prefs.diet === "vegetarisch" ? "Nicht vegetarisch" : ""; }
+  function passtZurDiaet(r) { return !(r.ingredients || []).length || (r.diet || []).indexOf(S.prefs.diet) !== -1; }
+  function nichtDiaetListe() { return nichtDiaetName() ? entries().filter(function (e) { return !e.example && !passtZurDiaet(e.recipe); }) : []; }
   function suchAktiv() { return !!(UI.q.trim() || activeFilters().length || UI.ohne.length || UI.chip); }
   // Dieselbe Suche auf „Rezepte“ (hinter der Lupe) und auf „Kategorien“ (oben)
   function suchKopf() {
@@ -1415,18 +1430,19 @@ a { color: var(--accent); }
       '<button class="fbtn" data-a="filters" aria-label="Filter">' + ic("sliders") + (nf ? '<span class="n">' + nf + '</span>' : '') + '</button></div>' +
       '<div class="schnellchips" role="group" aria-label="Schnellauswahl">' +
       '<button class="chip" data-a="schnell-chip" data-k="alle" aria-pressed="' + (UI.chip === "alle") + '">Alle</button>' +
-      SCHNELL.map(function (x) { return '<button class="chip" data-a="schnell-chip" data-k="' + x[0] + '" aria-pressed="' + (UI.chip === x[0]) + '">' + ic(x[2]) + esc(x[1]) + '</button>'; }).join("") + '</div>' +
+      SCHNELL.map(function (x) { return '<button class="chip" data-a="schnell-chip" data-k="' + x[0] + '" aria-pressed="' + (UI.chip === x[0]) + '">' + ic(x[2]) + esc(x[1]) + '</button>'; }).join("") +
+      (nichtDiaetName() && nichtDiaetListe().length ? '<button class="chip" data-a="schnell-chip" data-k="nichtdiaet" aria-pressed="' + (UI.chip === "nichtdiaet") + '">' + esc(nichtDiaetName()) + '</button>' : '') + '</div>' +
       (nf ? '<div class="wrapchips">' + activeFilters().map(function (g) { return '<button class="chip on" data-a="filter" data-g="' + esc(g) + '" data-v="' + esc(UI.filter[g]) + '" aria-label="Filter ' + esc(UI.filter[g]) + ' entfernen">' + esc(UI.filter[g]) + ic("x") + '</button>'; }).join("") +
         UI.ohne.map(function (w) { return '<button class="chip on" data-a="ohne-weg" data-w="' + esc(w) + '" aria-label="Ohne ' + esc(w) + ' entfernen">ohne ' + esc(w) + ic("x") + '</button>'; }).join("") + '</div>' : '');
   }
   function suchErgebnis(basis) {
     var all = entries();
     var mine = all.filter(function (e) { return dietOk(e.recipe); });
-    var eigen = UI.chip && UI.chip !== "alle" ? schnellListe(UI.chip, mine) : null;
+    var eigen = UI.chip === "nichtdiaet" ? nichtDiaetListe() : UI.chip && UI.chip !== "alle" ? schnellListe(UI.chip, mine) : null;
     var list = filteredList(eigen || (UI.q.trim() || activeFilters().length || UI.ohne.length ? all : (basis || mine)), !!eigen && UI.chip !== "fav");
     var sortSeg = !eigen && list.length > 1 ? '<div class="seg" role="group" aria-label="Sortierung">' + [["neu", "Neueste"], ["zeit", "Schnellste"], ["vorrat", "Vorrat"], ["az", "A–Z"]].map(function (x) {
       return '<button data-a="sort" data-v="' + x[0] + '" aria-pressed="' + (UI.sort === x[0]) + '">' + x[1] + '</button>'; }).join("") + '</div>' : '';
-    var titel = eigen ? SCHNELL_NAME[UI.chip] : UI.q.trim() || activeFilters().length || UI.ohne.length ? list.length + " gefunden" : "Alle Rezepte";
+    var titel = eigen ? (UI.chip === "nichtdiaet" ? nichtDiaetName() : SCHNELL_NAME[UI.chip]) : UI.q.trim() || activeFilters().length || UI.ohne.length ? list.length + " gefunden" : "Alle Rezepte";
     var hidden = !UI.q.trim() && (S.prefs.diet !== "alles" || S.prefs.ohne.length) ? all.length - mine.length : 0;
     var ex = all.some(function (e) { return e.example; });
     return '<section class="sec"><div class="sec-head"><h2>' + esc(titel) + '</h2>' + (eigen ? '<span class="small muted">' + list.length + '</span>' : (activeFilters().length || UI.ohne.length ? '<button class="link" data-a="filter-reset">Filter löschen</button>' : '')) + '</div>' + sortSeg +
@@ -2942,7 +2958,7 @@ a { color: var(--accent); }
         if (!out.dupe && UEB_SPRACHEN[foreignLang(rS, S.recipes[out.id])]) setTimeout(function () { startTranslate(out.id, true); }, 900);
         if (!out.dupe) setTimeout(function () { titelSpracheFragen(out.id); }, 700);
       } catch (x) { /* egal */ }
-      setTimeout(function () { toast(out.dupe ? "Schon in der Kombüse" : gespeichertText(out.id, "In der Kombüse gespeichert")); }, 300);
+      setTimeout(function () { if (!out.dupe && ernaehrungFragen(out.id)) return; toast(out.dupe ? "Schon in der Kombüse" : gespeichertText(out.id, "In der Kombüse gespeichert")); }, 300);
       return true;
     }
     UI.tab = "neu"; UI.detail = null;
@@ -2989,6 +3005,8 @@ a { color: var(--accent); }
       case "cat": UI.cat = el.dataset.c; render(); window.scrollTo(0, 0); break;
       case "cat-back": UI.cat = null; render(); break;
       case "ausgeblendet-zeigen": UI.alleZeigen = !UI.alleZeigen; render(); break;
+      case "ernaehrung-ja": var ej = S.recipes[el.dataset.id]; if (ej) { ej.ernaehrungBewusst = true; ej.recipe.ernaehrungBewusst = true; save("recipes"); } closeSheet(); render(); toast("In der Kombüse gespeichert"); break;
+      case "ernaehrung-nein": var en = el.dataset.id; if (S.recipes[en]) { delete S.recipes[en]; save("recipes"); } UI.detail = null; closeSheet(); render(); toast("Nicht gespeichert"); break;
       case "nutri-toggle":
         if (S.prefs.nutrition) { S.prefs.nutrition = false; delete UI.filter["Nährwert-Fokus"]; save("prefs"); el.setAttribute("aria-checked", "false"); render(); toast("Nährwerte ausgeblendet"); }
         else if (!el.dataset.ok) { nutriConfirmSheet(); }
@@ -3274,7 +3292,7 @@ a { color: var(--accent); }
         var out = addRecipe(d.res, { input: d.input });
         if (out.dupe) { toast("Das Rezept ist schon in der Kombüse"); UI.draft = null; UI.detail = out.id; render(); break; }
         if (nt2 && nt2 !== d.res.recipe.title) { S.recipes[out.id].userTitle = nt2; titelLernen(out.id); }
-        save("recipes"); UI.draft = null; UI.pasteText = ""; UI.detail = out.id; render(); window.scrollTo(0, 0); toast(gespeichertText(out.id, "Gespeichert"));
+        save("recipes"); UI.draft = null; UI.pasteText = ""; UI.detail = out.id; render(); window.scrollTo(0, 0); if (!ernaehrungFragen(out.id)) toast(gespeichertText(out.id, "Gespeichert"));
         var acc = d.res.recipe.source.account;
         if (acc) setTimeout(function () { folgenPruefen(acc); }, 600);
         break;
