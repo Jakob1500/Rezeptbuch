@@ -474,7 +474,7 @@ a { color: var(--accent); }
   function A(input) { return K.analyse(input, { lernen: [ZENTRAL, S.lernen] }); }
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.20.22";
+  var APP_VERSION = "0.20.23";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0 (creativecommons.org/licenses/by/4.0). Werte unverändert übernommen; Stück- und Löffelgewichte sind eigene Richtwerte der App. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -608,7 +608,7 @@ a { color: var(--accent); }
     prefs: { name: "", persons: 2, diet: "alles", theme: "system", onboarded: false, nutrition: true, showOriginal: false, ohne: [] } };
   var UI = { tab: "rezepte", detail: null, q: "", filter: {}, servings: {}, showOrig: {}, draft: null, importRes: null, showHave: false, sort: "neu", cook: null, cat: null, ohne: [], timers: [], chip: null, homeSuche: false };
 
-  function entries() { return Object.keys(S.recipes).map(function (id) { return S.recipes[id]; }).sort(function (a, b) { return (b.addedAt || 0) - (a.addedAt || 0); }); }
+  function entries() { return Object.keys(S.recipes).map(function (id) { return S.recipes[id]; }).filter(function (e) { return !e.verworfen; }).sort(function (a, b) { return (b.addedAt || 0) - (a.addedAt || 0); }); }
   function rec(e) { return e.recipe; }
   function titleOf(e) {
     var r = e.recipe || {}, sp = e.titelSprache || S.prefs.titelSprache;
@@ -716,6 +716,35 @@ a { color: var(--accent); }
       '<p class="small muted">Gespeichert erscheint es überall wie die anderen Rezepte und zusätzlich unter „' + esc(nichtDiaetName()) + '“ in der Suche.</p>' +
       '<div class="btnrow"><button class="btn soft" data-a="ernaehrung-nein" data-id="' + id + '">Nicht speichern</button><button class="btn" data-a="ernaehrung-ja" data-id="' + id + '">Trotzdem speichern</button></div>');
     return true;
+  }
+  // Fenster „Alle Nährwerte“ (Runde 2 Nr. 4 A). Bezugswerte: LMIV (VO (EU) 1169/2011) Anhang XIII –
+  // Teil A Vitamine/Mineralstoffe (NRV), Teil B Referenzmengen für Energie und Makronährstoffe (Erwachsene).
+  var NW_ALLE = [["Energie und Makronährstoffe", [["kcal", "Energie", "kcal", 2000], ["protein", "Eiweiß", "g", 50], ["carbs", "Kohlenhydrate", "g", 260], ["sugar", "davon Zucker", "g", 90], ["fat", "Fett", "g", 70], ["satFat", "davon gesättigte Fettsäuren", "g", 20], ["omega3", "Omega-3-Fettsäuren", "g", null], ["fiber", "Ballaststoffe", "g", null], ["salt", "Salz", "g", 6]]],
+    ["Mineralstoffe", [["iron", "Eisen", "mg", 14], ["calcium", "Calcium", "mg", 800], ["magnesium", "Magnesium", "mg", 375], ["zinc", "Zink", "mg", 10], ["potassium", "Kalium", "mg", 2000], ["iodine", "Jod", "µg", 150]]],
+    ["Vitamine", [["vitB2", "Vitamin B2", "mg", 1.4], ["vitB12", "Vitamin B12", "µg", 2.5], ["vitC", "Vitamin C", "mg", 80], ["vitD", "Vitamin D", "µg", 5], ["folate", "Folat", "µg", 200]]]];
+  function alleNaehrwerteSheet(id) {
+    var e = S.recipes[id], n = e && e.recipe.nutrition; if (!n) return;
+    var v = n.values, per = n.perServing ? "je " + (n.perUnit === "Stück" ? "Stück" : "Portion") : "für das ganze Rezept";
+    var zahl = function (x, u) { return x == null ? "–" : String(u === "kcal" || x >= 100 ? Math.round(x) : x >= 10 ? Math.round(x * 10) / 10 : Math.round(x * 100) / 100).replace(".", ",") + " " + u; };
+    sheet('<h2>Alle Nährwerte</h2><p class="small muted">' + esc(titleOf(e)) + ' · ' + per + '</p>' + NW_ALLE.map(function (g) {
+      return '<section class="sec"><div class="sec-head"><h2>' + g[0] + '</h2></div><div class="group">' + g[1].map(function (x) {
+        var w = v[x[0]], pz = x[3] && w != null && n.perServing ? Math.round(w / x[3] * 100) + " %" : "";
+        return '<div class="row"><span class="main"><span class="title">' + x[1] + '</span></span><span class="num">' + zahl(w, x[2]) + (pz ? ' <span class="muted small">· ' + pz + '</span>' : '') + '</span></div>';
+      }).join("") + '</div></section>'; }).join("") +
+      '<p class="small muted">% = Anteil am Tagesbezugswert für Erwachsene nach der EU-Lebensmittelinformationsverordnung (LMIV, Anhang XIII). Werte aus dem Bundeslebensmittelschlüssel 4.0 (Max Rubner-Institut); Zutaten ohne Nährwert fehlen in der Summe.' + (n.reliable ? '' : ' Dieses Rezept ist nur teilweise berechnet.') + '</p>' +
+      '<div class="btnrow"><button class="btn" data-a="close-sheet">Fertig</button></div>');
+  }
+  // Bereich „Nicht gespeichert“ (Jakob, Runde 2 Nr. 1 C): 30 Tage aufheben, dann löschen
+  function verworfene() { return Object.keys(S.recipes).map(function (k) { return S.recipes[k]; }).filter(function (e) { return e.verworfen; }).sort(function (a, b) { return b.verworfen - a.verworfen; }); }
+  function verworfenAufraeumen() { var grenze = Date.now() - 30 * 864e5, n = 0; verworfene().forEach(function (e) { if (e.verworfen < grenze) { delete S.recipes[e.id]; n++; } }); if (n) save("recipes"); }
+  function verworfenSheet() {
+    var v = verworfene();
+    sheet('<h2>Nicht gespeichert</h2><p class="small muted">Rezepte, bei denen du „Nicht speichern“ gewählt hast. Sie bleiben 30 Tage hier und werden dann gelöscht.</p>' +
+      (v.length ? '<div class="group">' + v.map(function (e) { var tage = Math.max(0, 30 - Math.floor((Date.now() - e.verworfen) / 864e5));
+        return '<div class="row"><span class="main"><span class="title">' + esc(titleOf(e)) + '</span><span class="sub">noch ' + tage + (tage === 1 ? ' Tag' : ' Tage') + '</span></span>' +
+          '<button class="btn soft" style="width:auto" data-a="verworfen-doch" data-id="' + esc(e.id) + '" data-keep="1">Doch speichern</button>' +
+          '<button class="ibtn" data-a="verworfen-weg" data-id="' + esc(e.id) + '" data-keep="1" aria-label="' + esc(titleOf(e)) + ' endgültig löschen">' + ic("x") + '</button></div>'; }).join("") + '</div>'
+        : '<p class="muted">Gerade nichts.</p>') + '<div class="btnrow"><button class="btn" data-a="close-sheet">Fertig</button></div>');
   }
   // Nach dem Speichern sagen, wenn das neue Rezept ausgeblendet wird
   function gespeichertText(id, basis) {
@@ -902,6 +931,7 @@ a { color: var(--accent); }
     K.berechneNaehrwerte(r, NW, null, { zuordnungen: Z() });
     if (!extra.example && S.lernen && K.merkeNaehrwertAbweichung && K.merkeNaehrwertAbweichung(S.lernen, r)) save("lernen");
     var id = K.recipeId(r);
+    if (S.recipes[id] && S.recipes[id].verworfen) { delete S.recipes[id].verworfen; S.recipes[id].addedAt = Date.now(); save("recipes"); return { id: id, dupe: false }; } // aus „Nicht gespeichert“ zurück
     if (S.recipes[id]) return { id: id, dupe: true };
     S.recipes[id] = { id: id, recipe: r, input: extra.input || null, addedAt: Date.now(), updatedAt: Date.now(), example: !!extra.example, typ: extra.typ || null };
     if (UI.geteiltNext && !extra.example) { S.recipes[id].geteilt = true; UI.geteiltNext = false; }
@@ -1958,6 +1988,7 @@ a { color: var(--accent); }
       var v = n.values, per = n.perServing ? "pro " + (n.perUnit === "Stück" ? "Stück" : "Portion") : "für das ganze Rezept";
       nut = '<section class="sec"><div class="sec-head"><h2>Nährwerte</h2><span class="small muted">' + per + '</span></div><div class="group"><div class="nutri">' +
         [[v.kcal, "kcal"], [fmtG(v.protein), "Eiweiß g"], [fmtG(v.carbs), "Kohlenh. g"], [fmtG(v.fat), "Fett g"]].map(function (x) { return '<div><b>' + x[0] + '</b><span>' + x[1] + '</span></div>'; }).join("") + '</div>' +
+        '<button class="row" data-a="alle-naehrwerte" data-id="' + esc(id) + '"><span class="main"><span class="title">Alle Nährwerte</span><span class="sub">Vitamine, Mineralstoffe, Fettsäuren – mit Anteil am Tagesbedarf</span></span>' + ic("chev") + '</button>' +
         '<div class="row"><span class="main"><span class="sub">' + (n.reliable ? "Berechnet aus " + n.coverage.matched + " Zutaten." : "Nur teilweise berechnet: " + n.coverage.matched + " von " + (n.coverage.matched + n.coverage.unmatched.length) + " Zutaten bekannt.") +
         (r.servingsEstimated ? " Portionen im Rezept geschätzt (" + esc(r.servingsBasis) + ")." : "") + '</span></span></div>' +
         (offen.length ? offenHtml : n.coverage.unmatched.length ? '<div class="row"><span class="main"><span class="sub">Noch ohne Nährwert: ' + esc(n.coverage.unmatched.join(", ")) + '.</span></span></div>' : "") +
@@ -2197,7 +2228,8 @@ a { color: var(--accent); }
   function shoppingItems() {
     var list = S.shopping.list.filter(function (x) { return S.recipes[x.id]; }).map(function (x) { return { recipe: S.recipes[x.id].recipe, servings: x.servings }; });
     if (!list.length) return [];
-    return K.shoppingList(list, S.pantry, NW).map(function (it) { it.have = haveKey(it.key); it.aisle = gangFuer(it.name, it.aisle); return it; });
+    var weg = S.shopping.weg || {};
+    return K.shoppingList(list, S.pantry, NW).filter(function (it) { return !weg[it.key]; }).map(function (it) { it.have = haveKey(it.key); it.aisle = gangFuer(it.name, it.aisle); return it; });
   }
   function extraItems() {
     return (S.shopping.extra || []).map(function (x) { return { key: "x:" + x.t, text: x.t, name: x.t, aisle: gangFuer(x.t), recipes: [], extra: true, have: false }; });
@@ -2265,6 +2297,7 @@ a { color: var(--accent); }
       '<span class="sub">' + (i.extra ? "eigener Eintrag" : esc(i.partsText ? i.partsText + " · " : "") + esc(i.recipes.length > 1 ? i.recipes.length + " Rezepte" : i.recipes[0] || "")) + '</span></button>' +
       (i.extra ? '<button class="ibtn" data-a="extra-weg" data-t="' + esc(i.text) + '" aria-label="' + esc(i.text) + ' entfernen" title="Entfernen">' + ic("x") + '</button>' : '') +
       (done ? '' : '<button class="ibtn" data-a="gang" data-k="' + esc(i.key) + '" data-n="' + esc(i.name) + '" aria-label="' + esc(i.name) + ': Gang ändern (jetzt ' + esc(i.aisle) + ')" title="Gang ändern">⇅</button>') +
+      (i.extra ? '' : '<button class="sr" data-a="diesmal-weg" data-k="' + esc(i.key) + '">' + esc(i.name) + ' diesmal von der Liste nehmen</button>') +
       (done || i.extra ? '' : '<button class="ibtn" data-a="have" data-k="' + esc(i.key) + '" aria-label="' + esc(i.name) + ': habe ich schon zu Hause" title="Habe ich schon">' + ic("home") + '</button>') + '</div>';
   }
 
@@ -2345,6 +2378,7 @@ a { color: var(--accent); }
       '<input type="file" id="restorefile" accept=".json,application/json" class="sr"></section>' +
       '<section class="sec"><div class="sec-head"><h2>Instagram</h2></div><div class="group"><button class="row" data-a="setup">' + ic("share") + '<span class="main"><span class="title">Kurzbefehl einrichten</span><span class="sub">„In die Kombüse“ im Teilen-Menü' + (scVersion() ? ' · Version ' + (scVersion() === "komplett" ? "Komplett" : "Einfach") : '') + '</span></span>' + ic("chev", "chev") + '</button></div></section>' +
       '<section class="sec"><div class="sec-head"><h2>Sprache</h2></div><div class="group"><button class="row" data-a="translate">' + ic("lang") + '<span class="main"><span class="title">Zubereitung auf Deutsch übersetzen</span><span class="sub">' + englishEntries().length + ' Rezepte noch nicht auf Deutsch · Übersetzung auf dem iPhone (Bergamot)</span></span>' + ic("chev", "chev") + '</button></div></section>' +
+      (verworfene().length ? '<section class="sec"><div class="group"><button class="row" data-a="verworfen-zeigen">' + ic("x") + '<span class="main"><span class="title">Nicht gespeichert</span><span class="sub">' + verworfene().length + ' Rezept' + (verworfene().length === 1 ? '' : 'e') + ', 30 Tage aufgehoben</span></span></button></div></section>' : '') +
       '<section class="sec"><div class="sec-head"><h2>Lernen</h2></div><div class="group"><button class="row" data-a="lern-show">' + ic("sparkle") + '<span class="main"><span class="title">Was die App gelernt hat</span><span class="sub">' + lernZahl() + ' Regeln · ansehen, löschen, an Jakob schicken</span></span>' + ic("chev", "chev") + '</button></div></section>' +
       '<section class="sec"><div class="sec-head"><h2>Hilfe</h2></div><div class="group"><button class="row" data-a="coach-start" data-k="teilen">' + ic("share") + '<span class="main"><span class="title">So holst du ein Rezept aus Instagram</span><span class="sub">Schritt für Schritt mit Bildern</span></span>' + ic("chev", "chev") + '</button>' +
         (imSafari() ? '<button class="row" data-a="coach-start" data-k="installieren">' + ic("home") + '<span class="main"><span class="title">Als App auf den Home-Bildschirm</span></span>' + ic("chev", "chev") + '</button>' : '') +
@@ -3037,7 +3071,7 @@ a { color: var(--accent); }
       if (a.art === "fenster") { if (dy > 90 && Math.abs(dx) < dy * 0.6) closeSheet(); return; }
       if (Math.abs(dx) < WEG || Math.abs(dy) > Math.abs(dx) * 0.6) return;
       if (a.art === "koch") klick(dx < 0 ? '[data-a="cook-next"]' : '[data-a="cook-prev"]');
-      else if (a.art === "einkauf") { if (dx > 0) klick('[data-a="done"]'); else klick('[data-a="extra-weg"]'); }
+      else if (a.art === "einkauf") { if (dx > 0) klick('[data-a="done"]'); else klick('[data-a="extra-weg"], [data-a="diesmal-weg"]'); }
     }, { passive: true });
     document.addEventListener("touchcancel", function () { if (w && w.el) w.el.style.transform = ""; w = null; }, { passive: true });
   })();
@@ -3065,7 +3099,11 @@ a { color: var(--accent); }
       case "cat-back": UI.cat = null; render(); break;
       case "ausgeblendet-zeigen": UI.alleZeigen = !UI.alleZeigen; render(); break;
       case "ernaehrung-ja": var ej = S.recipes[el.dataset.id]; if (ej) { ej.ernaehrungBewusst = true; ej.recipe.ernaehrungBewusst = true; save("recipes"); } closeSheet(); render(); toast("In der Kombüse gespeichert"); break;
-      case "ernaehrung-nein": var en = el.dataset.id; if (S.recipes[en]) { delete S.recipes[en]; save("recipes"); } UI.detail = null; closeSheet(); render(); toast("Nicht gespeichert"); break;
+      case "ernaehrung-nein": var en = el.dataset.id; if (S.recipes[en]) { S.recipes[en].verworfen = Date.now(); save("recipes"); } UI.detail = null; closeSheet(); render(); toast("Nicht gespeichert – 30 Tage unter Einstellungen › Nicht gespeichert"); break;
+      case "verworfen-zeigen": verworfenSheet(); break;
+      case "alle-naehrwerte": alleNaehrwerteSheet(el.dataset.id); break;
+      case "verworfen-doch": var vd = S.recipes[el.dataset.id]; if (vd) { delete vd.verworfen; vd.ernaehrungBewusst = true; vd.recipe.ernaehrungBewusst = true; vd.addedAt = Date.now(); save("recipes"); } render(); verworfenSheet(); toast("In der Kombüse gespeichert"); break;
+      case "verworfen-weg": delete S.recipes[el.dataset.id]; save("recipes"); render(); verworfenSheet(); toast("Gelöscht"); break;
       case "nutri-toggle":
         if (S.prefs.nutrition) { S.prefs.nutrition = false; delete UI.filter["Nährwert-Fokus"]; save("prefs"); el.setAttribute("aria-checked", "false"); render(); toast("Nährwerte ausgeblendet"); }
         else if (!el.dataset.ok) { nutriConfirmSheet(); }
@@ -3234,6 +3272,7 @@ a { color: var(--accent); }
       case "ohne-immer-add": ohneAdd(S.prefs.ohne, "#ohne-immer-q"); save("prefs"); render(); settingsSheet(); break;
       case "ohne-immer-weg": S.prefs.ohne = S.prefs.ohne.filter(function (w) { return w !== el.dataset.w; }); save("prefs"); render(); settingsSheet(); break;
       case "extra-add": extraAdd(); break;
+      case "diesmal-weg": S.shopping.weg = S.shopping.weg || {}; S.shopping.weg[el.dataset.k] = true; delete S.shopping.done[el.dataset.k]; save("shopping"); render(); toast("Diesmal von der Liste genommen"); break;
       case "extra-weg": S.shopping.extra = (S.shopping.extra || []).filter(function (x) { return x.t !== el.dataset.t; }); delete S.shopping.done["x:" + el.dataset.t]; save("shopping"); render(); break;
       case "timer-start": timerStart(+el.dataset.min, el.dataset.t); break;
       case "timer-stop": UI.timers = UI.timers.filter(function (t) { return String(t.id) !== el.dataset.id; }); timerZeigen(); break;
@@ -3404,6 +3443,7 @@ a { color: var(--accent); }
     if (!S.lernen || S.lernen.app !== "rezeptbuch-lernen") S.lernen = K.neuerLernspeicher();
     // Was Jakob zentral übernommen hat, lokal abräumen (nicht doppelt zählen, nicht erneut senden)
     try { if (K.lernAbgleich(S.lernen, ZENTRAL)) save("lernen"); } catch (x) { /* Lernspeicher bleibt */ }
+    verworfenAufraeumen();
     // einmalig: schon früher geänderte Titel ins Gelernte übernehmen
     if (!S.lernen.titelNachgetragen) { Object.keys(S.recipes).forEach(function (rid) { if (S.recipes[rid].userTitle) titelLernen(rid); }); S.lernen.titelNachgetragen = true; save("lernen"); }
     applyTheme();

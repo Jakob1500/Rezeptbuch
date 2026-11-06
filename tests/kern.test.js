@@ -844,5 +844,23 @@ check("Ü: Brüche vor der Übersetzung", K.vorUebersetzung("Add 3½ cups water"
   check("Lernen: Abgleich räumt Übernommenes ab", n === 3 && !L.kategorien.knoblauch && L.unbekannt.spitzkohl == null && L.fehler.length === 0, n);
   check("Lernen: Abgleich je Stand nur einmal", K.lernAbgleich(L, { stand: "2026-11-07", uebernommen: { unbekannt: ["daikon"] } }) === 0);
 }
+{
+  // Runde 2 (06.11.): Titelregeln, Großschreibung, Schritte teilen, Hilfsmittel, Zutaten-Zuordnung
+  const T = c => K.analyse({ caption: c, url: "x" }).recipe;
+  check("Titel: Zahl + Minuten vorne", T("✨5 Minuten Reis Bowl✨\n\nZutaten:\n200 g Reis\n2 EL Sojasauce\n\nReis kochen. Mit Sojasauce servieren.").title === "Reis Bowl");
+  check("Titel: Serien-Nummer vorne", T("56/100 - vegane Lasagnesuppe\n\nZutaten:\n220 g Lasagneplatten\n1 Zwiebel\n1 l Brühe\n\nZwiebel anbraten. Brühe und Platten dazu und 15 Minuten köcheln.").title === "Vegane Lasagnesuppe");
+  check("Titel: „Recipe“ hinten", T("Mongolian Beef Recipe\n\nIngredients:\n500 g beef\n2 tbsp soy sauce\n\nFry the beef. Add soy sauce and serve.").title.indexOf("Recipe") === -1);
+  check("Titel: Aufforderung ist kein Titel", !/abspeichern/i.test(T("Abspeichern & Nachmachen 🤍\nZutaten ⬇️\nOmas Linseneintopf😍\n\n📜 Zutaten (für 4 Portionen):\n200 g Linsen\n1 l Brühe\n\nAlles 30 Minuten köcheln.").title));
+  const cb = T("es trafen sich zwei mäuse und machten crème brûlée\n\nzutaten:\n– 400 g seidentofu\n– 1 EL kokosöl\n– zucker zum karamellisieren\n\nzubereitung:\nseidentofu und kokosöl im mixer glatt mixen und über nacht in den kühlschrank stellen.\nam nächsten tag eine schicht zucker auf die oberfläche streuen und mit einem bunsenbrenner karamellisieren, bis sich eine goldene, knusprige schicht bildet. kurz abkühlen lassen und dann mit dem löffel die kruste knacken.");
+  check("Titel: Gericht am Satzende", cb.title === "Crème Brûlée", cb.title);
+  check("Großschreibung kleingeschriebener Schritte", /^Seidentofu und Kokosöl im Mixer/.test(cb.steps[0]) && /Kühlschrank/.test(cb.steps[0]), cb.steps[0]);
+  check("Hilfsmittel Bunsenbrenner erkannt", cb.equipment.indexOf("Bunsenbrenner") !== -1);
+  check("Langer Schritt mit zwei Tätigkeiten geteilt", cb.steps.length === 3 && /^Kurz abkühlen/.test(cb.steps[2]), cb.steps);
+  const en = T("Pie\n\nIngredients:\n200 g flour\n100 g butter\n\nMethod:\n1. Bring to simmer, then reduce heat and cook until thickened, about 15 minutes. (You should have about 6 cups sauce.) Transfer sauce to a bowl and cool until just warm to touch, about 30 minutes.");
+  check("Teilen nie in Klammern", en.steps.every(s => !/^\)/.test(s)), en.steps);
+  check("Englische Schritte bleiben klein", !en.stepsGrossGeschrieben);
+  check("Zutat: gemahlener Kreuzkümmel normalisiert", K.normName("gemahlener Kreuzkümmel") === "kreuzkümmel");
+  check("Zutat: Crème fraîche mit Akzenten", K.normName("Crème fraîche") === "crème fraîche");
+}
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

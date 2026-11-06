@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.7.7";
+  var VERSION = "0.7.8";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -495,7 +495,9 @@
     ["Mixer", /(mixer|blender|pürier|food processor|küchenmaschine|stabmixer|zerkleinerer)/i],
     ["Pfanne", /(pfanne|\bpan\b|skillet|anbraten|braten|sautieren|fry)/i],
     ["Topf", /(\btopf|\bpot\b|kochen|köcheln|simmer|boil)/i],
-    ["Mikrowelle", /(mikrowelle|microwave)/i]
+    ["Mikrowelle", /(mikrowelle|microwave)/i],
+    ["Wasserbad", /(wasserbad|bain.?marie|double boiler)/i],
+    ["Bunsenbrenner", /(bunsenbrenner|flambierbrenner|küchenbrenner|crème.?brûlée.?brenner|kitchen torch|blow ?torch)/i]
   ];
 
   var TECHNIQUES = /(blind backen|temperier|flambier|karamellisier|emulgier|laminier|sous.?vide|fermentier|hefeteig|gehen lassen|über nacht|wasserbad|ausbacken|frittier|deep fry|proof|knead|kneten)/i;
@@ -626,11 +628,11 @@
   // ---------------------------------------------------------------------------
 
   function normName(name) {
-    var n = lower(name).replace(/\(.*?\)/g, " ").replace(/[^a-zäöüßéè\s-]/g, " ").replace(/\s+/g, " ").trim();
+    var n = lower(name).replace(/\(.*?\)/g, " ").replace(/[^a-zäöüßéèêëàâîïôûç\s-]/g, " ").replace(/\s+/g, " ").trim();
     if (SINGULAR[n]) return SINGULAR[n];
     if (EN_DE[n]) return EN_DE[n];
     n = n.replace(/^(finely chopped|roughly chopped|thinly sliced|freshly ground|chopped|sliced|grated|light|white|yellow|sun-?dried|fein gehackte[rsn]?|frisch geriebene[rsn]?)\s+/, "");
-    n = n.replace(/^(frische[rsn]?|glatte[rsn]?|krause[rsn]?|getrocknete[rsn]?|gehackte[rsn]?|geriebene[rsn]?|kleine[rsn]?|große[rsn]?|mittelgroße[rsn]?|gelbe[rsn]?|reife[rsn]?|gefrorene[rsn]?|gewürfelte[rsn]?|zerdrückte[rsn]?|kleiner|großer|mittelgroße[rsn]?|dicke[rsn]?|gekochte[rsn]?|ungesüßte[rsn]?|neutrale[rsn]?|bio|tk|fresh|large|small|medium|dried|chopped|ripe|frozen|diced|minced|melted|roasted|toasted|unsalted|salted|ground|organic|canned|cooked|extra virgin|unsweetened)\s+/, "");
+    n = n.replace(/^(gemahlene[rsn]?|geschälte[rsn]?|frische[rsn]?|glatte[rsn]?|krause[rsn]?|getrocknete[rsn]?|gehackte[rsn]?|geriebene[rsn]?|kleine[rsn]?|große[rsn]?|mittelgroße[rsn]?|gelbe[rsn]?|reife[rsn]?|gefrorene[rsn]?|gewürfelte[rsn]?|zerdrückte[rsn]?|kleiner|großer|mittelgroße[rsn]?|dicke[rsn]?|gekochte[rsn]?|ungesüßte[rsn]?|neutrale[rsn]?|bio|tk|fresh|large|small|medium|dried|chopped|ripe|frozen|diced|minced|melted|roasted|toasted|unsalted|salted|ground|organic|canned|cooked|extra virgin|unsweetened)\s+/, "");
     n = n.replace(/^(roasted|toasted|unsalted|salted|ground|organic|canned|cooked|gekochte[rsn]?|geröstete[rsn]?|ungesalzene[rsn]?)\s+/, "");
     n = n.replace(/\btype\s*\d*\b/g, " ").replace(/^(heiße[sr]?|kalte[sr]?|warme[sr]?|lauwarme[sr]?|eiskalte[sr]?|each|jeweils|je|a|an)\s+/, "").replace(/^(thumb-?size[d]?|small|large|big)?\s*(piece|knob|chunk|stück)s?\s+of\s+/, "").replace(/\s+/g, " ").trim();
     if (SINGULAR[n]) return SINGULAR[n];
@@ -1380,7 +1382,7 @@
     });
   }
 
-  var TITLE_BAD = /^(https?:|www\.|\(?\s*(?:recipe|rezept)\b|comment|kommentier|i'?m curious|follow|.*\bi used\b|.*:\s*\d+$|rezept|zum rezept|das rezept|recipe|portionen|servings|perfekt (für|zum)|schnell gemacht|kann kochen|comment|kommentier|werbung|anzeige|unbezahlt|gewinnspiel|ad\b|follow|folge|save|speicher|teil \d|part \d|step by step|veganuary|must try|naja|glaubst|aufmerksam|mit den produkten|mit \w+ so |etwas |some |& so|und so|schwierigkeit|zubereitungszeit|dauer|what you need|was brauchen|[\d\s\/]+$)|\b(gewinnspiel|anzeige)\b|^[^(]*\)|^[\wäöüÄÖÜß-]+:\s/i;
+  var TITLE_BAD = /^(https?:|www\.|\(?\s*(?:recipe|rezept)\b|comment|kommentier|i'?m curious|follow|.*\bi used\b|.*:\s*\d+$|rezept|zum rezept|das rezept|recipe|portionen|servings|perfekt (für|zum)|schnell gemacht|kann kochen|comment|kommentier|werbung|anzeige|unbezahlt|gewinnspiel|ad\b|follow|folge|save|speicher|abspeicher|nachmach|nachkoch|merk dir|teil das|teil \d|part \d|step by step|veganuary|must try|naja|glaubst|aufmerksam|mit den produkten|mit \w+ so |etwas |some |& so|und so|schwierigkeit|zubereitungszeit|dauer|what you need|was brauchen|[\d\s\/]+$)|\b(gewinnspiel|anzeige)\b|^[^(]*\)|^[\wäöüÄÖÜß-]+:\s/i;
   var TITLE_SENTENCE = /^(ich|du|ihr|wir|er|sie|es|man|dieser|diese|dieses|der|die|das|wenn|als|falls|endlich|heute|hier|hört|habt|kennt|ein|eine|i|i'm|we|you|this|these|if|when|my|our|the|so|und|aber|oder|davon|durch|kombiniert|probier|teste|a fun|what a)\b/i;
   var FOOD_HINT = /(pasta|nudel|salat|salad|suppe|soup|curry|bowl|kuchen|cake|brot|bread|tofu|bohnen|beans|linsen|gnocchi|lasagn|porridge|oats|smoothie|latte|sauce|soße|dip|pesto|pfanne|auflauf|steak|burger|pizza|tortilla|quesadilla|wrap|cookies|kekse|muffin|brownie|risotto|eintopf|gulasch|chili|noodle|udon|ramen|rolls|focaccia|naan|toast|pancake|pfannkuchen|waffel|eis\b|ice cream|tiramisu|cheesecake|hummus|falafel|bratling|schnitzel|frikadell|spieße|manti|maultasch|zimtschnecke|schnecken|stew|pot pie|\bpie\b|schmortopf|knödel|spiesjes|moqueca|fufu|\bdal\b|shawarma|kofta|katsu|tarte|quiche|gratin|omelett|shakshuka|bolognese|carbonara|spaghetti|orzo|couscous|bulgur|quinoa|wedges|nuggets|dumplings|teigtaschen|sushi|poke|granola|müsli|pudding|mousse|crumble|riegel|strudel|brötchen|teewurst|aufstrich|chutney|kichererbsen|chickpeas|auberginen|kofta|steaks?|bowls?|porridge|tacos|burrito|enchilada|lasagne|wraps?|sandwich|bagel|gemüse|ofengemüse)/i;
 
@@ -1419,7 +1421,12 @@
     var cands = [];
     for (var i = 0; i < lines.length && i < 8; i++) {
       var plainLine = clean(stripEmoji(lines[i]));
-      if (HEAD_ING.test(plainLine) && plainLine.length < 60) break; // ab der Zutatenliste kein Titel mehr
+      if (HEAD_ING.test(plainLine) && plainLine.length < 60) {
+        // „Zutaten ⬇️“ als Hinweis, dann „Omas Linseneintopf“, dann erst „📜 Zutaten (für 4 Portionen):“ – weiterlesen (Runde 2 Nr. 5)
+        var nachHinweis = clean(stripEmoji(lines[i + 1] || ""));
+        if (!(plainLine.split(/\s+/).length <= 2 && nachHinweis && !looksLikeIngredient(nachHinweis) && lines.slice(i + 2, i + 6).some(function (l) { return HEAD_ING.test(clean(stripEmoji(l))); }))) break;
+        continue;
+      }
       // Serie "FAVORITE SAUCE NR. 5" + nächste Zeile "Amba" = Gerichtsname
       if (/\b(nr|no)\.?\s*\d+/i.test(plainLine) && lines[i + 1]) {
         var nx = clean(stripEmoji(lines[i + 1]));
@@ -1431,11 +1438,20 @@
       if (/^[^:]{2,40}:\s*$/.test(fullLine) && i > 0) continue; // Unterüberschrift "Sauce:"
       for (var j = 0; j < segs.length && j < 4; j++) {
         var raw = clean(stripEmoji(segs[j]).replace(/[#@][^\s]+/g, " "));
-        if (!raw || HEAD_ING.test(raw) || HEAD_STEP.test(raw) || looksLikeIngredient(raw) || /^[-–•*]/.test(raw)) continue;
+        if (!raw || HEAD_ING.test(raw) || HEAD_STEP.test(raw) || (looksLikeIngredient(raw) && !(i === 0 && /^\d+\s*(minuten|minute|min|minutes)\s+\S/i.test(raw) && hasFoodWord(raw))) || /^[-–•*]/.test(raw)) continue;
         if (j > 0 && /^[a-zäöü]/.test(raw) && raw !== fullLine) continue; // Satzfortsetzung nach Emoji
         if (/^\(/.test(raw) && !/\)\s*\S/.test(raw)) continue; // "(Noch schneller geht's …)"
         var colon = raw.match(/^([^:]{2,40}):\s*(.{3,})$/);
         if (colon && hasFoodWord(colon[2]) && !hasFoodWord(colon[1])) raw = colon[2];
+        // Serien-Nummer vorne („56/100 - vegane Lasagnesuppe“) und „Recipe/Rezept“ hinten weg (Runde 2 Nr. 5)
+        raw = raw.replace(/^\(?\d+\s*\/\s*\d+\)?\s*[-–—:|]?\s*/, "");
+        var ohneRezept = raw.replace(/\s+(recipe|rezept)\s*$/i, ""); if (ohneRezept !== raw && ohneRezept.split(/\s+/).length >= 2 && hasFoodWord(ohneRezept)) raw = ohneRezept;
+        // Satz, der mit dem Gericht endet („es trafen sich zwei mäuse und machten crème brûlée“)
+        var endGericht = raw.match(/\b(?:machten|machen|macht|mache|gibt es|gibt's|zaubern|zaubere|backen|backe|kochen|koche)\s+((?:\S+\s+){0,3}\S+)\s*[.!]?$/i);
+        if (endGericht && TITLE_SENTENCE.test(clean(stripEmoji(raw))) && (hasFoodWord(endGericht[1]) || /br[uû]l[eé]e|mousse|tiramisu|panna cotta|cheesecake/i.test(endGericht[1]))) {
+          cands.push({ t: endGericht[1].split(/\s+/).map(function (w) { return /^(und|mit|an|auf)$/i.test(w) ? w : w.charAt(0).toUpperCase() + w.slice(1); }).join(" "), score: 12 - i * 1.2 });
+          continue;
+        }
         var t = cleanTitle(raw);
         // Satz ("Der gesündeste Apfelkuchen der Welt …", "This super easy Vegan Pot Pie is …"): nur den Gerichtsnamen nehmen
         var fromSentence = 0;
@@ -1444,7 +1460,8 @@
         t = t.replace(/\s+(ist|sind|schmeckt|schmecken|kombiniert|könnte|wird|macht|machen|bringt|gibt|isn['’]t|is|are|tastes|makes)\b.*$/i, "");
         var tw = t.split(/\s+/); while (tw.length > 1 && TITLE_STOP.test(tw[0])) tw.shift(); t = tw.join(" ");
         if (t.split(/\s+/).length > 6) t = t.split(/\s+(?:with|mit)\s+/)[0];
-        if (t.length < 3 || TITLE_BAD.test(t) || NOISE.test(t) || /^\d/.test(t) || readUnit(t) || /\b(rezept|recipe|rezepte|recipes)\b/i.test(t)) continue;
+        var zahlTitel = /^\d+(?:[-–]\d+)?\s*(minuten|minute|min|minutes|zutaten|ingredients?|stunden?)\b/i.test(t) && hasFoodWord(t); // „5 Minuten Reis Bowl“
+        if (t.length < 3 || TITLE_BAD.test(t) || NOISE.test(t) || (/^\d/.test(t) && !zahlTitel) || (readUnit(t) && !zahlTitel) || /\b(rezept|recipe|rezepte|recipes)\b/i.test(t)) continue;
         var words = t.split(/\s+/).length, food = hasFoodWord(t);
         if (!food && (TITLE_SENTENCE.test(t) || words >= 7 || /[!?]/.test(raw) || words >= 4 && /^[A-ZÄÖÜ]/.test(t) && t !== t.toUpperCase() && /\s[a-zäöü]/.test(t) && langOfText(t) === "de")) continue;
         if (EN_IMP.test(t) || (isStepLike(t) && !food)) continue;
@@ -3655,7 +3672,60 @@
     }
   }
 
+  // ---- Schritte aufbereiten (Runde 2 Nr. 6 A, Meldung Crème brûlée 06.11.)
+  // 1) Großschreibung, nur wenn der Text durchgehend kleingeschrieben ist: Satzanfänge, Zutatennamen des Rezepts
+  //    und eine kurze Liste häufiger Küchen-Hauptwörter. Andere Wörter bleiben, wie sie sind (kein Raten).
+  // 2) Teilen: ein langer Schritt mit mehreren Sätzen wird nur geteilt, wenn jeder Teil eine eigene Tätigkeit
+  //    (Kochverb) hat und mindestens 40 Zeichen lang ist; kurze Nachsätze („kurz abkühlen lassen“) bleiben beim Satz davor.
+  var KUECHEN_NOMEN = ["masse", "mischung", "form", "auflaufform", "backform", "schüssel", "topf", "pfanne", "kühlschrank", "ofen", "backofen", "wasserbad", "mixer", "löffel", "gabel", "schicht", "oberfläche", "kruste", "teig", "soße", "sauce", "tag", "nacht", "minuten", "stunden", "hitze", "deckel", "blech", "backblech", "backpapier", "zimmertemperatur", "bunsenbrenner", "rand", "boden", "creme", "schokolade", "zucker", "salz", "pfeffer", "wasser", "öl", "stück", "stücke", "würfel", "scheiben", "streifen", "zutaten", "rest"];
+  var SCHRITT_VERB = /\b(\w+(?:en|ern|eln)|gib|gebe|rühr\w*|misch\w*|back\w*|brat\w*|koch\w*|heat|add|stir|mix|blend|bake|fry|cook|pour|serve|chop|cut|place|remove|combine|whisk|simmer|boil|preheat|transfer|season|spread|let|cover|drain|toss)\b/i;
+  function schritteKlein(steps) {
+    var w = steps.join(" ").split(/\s+/).filter(function (x) { return /^[a-zäöüA-ZÄÖÜ]/.test(x); });
+    if (w.length < 15) return false;
+    var gross = 0; w.forEach(function (x, i) { if (i && /^[A-ZÄÖÜ]/.test(x)) gross++; });
+    return gross / w.length < 0.05;
+  }
+  function schritteAufbereiten(r) {
+    if (!r.steps || !r.steps.length) return;
+    var alle = " " + lower(r.steps.join(" ")) + " ";
+    // nur deutsche Texte: Wörter, die es so nur im Deutschen gibt (nicht „die“/„den“/„in“ – auch Niederländisch/Dänisch)
+    var deutsch = (alle.match(/\s(und|mit|der|das|eine|einen|einem|auf|zum|vom|nicht|ist|über|dann|bis)\s/g) || []).length >= 3 && (alle.match(/\s(the|and|with|of|until|into|e|di|la|il|en|het|og|med|og)\s/g) || []).length < 3;
+    if (deutsch && schritteKlein(r.steps)) {
+      var namen = {}, gross = function (w) { return w.charAt(0).toUpperCase() + w.slice(1); };
+      // Hauptwort einer Zutat = ihr letztes Wort („vegane weiße schokolade“ → schokolade)
+      r.ingredients.forEach(function (i) { var t = String(i.name || "").split(/\s+/), k = lower(t[t.length - 1] || "").replace(/[^a-zäöüß-]/g, ""); if (k.length >= 3) namen[k] = 1;
+        if (t.length > 1 && /^[a-zäöü]/.test(t[t.length - 1])) { t[t.length - 1] = gross(t[t.length - 1]); i.name = t.join(" "); } });
+      KUECHEN_NOMEN.forEach(function (k) { namen[k] = 1; });
+      var lang = Object.keys(namen).filter(function (n) { return n.length >= 5; });
+      r.steps = r.steps.map(function (s) {
+        s = s.replace(/(^|[.!?]\s+)([a-zäöü])/g, function (m, a, b) { return a + b.toUpperCase(); });
+        return s.replace(/[a-zäöüß][a-zäöüß-]{2,}/g, function (wort) {
+          var k = lower(wort), teil = k.split("-");
+          var treffer = namen[k] || namen[teil[teil.length - 1]] || lang.some(function (n) { return k.length > n.length && k.slice(-n.length) === n; });
+          return treffer ? wort.split("-").map(gross).join("-") : wort;
+        });
+      });
+      r.stepsGrossGeschrieben = true;
+    }
+    var neu = [];
+    r.steps.forEach(function (s) {
+      if (s.length < 160 || /^##/.test(s)) { neu.push(s); return; }
+      // Sätze trennen, aber nie innerhalb von Klammern; Klammer-Sätze („(Du kannst …)“) bleiben beim Satz davor
+      var saetze = [], akt = "", tiefe = 0;
+      for (var ci = 0; ci < s.length; ci++) { var ch = s[ci]; akt += ch; if (ch === "(") tiefe++; else if (ch === ")") tiefe = Math.max(0, tiefe - 1);
+        if (/[.!?]/.test(ch) && !tiefe && (ci + 1 === s.length || /\s/.test(s[ci + 1])) && !/\b(ca|z\.b|bzw|evtl|ggf|min|std|tl|el|approx|e\.g|i\.e|etc)\.$/i.test(akt)) { saetze.push(akt); akt = ""; } }
+      if (akt.trim()) saetze.push(akt);
+      var teile = [];
+      saetze.map(function (x) { return x.trim(); }).filter(Boolean).forEach(function (x) {
+        if (teile.length && (x.length < 40 || /^\(/.test(x) || !SCHRITT_VERB.test(x) || teile[teile.length - 1].length < 40)) teile[teile.length - 1] += " " + x; else teile.push(x);
+      });
+      if (teile.length >= 2 && teile.every(function (t) { return t.length >= 40 && SCHRITT_VERB.test(t); })) neu.push.apply(neu, teile); else neu.push(s);
+    });
+    if (neu.length !== r.steps.length) { r.stepsGeteilt = neu.length - r.steps.length; r.steps = neu; }
+  }
+
   function finalize(r) {
+    schritteAufbereiten(r);
     // Eine Zeit bis zum Essen (inklusive Backen, Ruhen, Kühlen). Angabe des Creators geht vor,
     // außer sie ist kürzer als die Zeiten, die in den Schritten selbst stehen.
     var za = r.steps.length ? zeitAnalyse(r, LERN && LERN.zeiten) : null;
@@ -4113,7 +4183,7 @@
    */
   // Kleine Mengen scharfer Saucen/Pasten zählen wie Gewürze (vernachlässigbar, oft nicht im BLS)
   var MINOR_SAUCES = /^(natron|matcha|wacholder|sternanis|sumach|hing|asafoetida|kelle|kellen|pastawasser|nudelwasser|salty pasta water|ölspray|eiswürfel|meersalz|zout|flohsamenschalen|tamarind|kaffir|rote thai curry|thai curry|chipotle|teriyaki|sriracha|gochujang|sambal|scharfe sauce|hot sauce|chili crisp|chiliöl|flüssigrauch|worcestershire|fischsauce|harissa|currypaste|rote currypaste|grüne currypaste|tabasco|liquid smoke)/;
-  var NEGLIGIBLE = /^(natron|matcha|wacholder|sternanis|sumach|hing|asafoetida|kelle|kellen|pastawasser|nudelwasser|salty pasta water|ölspray|eiswürfel|meersalz|zout|salz|pfeffer|flohsamenschalen|lorbeer|nelke|kardamom|piment|vanilleschote|süßstoff|sweetener)/;
+  var NEGLIGIBLE = /^(vanille$|natron|matcha|wacholder|sternanis|sumach|hing|asafoetida|kelle|kellen|pastawasser|nudelwasser|salty pasta water|ölspray|eiswürfel|meersalz|zout|salz|pfeffer|flohsamenschalen|lorbeer|nelke|kardamom|piment|vanilleschote|süßstoff|sweetener)/;
   function isMinor(i) {
     if (NEGLIGIBLE.test(i.key || "")) return true;
     var small = i.qty == null || /^(TL|Prise|Msp|Spritzer|Schuss)$/.test(i.unit) || (i.unit === "EL" && i.qty <= 2) || (i.unit === "g" && i.qty <= 15);

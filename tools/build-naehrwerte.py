@@ -407,6 +407,33 @@ Z = {
   "seitan pulver": ("=Weizenkleber/Weizengluten", None, 8, 3, None),
   "seitanpulver": ("=Weizenkleber/Weizengluten", None, 8, 3, None),
   "wraps": ("=Weizentortilla", 60, None, None, None),
+  # Ergänzt 06.11.2026 (Runde 2 Nr. 7 A, aus den Lern-Dateien; Jakob prüft die Liste)
+  "spitzkohl": ("=Spitzkohl roh", None, None, None, None),
+  "rettich": ("=Rettich roh", None, None, None, None),
+  "daikon": ("=Rettich roh", None, None, None, None),
+  "daikon-rettich": ("=Rettich roh", None, None, None, None),
+  "cavolo nero": ("=Grünkohl roh", None, None, None, None),
+  "schwarzkohl": ("=Grünkohl roh", None, None, None, None),
+  "palmkohl": ("=Grünkohl roh", None, None, None, None),
+  "vegane crème fraîche": ("=Sojakochcreme", None, 15, 5, 1.0),
+  "vegane creme fraiche": ("=Sojakochcreme", None, 15, 5, 1.0),
+  "sojasahne": ("=Sojakochcreme", None, 15, 5, 1.0),
+  "sojasahne light": ("=Sojakochcreme", None, 15, 5, 1.0),
+  "kewpie mayo": ("=Mayonnaise (Fertigprodukt)", None, 15, 5, None),
+  "kewpie mayonnaise": ("=Mayonnaise (Fertigprodukt)", None, 15, 5, None),
+  "mayonnaise": ("=Mayonnaise (Fertigprodukt)", None, 15, 5, None),
+  "ackerbohne": ("=Dicke Bohne reif", None, None, None, None),
+  "dicke bohne": ("=Dicke Bohne reif", None, None, None, None),
+  "bergkäse": ("=Bergkäse mind. 45 % Fett i. Tr.", None, 7, None, None),
+  "käse": ("=Gouda 48 % Fett i. Tr.", None, 7, None, None),
+  "reibekäse": ("=Gouda 48 % Fett i. Tr.", None, 7, None, None),
+  "vegane weiße schokolade": ("=Schokolade weiß", None, None, None, None),
+  "weiße schokolade": ("=Schokolade weiß", None, None, None, None),
+  "gerste": ("=Gerste Graupen", None, 12, None, None),
+  "graupen": ("=Gerste Graupen", None, 12, None, None),
+  "paniermehl": ("=Paniermehl/Semmelbrösel/Semmelmehl", None, 8, 3, None),
+  "butterbohne": ("=Limabohne (Butterbohne, Mondbohne) reif, gekocht", None, None, None, None),
+  "limabohne": ("=Limabohne (Butterbohne, Mondbohne) reif, gekocht", None, None, None, None),
 }
 
 # Zustände: "<schlüssel>@<zustand>" (roh | gekocht | abgetropft). Löffel-/Stückgewichte erbt der Eintrag vom Grundschlüssel.
@@ -422,7 +449,7 @@ V = {
   "couscous@gekocht": "=Couscous (Hartweizen) gekocht", "bulgur@gekocht": "=Bulgur (Hartweizen) gekocht", "mais@gekocht": "=Mais gekocht",
 }
 
-NAEHERUNG = {"agavendicksaft": "Agavendicksaft fehlt im BLS; Näherung über Ahornsirup", "enoki": "Enoki fehlt im BLS; Näherung über Austernpilz", "hanfsamen": "Hanfsamen fehlen im BLS; Näherung über Leinsamen", "tempeh": "Tempeh fehlt im BLS; Näherung über Tofu", "enoki pilze": "Enoki fehlt im BLS; Näherung über Austernpilz", "proteinpulver": "Näherung über Sojaproteinisolat", "chickenalternative": "Näherung über Fleischersatz (gluten-, milch- und sojahaltig)", "vegane sahne": "Näherung über Sahneersatz", "vegane mayo": "Näherung über Mayonnaise", "vegane ravioli": "Näherung über Ravioli mit Gemüsefüllung (Eierteig)", "vegane bratwurst": "Näherung über vegetarische Bratwurst", "vegane bratwürste": "Näherung über vegetarische Bratwurst", "vegane würstchen": "Näherung über vegetarische Bratwurst", "kochsahne": "Näherung über Kaffeesahne (10 % Fett)", "seitan-fix": "Näherung über Weizengluten", "vegane kochcreme": "Näherung über Sojakochcreme", "kochcreme": "Näherung über Sojakochcreme", "kürbispüree": "Näherung über rohen Kürbis (püriert)"}
+NAEHERUNG = {"agavendicksaft": "Agavendicksaft fehlt im BLS; Näherung über Ahornsirup", "enoki": "Enoki fehlt im BLS; Näherung über Austernpilz", "hanfsamen": "Hanfsamen fehlen im BLS; Näherung über Leinsamen", "tempeh": "Tempeh fehlt im BLS; Näherung über Tofu", "enoki pilze": "Enoki fehlt im BLS; Näherung über Austernpilz", "proteinpulver": "Näherung über Sojaproteinisolat", "chickenalternative": "Näherung über Fleischersatz (gluten-, milch- und sojahaltig)", "vegane sahne": "Näherung über Sahneersatz", "vegane mayo": "Näherung über Mayonnaise", "vegane ravioli": "Näherung über Ravioli mit Gemüsefüllung (Eierteig)", "vegane bratwurst": "Näherung über vegetarische Bratwurst", "vegane bratwürste": "Näherung über vegetarische Bratwurst", "vegane würstchen": "Näherung über vegetarische Bratwurst", "kochsahne": "Näherung über Kaffeesahne (10 % Fett)", "seitan-fix": "Näherung über Weizengluten", "vegane kochcreme": "Näherung über Sojakochcreme", "kochcreme": "Näherung über Sojakochcreme", "kürbispüree": "Näherung über rohen Kürbis (püriert)", "cavolo nero": "Schwarzkohl fehlt im BLS; Näherung über Grünkohl", "schwarzkohl": "Schwarzkohl fehlt im BLS; Näherung über Grünkohl", "palmkohl": "Palmkohl fehlt im BLS; Näherung über Grünkohl", "daikon": "Daikon fehlt im BLS; Näherung über Rettich", "daikon-rettich": "Daikon fehlt im BLS; Näherung über Rettich", "vegane crème fraîche": "Näherung über Sojakochcreme", "vegane creme fraiche": "Näherung über Sojakochcreme", "sojasahne light": "Light-Variante fehlt im BLS; Näherung über Sojakochcreme", "kewpie mayo": "Kewpie fehlt im BLS; Näherung über Mayonnaise", "kewpie mayonnaise": "Kewpie fehlt im BLS; Näherung über Mayonnaise", "käse": "Käse ohne Sorte: Näherung über Gouda", "reibekäse": "Käse ohne Sorte: Näherung über Gouda", "vegane weiße schokolade": "Vegane Variante fehlt im BLS; Näherung über weiße Schokolade", "gerste": "Gerste im Rezept meist als Graupen gerechnet", "ackerbohne": "getrocknete Ackerbohnen (Dicke Bohne reif)"}
 
 PREPARED = re.compile(r"(gebraten|gekocht|frittiert|gedünstet|gebacken|getrocknet|tiefgefroren|Konserve|Pulver|mit |gesüßt|gegart|paniert|Saft|Sirup|Mus\b|Püree|Chips|Brei|Suppe|Salat|Eis\b|Kuchen)", re.I)
 
