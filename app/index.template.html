@@ -474,7 +474,7 @@ a { color: var(--accent); }
   function A(input) { return K.analyse(input, { lernen: [ZENTRAL, S.lernen] }); }
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.20.17";
+  var APP_VERSION = "0.20.18";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0 (creativecommons.org/licenses/by/4.0). Werte unverändert übernommen; Stück- und Löffelgewichte sind eigene Richtwerte der App. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -686,9 +686,31 @@ a { color: var(--accent); }
   function dietOk(r) {
     if (!ohneOk(r, S.prefs.ohne)) return false;
     var d = S.prefs.diet;
+    if (!(r.ingredients || []).length) return true; // keine Zutaten erkannt (z. B. „Link in Bio“): Ernährung unbekannt, nicht ausblenden
     if (d === "vegan") return (r.diet || []).indexOf("vegan") !== -1;
     if (d === "vegetarisch") return (r.diet || []).indexOf("vegetarisch") !== -1;
     return true;
+  }
+  // Warum ein Rezept wegen der Einstellungen ausgeblendet ist ("" = nicht ausgeblendet)
+  function ausblendGrund(r) {
+    var w = (S.prefs.ohne || []).filter(function (x) { return K.enthaeltZutat(r, x); });
+    if (w.length) return "enthält " + w.join(", ") + " (Zutaten, die du nie willst)";
+    if (!dietOk(r)) return "nicht " + S.prefs.diet + " (deine Ernährung)";
+    return "";
+  }
+  // Startseite und Kategorien: ausgeblendete Rezepte nie stillschweigend weglassen
+  function sichtbare(all) { return UI.alleZeigen ? all : all.filter(function (e) { return dietOk(e.recipe); }); }
+  function ausblendHinweis(all) {
+    var n = all.filter(function (e) { return !dietOk(e.recipe); }).length;
+    if (!n && !UI.alleZeigen) return "";
+    var grund = [S.prefs.diet !== "alles" ? S.prefs.diet : "", S.prefs.ohne.length ? "ohne " + S.prefs.ohne.join(", ") : ""].filter(Boolean).join(" · ");
+    return '<p class="foot">' + (UI.alleZeigen ? 'Alle Rezepte werden gezeigt, auch die ' + n + ' ausgeblendeten (' + esc(grund) + '). <button class="btn ghost" style="width:auto;display:inline;padding:0;min-height:0" data-a="ausgeblendet-zeigen">Wieder ausblenden</button>'
+      : n + (n === 1 ? ' Rezept ist' : ' Rezepte sind') + ' ausgeblendet (' + esc(grund) + '). <button class="btn ghost" style="width:auto;display:inline;padding:0;min-height:0" data-a="ausgeblendet-zeigen">Trotzdem zeigen</button> · Ändern in den Einstellungen.') + '</p>';
+  }
+  // Nach dem Speichern sagen, wenn das neue Rezept ausgeblendet wird
+  function gespeichertText(id, basis) {
+    var e = S.recipes[id], g = e ? ausblendGrund(e.recipe) : "";
+    return g && !UI.alleZeigen ? basis + " – auf Startseite und in Kategorien ausgeblendet: " + g : basis;
   }
   function defaultServings(r) {
     if (!r.servings) return S.prefs.persons || 2;
@@ -1495,7 +1517,7 @@ a { color: var(--accent); }
   })();
   function viewRezepte() {
     var all = entries();
-    var mine = all.filter(function (e) { return dietOk(e.recipe); });
+    var mine = sichtbare(all);
     var head = '<header class="topbar"><h1>Rezepte</h1><div class="acts">' +
       '<button class="iconbtn" data-a="' + (UI.homeSuche ? 'suche-zu' : 'home-suche') + '" aria-label="' + (UI.homeSuche ? 'Suche schließen' : 'Rezepte suchen') + '">' + ic(UI.homeSuche ? "x" : "search") + '</button>' +
       '<button class="iconbtn" data-a="settings" aria-label="Einstellungen und Profil">' + ic("gear") + '</button></div></header>' +
@@ -1509,7 +1531,7 @@ a { color: var(--accent); }
     var kacheln = kachelBlock(mine);
     var neu = mine.slice(0, 3);
     var neuBlock = neu.length ? '<section class="sec"><div class="sec-head"><h2>Neu gespeichert</h2><button class="link" data-a="schnell" data-k="alle">Alle Rezepte</button></div><div class="group">' + neu.map(recipeRow).join("") + '</div></section>' : "";
-    return head + banner + guide("start") + wocheBlock() + kacheln + neuBlock;
+    return head + banner + guide("start") + wocheBlock() + kacheln + neuBlock + ausblendHinweis(all);
   }
   function relDay(ts) {
     if (!ts) return "";
@@ -1606,7 +1628,7 @@ a { color: var(--accent); }
     toast("Gespeichert: " + e.kategorien.join(", ") + (neu ? " · " + neu + (neu === 1 ? " weiteres Rezept" : " weitere Rezepte") + " gleich mit zugeordnet" : ""));
   }
   function viewKategorien() {
-    var all = entries().filter(function (e) { return dietOk(e.recipe); });
+    var alle = entries(), all = sichtbare(alle);
     if (UI.liste && S.listen[UI.liste]) {
       var L = S.listen[UI.liste], inL = filteredList(all.filter(function (e) { return L.ids.indexOf(e.id) !== -1; }));
       return '<header class="topbar"><button class="iconbtn" data-a="liste-zurueck" aria-label="Alle Kategorien">' + ic("back") + '</button></header>' +
@@ -1628,7 +1650,8 @@ a { color: var(--accent); }
       return '<header class="topbar"><button class="iconbtn" data-a="cat-back" aria-label="Alle Kategorien">' + ic("back") + '</button><span class="glyph" aria-hidden="true">' + ic(GANG_ICON[UI.cat] || "g_haupt") + '</span></header>' +
         '<section class="hero"><h1>' + esc(UI.cat) + '</h1><p class="small muted">' + list.length + (list.length === 1 ? " Rezept" : " Rezepte") + '</p></section>' +
         (list.length > 1 ? sortSeg : '') +
-        (list.length ? '<div class="group">' + list.map(recipeRow).join("") + '</div>' : '<div class="group empty">' + ic(GANG_ICON[UI.cat] || "g_haupt") + '<p class="muted small">In dieser Kategorie ist noch nichts.</p></div>');
+        (list.length ? '<div class="group">' + list.map(recipeRow).join("") + '</div>' : '<div class="group empty">' + ic(GANG_ICON[UI.cat] || "g_haupt") + '<p class="muted small">In dieser Kategorie ist noch nichts.</p></div>') +
+        ausblendHinweis(alle.filter(function (e) { return inCat(e, UI.cat); }));
     }
     var counts = {};
     KAT_ORDER.forEach(function (c) { counts[c] = all.filter(function (e) { return inCat(e, c); }).length; });
@@ -1644,6 +1667,7 @@ a { color: var(--accent); }
       '<div class="catgrid">' + KAT_ORDER.map(function (c) {
         return '<button class="cat" data-a="cat" data-c="' + esc(c) + '"' + (counts[c] ? '' : ' disabled') + '><span class="glyph" aria-hidden="true">' + ic(GANG_ICON[c]) + '</span><span><b>' + esc(c) + '</b><span class="c">' + (counts[c] === 1 ? "1 Rezept" : counts[c] + " Rezepte") + '</span></span></button>';
       }).join("") + '</div>' +
+      ausblendHinweis(alle) +
       '<p class="foot">Ein Rezept kann in mehreren Kategorien stehen, zum Beispiel Frühstück und Backen.</p>';
   }
 
@@ -2918,7 +2942,7 @@ a { color: var(--accent); }
         if (!out.dupe && UEB_SPRACHEN[foreignLang(rS, S.recipes[out.id])]) setTimeout(function () { startTranslate(out.id, true); }, 900);
         if (!out.dupe) setTimeout(function () { titelSpracheFragen(out.id); }, 700);
       } catch (x) { /* egal */ }
-      setTimeout(function () { toast(out.dupe ? "Schon in der Kombüse" : "In der Kombüse gespeichert"); }, 300);
+      setTimeout(function () { toast(out.dupe ? "Schon in der Kombüse" : gespeichertText(out.id, "In der Kombüse gespeichert")); }, 300);
       return true;
     }
     UI.tab = "neu"; UI.detail = null;
@@ -2964,6 +2988,7 @@ a { color: var(--accent); }
         UI.tab = "einkauf"; UI.detail = null; render(); window.scrollTo(0, 0); toast("Fehlende Zutaten stehen auf der Einkaufsliste"); break;
       case "cat": UI.cat = el.dataset.c; render(); window.scrollTo(0, 0); break;
       case "cat-back": UI.cat = null; render(); break;
+      case "ausgeblendet-zeigen": UI.alleZeigen = !UI.alleZeigen; render(); break;
       case "nutri-toggle":
         if (S.prefs.nutrition) { S.prefs.nutrition = false; delete UI.filter["Nährwert-Fokus"]; save("prefs"); el.setAttribute("aria-checked", "false"); render(); toast("Nährwerte ausgeblendet"); }
         else if (!el.dataset.ok) { nutriConfirmSheet(); }
@@ -3249,7 +3274,7 @@ a { color: var(--accent); }
         var out = addRecipe(d.res, { input: d.input });
         if (out.dupe) { toast("Das Rezept ist schon in der Kombüse"); UI.draft = null; UI.detail = out.id; render(); break; }
         if (nt2 && nt2 !== d.res.recipe.title) { S.recipes[out.id].userTitle = nt2; titelLernen(out.id); }
-        save("recipes"); UI.draft = null; UI.pasteText = ""; UI.detail = out.id; render(); window.scrollTo(0, 0); toast("Gespeichert");
+        save("recipes"); UI.draft = null; UI.pasteText = ""; UI.detail = out.id; render(); window.scrollTo(0, 0); toast(gespeichertText(out.id, "Gespeichert"));
         var acc = d.res.recipe.source.account;
         if (acc) setTimeout(function () { folgenPruefen(acc); }, 600);
         break;
