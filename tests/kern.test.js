@@ -898,5 +898,22 @@ check("Ü: Brüche vor der Übersetzung", K.vorUebersetzung("Add 3½ cups water"
   check("Kurzer Schritt „Backen.“ bleibt", A("Brot\n\nZutaten:\n500 g Mehl\n1 Pck Hefe\n\nZubereitung:\nAlles verkneten.\n1 Stunde gehen lassen.\nBacken.").steps.length === 3);
   check("Kurzer Schritt „Blend until smooth.“ bleibt", A("Smoothie\n\nIngredients:\n1 cup frozen berries\n1 banana\n\nBlend until smooth.").steps.length === 1);
 }
+// 09.11.: Runde 4 Nr. 3 und 8 – Dosen, Öl zum Confieren, Schritte zusammenführen
+{
+  const A = c => K.analyse({ caption: c, url: "x" }).recipe;
+  const vorb = z => (K.zeitAnalyse(A("Test\n\nZutaten:\n" + z + "\n200 g Nudeln\n\nZubereitung:\n1. Die Nudeln kochen und 10 Minuten ziehen lassen.")).teile || []).some(x => /Zutaten laut Liste/.test(x.text));
+  check("Dose gehackte/geschälte Tomaten: keine Vorbereitung", !vorb("1 Dose geschälte Tomaten") && !vorb("1 can diced tomatoes"));
+  check("Glas, aber „(chopped)“ im Hinweis: Vorbereitung", vorb("4 jarred roasted red peppers (chopped)"));
+  check("Frische Zwiebel, gewürfelt: Vorbereitung", vorb("1 Zwiebel, gewürfelt"));
+  const NWx = require("../daten/naehrwerte.json");
+  const conf = A("Confit\n\nZutaten:\n4 Knoblauchknollen\n300 ml Olivenöl zum Confieren\n200 g Nudeln\n\nZubereitung:\n1. Knoblauch im Öl 40 Minuten confieren.");
+  const nc = K.berechneNaehrwerte(conf, NWx);
+  check("Öl zum Confieren nicht eingerechnet", nc.ausgelassen.indexOf("Olivenöl") !== -1 && nc.values.kcal < 1200, [nc.ausgelassen, nc.values.kcal]);
+  const cb = A("es trafen sich zwei mäuse und machten crème brûlée\n\nzutaten:\n– 400 g seidentofu\n– 1 EL kokosöl\n\nzubereitung:\nseidentofu und kokosöl im mixer glatt mixen und über nacht in den kühlschrank stellen.\nam nächsten tag eine schicht zucker auf die oberfläche streuen und mit einem bunsenbrenner karamellisieren, bis sich eine goldene, knusprige schicht bildet. kurz abkühlen lassen und dann mit dem löffel die kruste knacken.");
+  check("Geteilte Schritte merken die Herkunft", cb.steps.length === 3 && JSON.stringify(cb.stepsTeilung) === "[[0],[1,2]]");
+  K.schritteZusammenfuehren(cb);
+  check("Schritte zusammenführen ergibt das Original", cb.steps.length === 2 && /knacken\.$/.test(cb.steps[1]) && !cb.stepsTeilung);
+  check("NL→EN-Korrektur: Pflanzenmilch", K.nlEnKorrektur("Verwarm de plantaardige melk", "Heat the vegetable milk") === "Heat the plant milk");
+}
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);
