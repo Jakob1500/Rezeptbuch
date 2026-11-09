@@ -1,0 +1,54 @@
+# Holt weitere Sprachmodelle für den Offline-Übersetzer Bergamot (Mozilla, Modelle CC BY-SA 4.0)
+# aus mozilla/firefox-translations-models (Variante „tiny“, wie das Modell Englisch→Deutsch) nach docs/bergamot/<paar>/
+# und trägt sie in docs/bergamot/registry.json ein. Sprachen ohne direktes Modell nach Deutsch übersetzt
+# Bergamot selbst über Englisch (z. B. nl→en→de). Die iPhones laden die Dateien nur bei Bedarf von GitHub Pages.
+name: Bergamot-Sprachen holen
+on:
+  workflow_dispatch:
+  push:
+    paths: [".github/workflows/bergamot-sprachen.yml"]
+permissions:
+  contents: write
+env:
+  PAARE: "nlen"
+jobs:
+  holen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Modelle laden
+        shell: bash
+        run: |
+          set -e
+          Z="$GITHUB_WORKSPACE/docs/bergamot"; L="$Z/_log-sprachen.txt"; : > "$L"
+          GIT_LFS_SKIP_SMUDGE=1 git clone -q --depth 1 https://github.com/mozilla/firefox-translations-models /tmp/m
+          cd /tmp/m && git lfs install --local >> "$L" 2>&1
+          for p in $PAARE; do
+            echo "== $p" >> "$L"
+            git lfs pull --include "models/tiny/$p/*" >> "$L" 2>&1
+            mkdir -p "$Z/$p"
+            for f in models/tiny/$p/*; do
+              n=$(basename "$f")
+              case "$n" in
+                *.gz) gunzip -c "$f" > "$Z/$p/${n%.gz}" ;;
+                metadata.json) cp "$f" "$Z/$p/metadata.json" ;;
+              esac
+            done
+            ls -la "$Z/$p" >> "$L"
+          done
+          cd "$GITHUB_WORKSPACE"
+          node -e '
+            const fs=require("fs"), c=require("crypto"), d=process.argv[1], paare=process.argv[2].split(/\s+/).filter(Boolean);
+            const reg=JSON.parse(fs.readFileSync(d+"/registry.json","utf8"));
+            const teil=n=>n.startsWith("model.")?"model":n.startsWith("lex.")?"lex":n.startsWith("vocab.")?"vocab":null;
+            paare.forEach(p=>{ const e={}; fs.readdirSync(d+"/"+p).forEach(n=>{ const t=teil(n); if(!t) return; const b=fs.readFileSync(d+"/"+p+"/"+n);
+              if (b.length < 1000) throw new Error(p+"/"+n+" ist nur ein LFS-Zeiger"); e[t]={ name:"bergamot/"+p+"/"+n, size:b.length, expectedSha256Hash:c.createHash("sha256").update(b).digest("hex") }; });
+              if(!e.model||!e.lex||!e.vocab) throw new Error(p+": Dateien fehlen"); reg[p]=e; });
+            fs.writeFileSync(d+"/registry.json", JSON.stringify(reg, null, 1)); console.log(Object.keys(reg).join(","));' "$Z" "$PAARE" >> "$L" 2>&1
+      - name: Ins Repository schreiben
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898+github-actions[bot]@users.noreply.github.com"
+          git add docs/bergamot
+          git commit -m "Bergamot-Sprachmodelle ($PAARE) automatisch geholt" || echo "nichts Neues"
+          git push
