@@ -19,32 +19,40 @@ jobs:
       - name: Modelle laden
         shell: bash
         run: |
-          set -e
-          Z="$GITHUB_WORKSPACE/docs/bergamot"; L="$Z/_log-sprachen.txt"; : > "$L"
+          set +e
+          Z="$GITHUB_WORKSPACE/docs/bergamot"
           GIT_LFS_SKIP_SMUDGE=1 git clone -q --depth 1 https://github.com/mozilla/firefox-translations-models /tmp/m
-          cd /tmp/m && git lfs install --local >> "$L" 2>&1
           for p in $PAARE; do
-            echo "== $p" >> "$L"
-            git lfs pull --include "models/tiny/$p/*" >> "$L" 2>&1
+            echo "== $p (Weg 1: Git LFS)"
             mkdir -p "$Z/$p"
-            for f in models/tiny/$p/*; do
-              n=$(basename "$f")
-              case "$n" in
-                *.gz) gunzip -c "$f" > "$Z/$p/${n%.gz}" ;;
-                metadata.json) cp "$f" "$Z/$p/metadata.json" ;;
-              esac
+            (cd /tmp/m && git lfs install --local && git lfs pull --include "models/tiny/$p/*")
+            for f in /tmp/m/models/tiny/$p/*.gz; do
+              n=$(basename "$f"); gunzip -c "$f" > "$Z/$p/${n%.gz}" 2>/dev/null || rm -f "$Z/$p/${n%.gz}"
             done
-            ls -la "$Z/$p" >> "$L"
+            cp /tmp/m/models/tiny/$p/metadata.json "$Z/$p/" 2>/dev/null
+            if ! ls "$Z/$p"/model.* >/dev/null 2>&1; then
+              echo "== $p (Weg 2: Mozilla Remote Settings, wie Firefox selbst)"
+              curl -sSL "https://firefox.settings.services.mozilla.com/v1/buckets/main/collections/translations-models/records" -o /tmp/rs.json
+              node -e '
+                const r=JSON.parse(require("fs").readFileSync("/tmp/rs.json","utf8")).data, p=process.argv[1];
+                const f=r.filter(x=>x.fromLang===p.slice(0,2)&&x.toLang===p.slice(2,4));
+                f.forEach(x=>console.error("gefunden", x.fileType, x.version, x.name, x.attachment&&x.attachment.size));
+                const best={}; f.filter(x=>/^1\./.test(String(x.version))).forEach(x=>{ if(!best[x.fileType]||String(x.version)>String(best[x.fileType].version)) best[x.fileType]=x; });
+                Object.values(best).forEach(x=>console.log(x.attachment.location+" "+x.name));' "$p" > /tmp/dl.txt
+              cat /tmp/dl.txt
+              while read -r loc name; do curl -sSL "https://firefox-settings-attachments.cdn.mozilla.net/$loc" -o "$Z/$p/$name"; done < /tmp/dl.txt
+              cd "$Z/$p"; for f in *.gz; do [ -f "$f" ] && gunzip -f "$f"; done; cd "$GITHUB_WORKSPACE"
+            fi
+            ls -la "$Z/$p"
           done
-          cd "$GITHUB_WORKSPACE"
           node -e '
             const fs=require("fs"), c=require("crypto"), d=process.argv[1], paare=process.argv[2].split(/\s+/).filter(Boolean);
             const reg=JSON.parse(fs.readFileSync(d+"/registry.json","utf8"));
             const teil=n=>n.startsWith("model.")?"model":n.startsWith("lex.")?"lex":n.startsWith("vocab.")?"vocab":null;
             paare.forEach(p=>{ const e={}; fs.readdirSync(d+"/"+p).forEach(n=>{ const t=teil(n); if(!t) return; const b=fs.readFileSync(d+"/"+p+"/"+n);
-              if (b.length < 1000) throw new Error(p+"/"+n+" ist nur ein LFS-Zeiger"); e[t]={ name:"bergamot/"+p+"/"+n, size:b.length, expectedSha256Hash:c.createHash("sha256").update(b).digest("hex") }; });
-              if(!e.model||!e.lex||!e.vocab) throw new Error(p+": Dateien fehlen"); reg[p]=e; });
-            fs.writeFileSync(d+"/registry.json", JSON.stringify(reg, null, 1)); console.log(Object.keys(reg).join(","));' "$Z" "$PAARE" >> "$L" 2>&1
+              if (b.length < 1000) { console.log(p+"/"+n+" ist nur ein LFS-Zeiger"); return; } e[t]={ name:"bergamot/"+p+"/"+n, size:b.length, expectedSha256Hash:c.createHash("sha256").update(b).digest("hex") }; });
+              if(!e.model||!e.lex||!e.vocab) { console.log(p+": Dateien fehlen"); process.exitCode=1; return; } reg[p]=e; });
+            fs.writeFileSync(d+"/registry.json", JSON.stringify(reg, null, 1)); console.log("Registry:", Object.keys(reg).join(","));' "$Z" "$PAARE"
       - name: Ins Repository schreiben
         run: |
           git config user.name "github-actions[bot]"
