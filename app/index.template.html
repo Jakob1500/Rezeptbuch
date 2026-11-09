@@ -476,7 +476,7 @@ a { color: var(--accent); }
   function A(input) { return K.analyse(input, { lernen: [ZENTRAL, S.lernen] }); }
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.20.26";
+  var APP_VERSION = "0.20.27";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0 (creativecommons.org/licenses/by/4.0). Werte unverändert übernommen; Stück- und Löffelgewichte sind eigene Richtwerte der App. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -1837,14 +1837,14 @@ a { color: var(--accent); }
     if (!UEB.laeuft) return "";
     return '<div class="banner">' + ic("lang") + '<div class="main"><b>Übersetze ' + Math.min(UEB.fertig + 1, UEB.gesamt) + ' von ' + UEB.gesamt + (UEB.gesamt === 1 ? ' Rezept' : ' Rezepten') + ' …</b> ' + (UEB.ersteMal ? 'Beim ersten Mal wird der Übersetzer einmalig geladen (ca. ' + UEB_MB + ' MB).' : 'Läuft auf deinem iPhone.') + '</div></div>';
   }
-  var UEB_MB = 20;
+  var UEB_MB = 37; // Modelle Version 2 (wie im aktuellen Firefox), Jakob Runde 4: A. Niederländisch braucht zusätzlich nl→en (ca. 37 MB)
   function uebersetzerInfoSheet() {
     sheet('<h2>Übersetzung auf deinem iPhone</h2>' +
       '<p class="small">Fremdsprachige Rezepte übersetzt die App jetzt selbst ins Deutsche. Dafür lädt sie <b>einmalig</b> den Übersetzer (ca. ' + UEB_MB + ' MB, am besten im WLAN). Danach funktioniert er auch ohne Internet.</p>' +
       '<ul class="small"><li><b>Privat:</b> Die Rezepte verlassen dein iPhone nicht. Es gibt keinen Übersetzungsdienst im Internet.</li>' +
       '<li><b>Technik:</b> Bergamot von Mozilla (Firefox), Open Source, ein reines Übersetzungsmodell – keine KI zum Chatten.</li>' +
       '<li><b>Qualität:</b> gut für Kochschritte; einzelne Sätze können holprig sein. Das Original bleibt gespeichert („Original zeigen“).</li>' +
-      '<li><b>Speicher:</b> ca. ' + UEB_MB + ' MB im Speicher der App. Wird er von iOS geleert, lädt die App ihn beim nächsten Mal neu.</li></ul>' +
+      '<li><b>Speicher:</b> ca. ' + UEB_MB + ' MB im Speicher der App, für niederländische Rezepte einmalig ca. ' + UEB_MB + ' MB mehr. Wird er von iOS geleert, lädt die App ihn beim nächsten Mal neu.</li></ul>' +
       '<button class="btn soft" data-a="close-sheet">Verstanden</button>');
   }
 
@@ -2547,7 +2547,7 @@ a { color: var(--accent); }
           return '<li>' + q[0] + (q[1] ? ' <a href="' + esc(q[1]) + '" target="_blank" rel="noopener">' + esc(q[1]) + '</a>' : '') + '</li>';
         }).join("") + '</ol>' +
         '<p class="small muted">Nährwerte von Produkten, die du ausdrücklich aus Open Food Facts übernimmst: Enthält Daten von Open Food Facts, verfügbar unter der Open Database License (ODbL 1.0, https://opendatacommons.org/licenses/odbl/1-0/). Nur zur Information, nicht für medizinische Zwecke.</p>' +
-        '<p class="small muted">Die Nährwertdaten stehen unter der Lizenz CC BY 4.0. Übersetzer: Bergamot-Translator (Mozilla u. a., Mozilla Public License 2.0); Sprachmodelle Englisch→Deutsch und Niederländisch→Englisch (Niederländisch wird über Englisch übersetzt): Bergamot-Projekt und Mozilla, Creative Commons BY-SA 4.0.</p>') +
+        '<p class="small muted">Die Nährwertdaten stehen unter der Lizenz CC BY 4.0. Übersetzer: Bergamot-Translator (Mozilla u. a., Mozilla Public License 2.0); Sprachmodelle Englisch→Deutsch und Niederländisch→Englisch, Version 2 (Niederländisch wird über Englisch übersetzt): Bergamot-Projekt und Mozilla, Creative Commons BY-SA 4.0.</p>') +
       '</div><p class="foot">Kombüse ' + APP_VERSION + ' · Kern ' + esc(K.VERSION) + '</p><button class="btn soft" data-a="close-sheet">Fertig</button>');
   }
   // Quellen (APA 7), alphabetisch nach Urheber

@@ -915,5 +915,8 @@ check("Ü: Brüche vor der Übersetzung", K.vorUebersetzung("Add 3½ cups water"
   check("Schritte zusammenführen ergibt das Original", cb.steps.length === 2 && /knacken\.$/.test(cb.steps[1]) && !cb.stepsTeilung);
   check("NL→EN-Korrektur: Pflanzenmilch", K.nlEnKorrektur("Verwarm de plantaardige melk", "Heat the vegetable milk") === "Heat the plant milk");
 }
+// 09.11. spät: Fehler aus 0.20.26 – „chopped“ wurde über die Tippfehler-Korrektur zu „Hackfleisch“ (niederländisch „gehakt“)
+check("„chopped onion“ bleibt gehackt, nicht Hackfleisch", K.parseIngredientLine("1/4 cup chopped onion").note.indexOf("Hackfleisch") === -1);
+check("Englisches Rezept mit „chopped“ bleibt vegan", K.analyse({ caption: "Salad\n\nIngredients:\n1 cup chopped onion\n2 cups chopped parsley\n\nMix everything in a bowl.", url: "x" }).recipe.diet.indexOf("vegan") !== -1);
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);
