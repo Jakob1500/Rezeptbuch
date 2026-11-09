@@ -1768,6 +1768,18 @@ a { color: var(--accent); }
     var vor = K.vorUebersetzung ? K.vorUebersetzung(text, lang) : String(text);
     return tr.translate({ from: lang, to: "de", text: vor, html: false, qualityScores: false }).then(function (res) { return res && res.target && res.target.text ? res.target.text : text; });
   }
+  // Niederländisch: selbst über Englisch gehen (nl→en, dann der englische Weg mit Vorbereitung und Glossar), damit alle
+  // Korrekturen für englische Rezepte greifen. Ergebnis { de, en } – en dient dem Glossar im Kern als „Original“.
+  function uebersetzeZwei(tr, lang, text) {
+    if (lang !== "nl") return uebersetze(tr, lang, text).then(function (de) { return { de: de, en: "" }; });
+    var vor = K.vorUebersetzung ? K.vorUebersetzung(text, "nl") : String(text);
+    return tr.translate({ from: "nl", to: "en", text: vor, html: false, qualityScores: false }).then(function (res) {
+      var en = res && res.target && res.target.text ? res.target.text : "";
+      if (!en) return { de: text, en: "" };
+      if (K.nlEnKorrektur) en = K.nlEnKorrektur(text, en);
+      return uebersetze(tr, "en", en).then(function (de) { return { de: de, en: en }; });
+    });
+  }
   function uebersetzeRezept(tr, e) {
     var r = e.recipe, lang = foreignLang(r, e) || "en";
     var titel = titleForeign(r, e) ? r.title : (!r.titleTranslated && r.titleOriginal && !/[äöüß]/i.test(titleOf(e)) && K.isEnglishTitle(r.titleOriginal) ? r.titleOriginal : "");
@@ -1779,13 +1791,13 @@ a { color: var(--accent); }
     if (!zutaten.some(Boolean)) zutaten = [];
     return Promise.all(steps.map(function (st) {
       var kopf = /^## /.test(st);
-      return uebersetze(tr, lang, kopf ? st.slice(3) : st).then(function (x) { return kopf ? "## " + x : x; });
+      return uebersetzeZwei(tr, lang, kopf ? st.slice(3) : st).then(function (x) { return { de: kopf ? "## " + x.de : x.de, en: x.en }; });
     })).then(function (neu) {
-      if (neu.length) K.uebersetzeSchritte(r, neu);
-      return Promise.all(zutaten.map(function (z) { return z ? uebersetze(tr, lang, z) : Promise.resolve(""); }));
+      if (neu.length) K.uebersetzeSchritte(r, neu.map(function (x) { return x.de; }), lang === "nl" ? neu.map(function (x) { return x.en; }) : null);
+      return Promise.all(zutaten.map(function (z) { return z ? uebersetzeZwei(tr, lang, z).then(function (x) { return x.de; }) : Promise.resolve(""); }));
     }).then(function (zDe) {
       if (zDe.length && K.uebersetzeZutaten) { K.uebersetzeZutaten(r, zDe); try { K.berechneNaehrwerte(r, NW, null, { zuordnungen: Z() }); } catch (x) { /* Nährwerte bleiben */ } katAnwenden(e); }
-      if (titel && !e.userTitle) return uebersetze(tr, lang, titel).then(function (t) { r.titleOriginal = r.titleOriginal || r.title; r.title = K.polishTitle(t); r.titleTranslated = true; if (lang !== "en") r.titleAus = lang; });
+      if (titel && !e.userTitle) return uebersetzeZwei(tr, lang, titel).then(function (x) { var t = x.de; r.titleOriginal = r.titleOriginal || r.title; r.title = K.polishTitle(t); r.titleTranslated = true; if (lang !== "en") r.titleAus = lang; });
     }).then(function () { e.updatedAt = Date.now(); });
   }
   // Übersetzt alle offenen Rezepte (oder zuerst firstId). still = automatisch nach dem Import, ohne Meldungen
@@ -2007,6 +2019,7 @@ a { color: var(--accent); }
         '<button class="row" data-a="alle-naehrwerte" data-id="' + esc(id) + '"><span class="main"><span class="title">Alle Nährwerte</span><span class="sub">Vitamine, Mineralstoffe, Fettsäuren – mit Anteil am Tagesbedarf</span></span>' + ic("chev") + '</button>' +
         '<div class="row"><span class="main"><span class="sub">' + (n.reliable ? "Berechnet aus " + n.coverage.matched + " Zutaten." : "Nur teilweise berechnet: " + n.coverage.matched + " von " + (n.coverage.matched + n.coverage.unmatched.length) + " Zutaten bekannt.") +
         (r.servingsEstimated ? " Portionen im Rezept geschätzt (" + esc(r.servingsBasis) + ")." : "") + '</span></span></div>' +
+        ((n.ausgelassen || []).length ? '<div class="row"><span class="main"><span class="sub">Nicht eingerechnet: ' + esc(n.ausgelassen.join(", ")) + ' zum Confieren oder Frittieren – davon bleibt nur ein Teil im Essen, wie viel, ist nicht verlässlich bekannt.</span></span></div>' : "") +
         (offen.length ? offenHtml : n.coverage.unmatched.length ? '<div class="row"><span class="main"><span class="sub">Noch ohne Nährwert: ' + esc(n.coverage.unmatched.join(", ")) + '.</span></span></div>' : "") +
         (function () { var v = K.naehrwertVergleich ? K.naehrwertVergleich(r) : null; if (!v) return "";
           var pz = function (x) { return x == null ? "" : (x > 0 ? "+" : x < 0 ? "−" : "±") + Math.abs(x) + " %"; };
