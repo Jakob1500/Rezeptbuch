@@ -1,0 +1,44 @@
+# Test: größere Bergamot-Modelle (Version 2, wie im aktuellen Firefox) für nl→en und en→de nach docs/bergamot/v2/ holen,
+# mit eigener registry-v2.json. Die App nutzt sie erst, wenn Jakob sich dafür entscheidet.
+name: Bergamot-Modelle v2 testen
+on:
+  push:
+    paths: [".github/workflows/bergamot-v2-test.yml"]
+permissions:
+  contents: write
+jobs:
+  holen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Modelle laden
+        shell: bash
+        run: |
+          set +e
+          Z="$GITHUB_WORKSPACE/docs/bergamot/v2"; mkdir -p "$Z"
+          curl -sSL "https://firefox.settings.services.mozilla.com/v1/buckets/main/collections/translations-models/records" -o /tmp/rs.json
+          for p in nlen ende; do
+            mkdir -p "$Z/$p"
+            node -e '
+              const r=JSON.parse(require("fs").readFileSync("/tmp/rs.json","utf8")).data, p=process.argv[1];
+              const f=r.filter(x=>x.fromLang===p.slice(0,2)&&x.toLang===p.slice(2,4));
+              f.forEach(x=>console.error("gefunden", p, x.fileType, x.version, x.name, x.attachment&&x.attachment.size));
+              const best={}; f.filter(x=>/^2\./.test(String(x.version))).forEach(x=>{ if(!best[x.fileType]||String(x.version)>String(best[x.fileType].version)) best[x.fileType]=x; });
+              Object.values(best).forEach(x=>console.log(x.attachment.location+" "+x.name));' "$p" > /tmp/dl.txt
+            cat /tmp/dl.txt
+            while read -r loc name; do curl -sSL "https://firefox-settings-attachments.cdn.mozilla.net/$loc" -o "$Z/$p/$name"; done < /tmp/dl.txt
+            (cd "$Z/$p"; for f in *.gz; do [ -f "$f" ] && gunzip -f "$f"; done; ls -la)
+          done
+          node -e '
+            const fs=require("fs"), c=require("crypto"), d=process.argv[1];
+            const teil=n=>n.startsWith("model.")?"model":n.startsWith("lex.")?"lex":(n.startsWith("vocab.")||n.startsWith("srcvocab.")||n.startsWith("trgvocab."))?(n.startsWith("srcvocab.")?"srcvocab":n.startsWith("trgvocab.")?"trgvocab":"vocab"):null;
+            const reg={}; ["nlen","ende"].forEach(p=>{ const e={}; fs.readdirSync(d+"/"+p).forEach(n=>{ const t=teil(n); if(!t) return; const b=fs.readFileSync(d+"/"+p+"/"+n);
+              e[t]={ name:"bergamot/v2/"+p+"/"+n, size:b.length, expectedSha256Hash:c.createHash("sha256").update(b).digest("hex") }; }); reg[p]=e; });
+            fs.writeFileSync(d+"/../registry-v2.json", JSON.stringify(reg, null, 1)); console.log(JSON.stringify(reg));' "$Z"
+      - name: Ins Repository schreiben
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898+github-actions[bot]@users.noreply.github.com"
+          git add docs/bergamot
+          git commit -m "Bergamot-Modelle v2 (Test) automatisch geholt" || echo "nichts Neues"
+          git push
