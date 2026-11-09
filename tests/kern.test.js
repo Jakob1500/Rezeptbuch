@@ -862,5 +862,25 @@ check("Ü: Brüche vor der Übersetzung", K.vorUebersetzung("Add 3½ cups water"
   check("Zutat: gemahlener Kreuzkümmel normalisiert", K.normName("gemahlener Kreuzkümmel") === "kreuzkümmel");
   check("Zutat: Crème fraîche mit Akzenten", K.normName("Crème fraîche") === "crème fraîche");
 }
+// 09.11.: Niederländisch – Wörterbuch, Einheiten, Titel, Fleisch in Zusammensetzungen
+{
+  const Z = l => K.parseIngredientLine(l);
+  check("NL: 500 gr bloem → Mehl", Z("500 gr bloem").name === "Mehl");
+  check("NL: 2 teentjes knoflook → Zehe Knoblauch", Z("2 teentjes knoflook").unit === "Zehe" && Z("2 teentjes knoflook").name === "Knoblauch");
+  check("NL: 1 dl room → 100 ml Sahne", Z("1 dl room").qty === 100 && Z("1 dl room").unit === "ml" && Z("1 dl room").name === "Sahne");
+  check("NL: 2 takjes tijm → Zweig Thymian", Z("2 takjes tijm").unit === "Zweig" && Z("2 takjes tijm").name === "Thymian");
+  check("NL: paprika’s mit typografischem Apostroph", Z("2 paprika’s").name === "Paprika");
+  check("NL: English bleibt („One pot“ ist keine Einheit)", Z("broccoli").name === "Brokkoli" && Z("1 cup confectioners’ sugar").name !== "Confectioners’ sugar");
+  const nl = K.analyse({ caption: "Aardappelschotel met bloemkool, prei en tomaten\n\nIngrediënten:\n600 gram aardappelen\n1 bloemkool\n1 prei\n\nBereiding:\n1. Schil de aardappelen en kook ze in 20 minuten gaar.\n2. Bak de prei in een pan met olie.", url: "x" }).recipe;
+  check("NL: Titelzeile mit Komma wird genommen", nl.title === "Aardappelschotel met bloemkool, prei en tomaten", nl.title);
+  check("NL: Sprache erkannt", K.detectLang(nl) === "nl");
+  const spek = K.analyse({ caption: "Boeuf\n\nZutaten:\n40 g Frühstücksspeck\n250 g Champignons\n\nZubereitung:\n1. Den Speck in der Pfanne anbraten und 10 Minuten schmoren.", url: "x" }).recipe;
+  check("Frühstücksspeck ist Fleisch (nicht vegan)", spek.diet.indexOf("vegan") === -1 && spek.diet.indexOf("mit Fleisch") !== -1, spek.diet);
+  check("Spekulatiusgewürz ist kein Fleisch", K.analyse({ caption: "Kekse\n\nZutaten:\n200 g Mehl\n1 EL Spekulatiusgewürz\n\nZubereitung:\n1. Alles verkneten und 12 Minuten backen.", url: "x" }).recipe.diet.indexOf("vegan") !== -1);
+  const tr = K.analyse({ caption: "Pasta\n\nIngrediënten:\n200 g tortiglioni\n300 g onbekendgehakt\n\nBereiding:\n1. Kook de pasta en bak het vlees.\n2. Meng alles door elkaar.", url: "x" }).recipe;
+  K.uebersetzeZutaten(tr, ["200 g Nudeln", "300 g Rinderhackfleisch"]);
+  check("Übersetzte Zutaten: Ernährung neu bestimmt", tr.ingredientsTranslated && tr.diet.indexOf("mit Fleisch") !== -1, tr.diet);
+  check("Vorübersetzung NL: „+“ wird „en“", K.vorUebersetzung("zout + peper", "nl") === "zout en peper");
+}
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

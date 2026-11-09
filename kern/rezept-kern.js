@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.7.8";
+  var VERSION = "0.7.9";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -47,7 +47,7 @@
     "dosen": "Dose", "dose": "Dose", "cans": "Dose", "can": "Dose",
     "gläser": "Glas", "glas": "Glas", "jar": "Glas",
     "bund": "Bund", "bunch": "Bund", "bunches": "Bund", "bosje": "Bund", "bos": "Bund",
-    "blik": "Dose", "blikken": "Dose", "blikje": "Dose", "snufje": "Prise", "eetlepel": "EL", "eetlepels": "EL", "theelepel": "TL", "theelepels": "TL", "sachet": "Pck",
+    "blik": "Dose", "blikken": "Dose", "blikje": "Dose", "blikjes": "Dose", "snufje": "Prise", "snufjes": "Prise", "snuifje": "Prise", "takje": "Zweig", "takjes": "Zweig", "stengel": "Stange", "stengels": "Stange", "scheutje": "Schuss", "scheut": "Schuss", "teentje": "Zehe", "teentjes": "Zehe", "teen": "Zehe", "tenen": "Zehe", "plakje": "Scheibe", "plakjes": "Scheibe", "plakken": "Scheibe", "stuks": "Stk", "stuk": "Stk", "zakje": "Pck", "zakjes": "Pck", "pakje": "Pck", "potje": "Glas", "blaadje": "Blatt", "blaadjes": "Blatt", "handje": "Handvoll", "klontje": "Stk", "dl": "dl", "deciliter": "dl", "eetlepel": "EL", "eetlepels": "EL", "theelepel": "TL", "theelepels": "TL", "sachet": "Pck",
     "zehen": "Zehe", "zehe": "Zehe", "cloves": "Zehe", "clove": "Zehe",
     "päckchen": "Pck", "packungen": "Pck", "packung": "Pck", "pck": "Pck", "pkg": "Pck", "pack": "Pck",
     "tassen": "Tasse", "tasse": "Tasse", "cups": "cup", "cup": "cup",
@@ -69,7 +69,7 @@
   var UNIT_KEYS = Object.keys(UNIT_ALIASES).sort(function (a, b) { return b.length - a.length; });
 
   // Umrechnung angloamerikanischer Einheiten in metrische
-  var UNIT_CONVERT = { cup: { unit: "ml", f: 240 }, oz: { unit: "g", f: 28.35 }, lb: { unit: "g", f: 453.6 } };
+  var UNIT_CONVERT = { dl: { unit: "ml", f: 100 }, cup: { unit: "ml", f: 240 }, oz: { unit: "g", f: 28.35 }, lb: { unit: "g", f: 453.6 } };
   // Gramm pro Cup für trockene Zutaten (Cookidoo und deutsche Küchen wiegen statt messen)
   var CUP_GRAMS = [
     [/(brown sugar|brauner zucker)/, 220], [/(powdered sugar|icing sugar|puderzucker)/, 120],
@@ -177,6 +177,8 @@
     "tacokruiden=Taco-Gewürz", "chipotlesaus=Chipotle-Sauce", "platbroden=Fladenbrote~Fladenbrot", "platbrood=Fladenbrote~Fladenbrot", "extra stevige tofu=Extra fester Tofu", "stevige tofu=Fester Tofu",
     "rode paprika=Rote Paprika", "mangochutney=Mango-Chutney", "muntchutney=Minz-Chutney", "water=Wasser", "bloem=Mehl", "suiker=Zucker", "kokosmelk=Kokosmilch", "groentebouillon=Gemüsebrühe", "bouillon=Brühe",
     "spinazie=Spinat", "wortel=Möhren~Möhre", "wortels=Möhren~Möhre", "aardappel=Kartoffeln~Kartoffel", "aardappelen=Kartoffeln~Kartoffel", "courgette=Zucchini", "champignons=Champignons~Champignon", "kikkererwten=Kichererbsen",
+    // Niederländisch (Rezepte aus nl/be, 09.11.2026)
+    "gehakt=Hackfleisch", "rundergehakt=Rinderhackfleisch", "half-om-half gehakt=Gemischtes Hackfleisch", "rund-varkensgehakt=Gemischtes Hackfleisch", "look=Knoblauch", "teentjes look=Knoblauchzehen~Knoblauchzehe", "laurier=Lorbeerblätter~Lorbeerblatt", "blaadje laurier=Lorbeerblatt", "preistengels=Lauch", "preistengel=Lauch", "kruiden=Kräuter", "verse kruiden=Frische Kräuter", "kipkruiden=Hähnchengewürz", "kippenkruiden=Hähnchengewürz", "varkensgehakt=Schweinehackfleisch", "kipgehakt=Hähnchenhackfleisch", "kip=Hähnchen", "kipfilet=Hähnchenbrustfilets~Hähnchenbrustfilet", "kipfilets=Hähnchenbrustfilets~Hähnchenbrustfilet", "kippendijen=Hähnchenschenkel", "kippendijfilet=Hähnchenschenkelfilet", "kippenvleugels=Hähnchenflügel", "biefstuk=Rindersteak", "runderlappen=Rinderschmorfleisch", "rundersukade=Rinderschmorfleisch", "spekjes=Speckwürfel", "spekreepjes=Speckstreifen", "ontbijtspek=Bacon", "rookworst=Räucherwurst", "zalm=Lachs", "zalmfilet=Lachsfilet", "garnalen=Garnelen", "tonijn=Thunfisch", "kabeljauw=Kabeljau", "vissaus=Fischsauce", "boter=Butter", "roomboter=Butter", "ongezouten roomboter=Ungesalzene Butter", "margarine=Margarine", "plantaardige margarine=Pflanzenmargarine", "plantaardige magarine=Pflanzenmargarine", "room=Sahne", "slagroom=Schlagsahne", "kookroom=Kochsahne", "zure room=Saure Sahne", "melk=Milch", "volle melk=Vollmilch", "plantaardige melk=Pflanzenmilch", "havermelk=Haferdrink", "sojamelk=Sojadrink", "amandelmelk=Mandeldrink", "kwark=Quark", "griekse yoghurt=Griechischer Joghurt", "dikke yoghurt=Griechischer Joghurt", "yoghurt=Joghurt", "kaas=Käse", "geraspte kaas=Geriebener Käse", "belegen kaas=Gouda", "geraspte belegen kaas=Geriebener Gouda", "jonge kaas=Junger Gouda", "oude kaas=Alter Gouda", "parmezaanse kaas=Parmesan", "parmezaan=Parmesan", "fetakaas=Feta", "geitenkaas=Ziegenkäse", "roomkaas=Frischkäse", "blauwe kaas=Blauschimmelkäse", "eieren=Eier~Ei", "ei=Eier~Ei", "eidooiers=Eigelb", "eidooier=Eigelb", "eierdooiers=Eigelb", "eigeel=Eigelb", "eiwitten=Eiweiß", "eiwit=Eiweiß", "zonnebloemolie=Sonnenblumenöl", "plantaardige olie=Pflanzenöl", "slaolie=Speiseöl", "lichte slaolie=Speiseöl", "sesamolie=Sesamöl", "kokosolie=Kokosöl", "milde olijfolie=Olivenöl", "azijn=Essig", "natuurazijn=Branntweinessig", "rodewijnazijn=Rotweinessig", "witte wijnazijn=Weißweinessig", "balsamicoazijn=Balsamico-Essig", "zeezout=Meersalz", "zoutvlokken=Salzflocken", "zeezoutvlokken=Meersalzflocken", "peper en zout=Salz und Pfeffer", "witte peper=Weißer Pfeffer", "nootmuskaat=Muskatnuss", "gemalen nootmuskaat=Muskatnuss", "kaneel=Zimt", "cayennepeper=Cayennepfeffer", "chilipoeder=Chilipulver", "chilivlokken=Chiliflocken", "kruidnagel=Gewürznelken", "kruidnagels=Gewürznelken", "tijm=Thymian", "rozemarijn=Rosmarin", "basilicum=Basilikum", "verse basilicum=Basilikum", "dille=Dill", "bieslook=Schnittlauch", "salie=Salbei", "verse salie=Salbei", "gedroogde oregano=Getrockneter Oregano", "speculaaskruiden=Spekulatiusgewürz", "jeneverbessen=Wacholderbeeren", "kerriepoeder=Currypulver", "knoflookpoeder=Knoblauchpulver", "uienpoeder=Zwiebelpulver", "basterdsuiker=Brauner Zucker", "bruine basterdsuiker=Brauner Zucker", "witte basterdsuiker=Weißer Zucker", "kristalsuiker=Zucker", "fijne kristalsuiker=Zucker", "poedersuiker=Puderzucker", "rietsuiker=Rohrzucker", "vanillesuiker=Vanillezucker", "geleisuiker=Gelierzucker", "honing=Honig", "vloeibare honing=Flüssiger Honig", "ahornsiroop=Ahornsirup", "appelstroop=Apfelkraut", "gist=Hefe", "gedroogde gist=Trockenhefe", "droge gist=Trockenhefe", "verse gist=Frische Hefe", "bakpoeder=Backpulver", "zuiveringszout=Natron", "maizena=Speisestärke", "zelfrijzend bakmeel=Mehl mit Backpulver", "volkorenmeel=Vollkornmehl", "tarwebloem=Weizenmehl", "cacaopoeder=Kakao", "pure chocolade=Zartbitterschokolade", "witte chocolade=Weiße Schokolade", "melkchocolade=Vollmilchschokolade", "amandelen=Mandeln", "amandelschaafsel=Mandelblättchen", "amandelmeel=Gemahlene Mandeln", "amandelspijs=Mandelmasse", "walnoten=Walnüsse", "hazelnoten=Haselnüsse", "cashewnoten=Cashewkerne", "pinda's=Erdnüsse", "pindakaas=Erdnussbutter", "pijnboompitten=Pinienkerne", "sesamzaad=Sesam", "sesamzaadjes=Sesam", "pompoenpitten=Kürbiskerne", "zonnebloempitten=Sonnenblumenkerne", "havermout=Haferflocken", "rozijnen=Rosinen", "dadels=Datteln", "zilvervliesrijst=Naturreis", "risottorijst=Risottoreis", "brood=Brot", "paneermeel=Paniermehl", "broodkruim=Semmelbrösel", "bladerdeeg=Blätterteig", "lasagnebladen=Lasagneplatten", "noedels=Asia-Nudeln", "kruimige aardappelen=Mehligkochende Kartoffeln", "vastkokende aardappelen=Festkochende Kartoffeln", "aardappels=Kartoffeln~Kartoffel", "zoete aardappel=Süßkartoffeln~Süßkartoffel", "zoete aardappelen=Süßkartoffeln~Süßkartoffel", "winterpeen=Möhren~Möhre", "peen=Möhren~Möhre", "prei=Lauch", "lente-ui=Frühlingszwiebeln~Frühlingszwiebel", "lente-uitjes=Frühlingszwiebeln~Frühlingszwiebel", "bosui=Frühlingszwiebeln~Frühlingszwiebel", "zilveruitjes=Silberzwiebeln", "kerstomaatjes=Kirschtomaten~Kirschtomate", "kerstomaten=Kirschtomaten~Kirschtomate", "gepelde tomaten=Geschälte Tomaten", "tomatenblokjes=Gehackte Tomaten", "tomaatstukjes=Gehackte Tomaten", "gezeefde tomaten=Passierte Tomaten", "zongedroogde tomaten=Getrocknete Tomaten", "semi-zongedroogde tomaten=Halbgetrocknete Tomaten", "paprika's=Paprika", "paprika s=Paprika", "pinda s=Erdnüsse", "groene paprika=Grüne Paprika", "gele paprika=Gelbe Paprika", "aubergine=Auberginen~Aubergine", "aubergines=Auberginen~Aubergine", "komkommer=Gurken~Gurke", "bloemkool=Blumenkohl", "verse spinazie=Spinat", "sla=Salat", "gemengde sla=Blattsalat", "ijsbergsla=Eisbergsalat", "rucola=Rucola", "waterkers=Brunnenkresse", "paddenstoelen=Pilze", "kastanjechampignons=Braune Champignons", "spitskool=Spitzkohl", "witte kool=Weißkohl", "rode kool=Rotkohl", "zuurkool=Sauerkraut", "boerenkool=Grünkohl", "spruitjes=Rosenkohl", "pompoen=Kürbis", "pompoenblokjes=Kürbiswürfel", "venkel=Fenchel", "venkelknol=Fenchelknollen~Fenchelknolle", "selder=Staudensellerie", "bleekselderij=Staudensellerie", "knolselderij=Knollensellerie", "koolrabi=Kohlrabi", "doperwten=Erbsen", "erwten=Erbsen", "sperziebonen=Grüne Bohnen", "linzen=Linsen", "rode linzen=Rote Linsen", "bruine bonen=Braune Bohnen", "witte bonen=Weiße Bohnen", "kidneybonen=Kidneybohnen", "mais=Mais", "rode chilipeper=Rote Chilischoten~Rote Chilischote", "chilipeper=Chilischoten~Chilischote", "appel=Äpfel~Apfel", "appels=Äpfel~Apfel", "peer=Birnen~Birne", "peren=Birnen~Birne", "banaan=Bananen~Banane", "bananen=Bananen~Banane", "sinaasappel=Orangen~Orange", "aardbeien=Erdbeeren", "frambozen=Himbeeren", "blauwe bessen=Heidelbeeren", "pruimen=Pflaumen", "abrikozen=Aprikosen", "citroenrasp=Zitronenabrieb", "limoenrasp=Limettenabrieb", "granaatappel=Granatapfel", "kippenbouillon=Hühnerbrühe", "runderbouillon=Rinderbrühe", "bouillonblokje=Brühwürfel", "runderbouillonblokje=Rinderbrühwürfel", "runderbouillontablet=Rinderbrühwürfel", "kippenbouillontabletten=Hühnerbrühwürfel", "groentebouillonblokje=Gemüsebrühwürfel", "mosterd=Senf", "grove mosterd=Grober Senf", "mayonaise=Mayonnaise", "tomatensaus=Tomatensauce", "witte wijn=Weißwein", "rode wijn=Rotwein", "worchestersaus=Worcestershiresauce", "worcestersaus=Worcestershiresauce", "ketjap manis=Ketjap Manis",
     "nooch=Hefeflocken", "green chillies=Grüne Chilischoten~Grüne Chilischote", "green chilies=Grüne Chilischoten~Grüne Chilischote", "red chilli powder=Chilipulver", "red chili powder=Chilipulver",
     "torn basil leaves=Basilikum", "salt n pepper=Salz und Pfeffer", "salt and pepper=Salz und Pfeffer", "white giant beans=Weiße Riesenbohnen", "giant beans=Weiße Riesenbohnen", "butter beans=Butterbohnen",
     "ready cooked puy lentils=Gekochte Puy-Linsen", "puy lentils=Puy-Linsen", "flatbreads=Fladenbrote~Fladenbrot", "flatbread=Fladenbrote~Fladenbrot", "broccolini=Brokkoli", "vanilla sugar=Vanillezucker",
@@ -278,6 +280,7 @@
 
   // Englische Zusätze -> Deutsch (für Notizen und Zustände)
   var EN_WORDS = {
+    "verse": "frisch", "gedroogde": "getrocknet", "geraspte": "gerieben", "gemalen": "gemahlen", "gesnipperd": "gewürfelt", "fijngesnipperd": "fein gewürfelt", "gesneden": "geschnitten", "in plakjes": "in Scheiben", "in ringen": "in Ringen", "grote": "groß", "middelgrote": "mittelgroß", "rijpe": "reif", "gekookte": "gekocht", "geroosterde": "geröstet", "gerookte": "geräuchert", "biologische": "bio", "ontpit": "entsteint", "geschild": "geschält", "uitgelekt": "abgetropft", "naar keuze": "nach Wahl", "flinke": "groß", "ruime": "gut",
     "broken into pieces": "in Stücke gebrochen", "fijngehakt": "fein gehackt", "gehakt": "gehackt", "in stukken": "in Stücken", "in stukjes": "in Stücken", "in blokjes": "gewürfelt", "fijngeraspt": "fein gerieben", "geraspt": "gerieben",
     "gewassen": "gewaschen", "geperst": "gepresst", "naar smaak": "nach Geschmack", "optioneel": "optional", "incl. vocht": "mit Flüssigkeit", "gescheurd": "gezupft", "geprakt": "zerdrückt", "in blokken gescheurd": "in Stücke gezupft",
     "geperst en in blokken gescheurd": "gepresst, in Stücke gezupft", "kleine": "klein", "klein": "klein", "torn into small pieces": "in kleine Stücke gezupft", "torn into klein pieces": "in kleine Stücke gezupft", "torn into pieces": "in Stücke gezupft",
@@ -377,7 +380,11 @@
       "schwein", "pork", "speck", "bacon", "schinken", "ham", "salami", "chorizo", "wurst", "würstchen",
       "hackfleisch", "hack", "mett", "lamm", "lamb", "ente", "duck", "gans", "reh", "hirsch", "steak",
       "gyros", "döner", "pancetta", "prosciutto", "leberkäse", "frikadelle", "gelatine", "gelatin",
-      "bratwurst", "kassler", "geflügel", "putenbrust"],
+      "bratwurst", "kassler", "geflügel", "putenbrust",
+      // Zusammensetzungen, die „speck“/„rind“ nicht am Wortanfang haben (Frühstücksspeck war sonst „vegan“, 09.11.)
+      "frühstücksspeck", "bauchspeck", "räucherspeck", "schinkenspeck", "rinder", "schweine", "kalbs",
+      // Niederländisch, falls ein Name nicht übersetzt wurde
+      "runder", "varkens", "kipfilet", "kippen", "kipgehakt", "ontbijtspek", "spekje", "spekreep", "rookworst", "gehakt"],
     fish: ["fisch", "fish", "lachs", "salmon", "thunfisch", "tuna", "kabeljau", "dorsch", "seelachs", "forelle",
       "hering", "makrele", "sardine", "sardelle", "anchovis", "anchovy", "garnele", "shrimp", "prawn", "krabbe",
       "scampi", "muschel", "tintenfisch", "calamari", "oktopus", "surimi", "worcestershire", "zander", "pangasius"],
@@ -529,7 +536,7 @@
   function stripTags(s) { return decodeEntities(String(s || "").replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, " ")); }
 
   // Kurze Begriffe nur am Wortanfang ("Limette" enthält "mett", "Flammkuchen" enthält "lamm")
-  var WORD_START = { "mett": 1, "lamm": 1, "pute": 1, "rind": 1, "kalb": 1, "speck": 1, "ente": 1, "reh": 1, "huhn": 1 };
+  var WORD_START = { "gehakt": 1, "mett": 1, "lamm": 1, "pute": 1, "rind": 1, "kalb": 1, "speck": 1, "ente": 1, "reh": 1, "huhn": 1 };
   function containsTerm(haystack, term) {
     if (WORD_START[term] && !WHOLE_WORD[term]) return new RegExp("(^|[^a-zäöüß])" + escapeRe(term), "i").test(haystack);
     if (WHOLE_WORD[term]) {
@@ -1419,6 +1426,8 @@
   var SUBHEAD_WORD = /^(?:(?:für (?:das|den|die)|for the)\s+)?(dressing|sauce|soße|sosse|marinade|topping|toppings|teig|füllung|glasur|glaze|creme|frosting|crust|filling|dough|beilage|chutney|kräuteröl|streusel|boden|base|garnish|garnitur)$/i;
   function titleFrom(lines) {
     var cands = [];
+    // Niederländischer Text: die erste kurze Zeile ist der Gerichtsname, auch wenn die Wörter (noch) nicht als Lebensmittel bekannt sind
+    var nlText = langOfText(lines.slice(0, 40).join(" ")) === "nl";
     for (var i = 0; i < lines.length && i < 8; i++) {
       var plainLine = clean(stripEmoji(lines[i]));
       if (HEAD_ING.test(plainLine) && plainLine.length < 60) {
@@ -1462,7 +1471,7 @@
         if (t.split(/\s+/).length > 6) t = t.split(/\s+(?:with|mit)\s+/)[0];
         var zahlTitel = /^\d+(?:[-–]\d+)?\s*(minuten|minute|min|minutes|zutaten|ingredients?|stunden?)\b/i.test(t) && hasFoodWord(t); // „5 Minuten Reis Bowl“
         if (t.length < 3 || TITLE_BAD.test(t) || NOISE.test(t) || (/^\d/.test(t) && !zahlTitel) || (readUnit(t) && !zahlTitel) || /\b(rezept|recipe|rezepte|recipes)\b/i.test(t)) continue;
-        var words = t.split(/\s+/).length, food = hasFoodWord(t);
+        var words = t.split(/\s+/).length, food = hasFoodWord(t) || (nlText && i === 0 && j === 0 && words >= 2 && words <= 10 && !/[.!?]\s*$/.test(raw));
         if (!food && (TITLE_SENTENCE.test(t) || words >= 7 || /[!?]/.test(raw) || words >= 4 && /^[A-ZÄÖÜ]/.test(t) && t !== t.toUpperCase() && /\s[a-zäöü]/.test(t) && langOfText(t) === "de")) continue;
         if (EN_IMP.test(t) || (isStepLike(t) && !food)) continue;
         if (words === 1 && !food && i > 0) continue;
@@ -1485,7 +1494,7 @@
     if (!best || best.score < 4) return "";
     var t = best.t;
     // Satz-Titel ("Tofu isn't here to imitate anything", "Meet my new favorite soup: Easy Thai Coconut Soup")
-    if (t.split(/\s+/).length >= 8 || /[,:]|\/\/|\s\|\s/.test(t) || TITLE_SENTENCE.test(t)) {
+    if ((t.split(/\s+/).length >= 8 || /[,:]|\/\/|\s\|\s/.test(t) || TITLE_SENTENCE.test(t)) && !(nlText && t.split(/\s+/).length <= 10 && !/:/.test(t) && !TITLE_SENTENCE.test(t))) {
       var parts = t.split(/\s*(?::|\/\/|\||,|\s[-–—]\s)\s*/).filter(function (x) { return x !== t && hasFoodWord(x) && x.split(/\s+/).length <= 7 && !TITLE_SENTENCE.test(x) && /^[A-ZÄÖÜ\d]/.test(x) && !/\b(kannst|könnt|musst|verwenden|use)\b/i.test(x) && !/^(meet|comment|recipe|rezept)\b/i.test(x); }).map(cleanTitle).filter(function (x) { return x.length >= 3; });
       if (parts.length) t = parts[0];
       else {
@@ -3233,10 +3242,11 @@
     return t.replace(/\s+hinzu(?=[\s.,;!?]|$)/, "").replace(/\s{2,}/g, " ");
   }
   // Vor der Übersetzung: Brüche ausschreiben ("3½" würde sonst "31⁄2"), Kürzel ausschreiben
-  function vorUebersetzung(text) {
+  function vorUebersetzung(text, lang) {
+    var und = lang === "nl" ? " en " : " and ";
     var BR = { "½": "1/2", "¼": "1/4", "¾": "3/4", "⅓": "1/3", "⅔": "2/3", "⅛": "1/8" };
     return String(text || "").replace(/(\d)\s*([½¼¾⅓⅔⅛])/g, function (_, d, b) { return d + " " + BR[b]; }).replace(/[½¼¾⅓⅔⅛]/g, function (b) { return BR[b]; })
-      .replace(/(\d{2,3})\s?°?\s?([cC])\b(?!\w)/g, "$1 °C").replace(/\s\+\s/g, " and ").replace(/\s&\s/g, " and ").replace(/\bnooch\b/gi, "nutritional yeast").replace(/\bevoo\b/gi, "extra virgin olive oil").replace(/(\d)\s*[º°o]\s*F\b/g, "$1 °F");
+      .replace(/(\d{2,3})\s?°?\s?([cC])\b(?!\w)/g, "$1 °C").replace(/\s\+\s/g, und).replace(/\s&\s/g, und).replace(/\bnooch\b/gi, "nutritional yeast").replace(/\bevoo\b/gi, "extra virgin olive oil").replace(/(\d)\s*[º°o]\s*F\b/g, "$1 °F");
   }
   // Nach der Übersetzung: bekannte Fehlübersetzungen des Übersetzers (Bergamot) anhand des englischen Originals korrigieren
   var GLOSSAR = [
@@ -3311,6 +3321,11 @@
       out.push(ing);
     });
     r.ingredients = out; r.ingredientsTranslated = true;
+    return klassifiziere(r);
+  }
+  // Ernährung, Allergene, Kategorie und Labels neu bestimmen, nachdem die Zutaten übersetzt wurden
+  function klassifiziere(r) {
+    try { classify(r); r.labels = buildLabels(r); } catch (e) { /* bleibt wie vorher */ }
     return r;
   }
   // Welche Zutaten werden in welchem Schritt verwendet? -> [[Zutat-Index, …], …] je Schritt (Überschriften: [])
@@ -5225,7 +5240,7 @@
     extractInlineIngredients: extractInlineIngredients, isStepLike: isStepLike, postType: postType, normalizeFancy: normalizeFancy, zuordnungsVorschlaege: zuordnungsVorschlaege,
     recipeId: recipeId, importNeue: importNeue, folgenVorschlag: folgenVorschlag, folgenAntwort: folgenAntwort, FOLGEN_ERNEUT_AB: FOLGEN_ERNEUT_AB, FOLGEN_AB: FOLGEN_AB, pruefeBlogTreffer: pruefeBlogTreffer,
     kochAblauf: kochAblauf, FOKUS_INFO: FOKUS_INFO, FOKUS_ALT: FOKUS_ALT, NRV: NRV, naehrwertVergleich: naehrwertVergleich, merkeNaehrwertAbweichung: merkeNaehrwertAbweichung, lerneKategorie: lerneKategorie, lernGesendetMerken: lernGesendetMerken, lernAbgleich: lernAbgleich, kategorieWoerter: kategorieWoerter, naehrwertAnteile: naehrwertAnteile, rezeptPaket: rezeptPaket, rezeptAusPaket: rezeptAusPaket, paketKodieren: paketKodieren, paketLesen: paketLesen, einkaufsGang: einkaufsGang, blsGang: blsGang, resteSuche: resteSuche, wochenVorschlag: wochenVorschlag, ersatzFuer: ersatzFuer, ERSATZ: ERSATZ, kochbegriffeIn: kochbegriffeIn, KOCHBEGRIFFE: KOCHBEGRIFFE,
-    parseRecipeHtml: parseRecipeHtml, inferServings: inferServings, uebersetzeSchritte: uebersetzeSchritte, vorUebersetzung: vorUebersetzung, nachUebersetzung: nachUebersetzung, uebersetzeZutaten: uebersetzeZutaten, mergeFrameText: mergeFrameText, isEnglishTitle: isEnglishTitle, stepIngredients: stepIngredients, parseTranscript: parseTranscript, detectLang: detectLang, rezeptStil: rezeptStil, cleanSteps: cleanSteps, langOfText: langOfText, dropEnglishHalf: dropEnglishHalf
+    parseRecipeHtml: parseRecipeHtml, inferServings: inferServings, uebersetzeSchritte: uebersetzeSchritte, vorUebersetzung: vorUebersetzung, nachUebersetzung: nachUebersetzung, uebersetzeZutaten: uebersetzeZutaten, klassifiziere: klassifiziere, mergeFrameText: mergeFrameText, isEnglishTitle: isEnglishTitle, stepIngredients: stepIngredients, parseTranscript: parseTranscript, detectLang: detectLang, rezeptStil: rezeptStil, cleanSteps: cleanSteps, langOfText: langOfText, dropEnglishHalf: dropEnglishHalf
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = api;
