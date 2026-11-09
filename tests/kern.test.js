@@ -882,5 +882,21 @@ check("Ü: Brüche vor der Übersetzung", K.vorUebersetzung("Add 3½ cups water"
   check("Übersetzte Zutaten: Ernährung neu bestimmt", tr.ingredientsTranslated && tr.diet.indexOf("mit Fleisch") !== -1, tr.diet);
   check("Vorübersetzung NL: „+“ wird „en“", K.vorUebersetzung("zout + peper", "nl") === "zout en peper");
 }
+// 09.11.: Runde 4 – Schlusssätze, Zutatenzeilen flicken, kurze Schritte
+{
+  const A = c => K.analyse({ caption: c, url: "x" }).recipe;
+  const pul = A("Shallot Dressing\n\nIngredients\n1 shallot\n3 tbsp vinegar\n\nDirections\n1. Combine the shallot and vinegar in a small bowl.\n2. Add the remaining ingredients and whisk to emulsify.\n\nEnjoy! Let us know if you make it 🙌\nFind more recipes in the Pick Up Limes app ✨");
+  check("Schlusssatz „Enjoy! Let us know …“ ist kein Schritt", pul.steps.length === 2, pul.steps);
+  const Z = z => A("Test\n\nZutaten:\n" + z + "\n\nZubereitung:\n1. Alles kochen und 10 Minuten ziehen lassen.").ingredients;
+  check("Zeile „Gemüse-“ + „brühe“ verbunden", Z("500 ml Gemüse-\nbrühe\n1 Zwiebel")[0].name === "Gemüsebrühe");
+  check("„so viel ihr wollt“ wird Hinweis", Z("200 g Käse\nso viel ihr wollt\n100 g Nudeln").length === 2 && /so viel/.test(Z("200 g Käse\nso viel ihr wollt\n100 g Nudeln")[0].note));
+  check("„toskanische“ + „Würzmischung“", Z("1 TL toskanische\nWürzmischung\n1 Zwiebel")[0].name === "Toskanische Würzmischung");
+  check("Klammer ohne Ende weg („chickpeas (i used“)", !/\(/.test(Z("1 can chickpeas (i used\n200 g rice")[0].name));
+  check("„Hauptteig“ ist ein Abschnitt", Z("Hauptteig\n500 g Mehl\n1 Pck Hefe").every(i => i.group === "Hauptteig"));
+  const omas = A("Abspeichern & Nachmachen 🤍\nZutaten ⬇️\nOmas Linseneintopf😍\n\n📜 Zutaten (für 4 Portionen):\n200 g Linsen\n1 l Brühe\n\nAlles 30 Minuten köcheln.");
+  check("Gerichtsname in der Liste ist keine Zutat, sondern Titel", omas.title === "Omas Linseneintopf" && omas.ingredients.length === 2, [omas.title, omas.ingredients.map(i => i.name)]);
+  check("Kurzer Schritt „Backen.“ bleibt", A("Brot\n\nZutaten:\n500 g Mehl\n1 Pck Hefe\n\nZubereitung:\nAlles verkneten.\n1 Stunde gehen lassen.\nBacken.").steps.length === 3);
+  check("Kurzer Schritt „Blend until smooth.“ bleibt", A("Smoothie\n\nIngredients:\n1 cup frozen berries\n1 banana\n\nBlend until smooth.").steps.length === 1);
+}
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);
