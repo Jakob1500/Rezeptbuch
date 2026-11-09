@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.7.9";
+  var VERSION = "0.8.0";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -3798,8 +3798,13 @@
       });
       r.stepsGrossGeschrieben = true;
     }
-    var neu = [];
+    var neu = [], gruppen = [];
     r.steps.forEach(function (s) {
+      var ab = neu.length;
+      schritteTeilen(s);
+      gruppen.push(neu.slice(ab).map(function (x, k) { return ab + k; }));
+    });
+    function schritteTeilen(s) {
       if (s.length < 160 || /^##/.test(s)) { neu.push(s); return; }
       // Sätze trennen, aber nie innerhalb von Klammern; Klammer-Sätze („(Du kannst …)“) bleiben beim Satz davor
       var saetze = [], akt = "", tiefe = 0;
@@ -3811,8 +3816,17 @@
         if (teile.length && (x.length < 40 || /^\(/.test(x) || !SCHRITT_VERB.test(x) || teile[teile.length - 1].length < 40)) teile[teile.length - 1] += " " + x; else teile.push(x);
       });
       if (teile.length >= 2 && teile.every(function (t) { return t.length >= 40 && SCHRITT_VERB.test(t); })) neu.push.apply(neu, teile); else neu.push(s);
-    });
-    if (neu.length !== r.steps.length) { r.stepsGeteilt = neu.length - r.steps.length; r.steps = neu; }
+    }
+    // r.stepsTeilung: welche Schritte aus einem Original-Schritt entstanden sind – für „Schritte zusammenführen“ (Runde 4 Nr. 8)
+    if (neu.length !== r.steps.length) { r.stepsGeteilt = neu.length - r.steps.length; r.stepsTeilung = gruppen; r.steps = neu; }
+  }
+  // Automatisch geteilte Schritte wieder zusammenführen (auch nach der Übersetzung: gleiche Reihenfolge, je Gruppe mit Leerzeichen verbunden)
+  function schritteZusammenfuehren(r) {
+    var g = r && r.stepsTeilung; if (!g || !g.length) return r;
+    var join = function (list) { if (!list || list.length !== g[g.length - 1][g[g.length - 1].length - 1] + 1) return list; return g.map(function (idx) { return idx.map(function (i) { return list[i]; }).join(" "); }); };
+    r.steps = join(r.steps); if (r.stepsOriginal) r.stepsOriginal = join(r.stepsOriginal);
+    r.stepsGeteilt = 0; r.stepsTeilung = null; r.stepsZusammengefuehrt = true;
+    return r;
   }
 
   function finalize(r) {
@@ -5329,7 +5343,7 @@
     extractInlineIngredients: extractInlineIngredients, isStepLike: isStepLike, postType: postType, normalizeFancy: normalizeFancy, zuordnungsVorschlaege: zuordnungsVorschlaege,
     recipeId: recipeId, importNeue: importNeue, folgenVorschlag: folgenVorschlag, folgenAntwort: folgenAntwort, FOLGEN_ERNEUT_AB: FOLGEN_ERNEUT_AB, FOLGEN_AB: FOLGEN_AB, pruefeBlogTreffer: pruefeBlogTreffer,
     kochAblauf: kochAblauf, FOKUS_INFO: FOKUS_INFO, FOKUS_ALT: FOKUS_ALT, NRV: NRV, naehrwertVergleich: naehrwertVergleich, merkeNaehrwertAbweichung: merkeNaehrwertAbweichung, lerneKategorie: lerneKategorie, lernGesendetMerken: lernGesendetMerken, lernAbgleich: lernAbgleich, kategorieWoerter: kategorieWoerter, naehrwertAnteile: naehrwertAnteile, rezeptPaket: rezeptPaket, rezeptAusPaket: rezeptAusPaket, paketKodieren: paketKodieren, paketLesen: paketLesen, einkaufsGang: einkaufsGang, blsGang: blsGang, resteSuche: resteSuche, wochenVorschlag: wochenVorschlag, ersatzFuer: ersatzFuer, ERSATZ: ERSATZ, kochbegriffeIn: kochbegriffeIn, KOCHBEGRIFFE: KOCHBEGRIFFE,
-    parseRecipeHtml: parseRecipeHtml, inferServings: inferServings, uebersetzeSchritte: uebersetzeSchritte, vorUebersetzung: vorUebersetzung, nachUebersetzung: nachUebersetzung, uebersetzeZutaten: uebersetzeZutaten, klassifiziere: klassifiziere, nlEnKorrektur: nlEnKorrektur, mergeFrameText: mergeFrameText, isEnglishTitle: isEnglishTitle, stepIngredients: stepIngredients, parseTranscript: parseTranscript, detectLang: detectLang, rezeptStil: rezeptStil, cleanSteps: cleanSteps, langOfText: langOfText, dropEnglishHalf: dropEnglishHalf
+    parseRecipeHtml: parseRecipeHtml, inferServings: inferServings, uebersetzeSchritte: uebersetzeSchritte, vorUebersetzung: vorUebersetzung, nachUebersetzung: nachUebersetzung, uebersetzeZutaten: uebersetzeZutaten, klassifiziere: klassifiziere, schritteZusammenfuehren: schritteZusammenfuehren, nlEnKorrektur: nlEnKorrektur, mergeFrameText: mergeFrameText, isEnglishTitle: isEnglishTitle, stepIngredients: stepIngredients, parseTranscript: parseTranscript, detectLang: detectLang, rezeptStil: rezeptStil, cleanSteps: cleanSteps, langOfText: langOfText, dropEnglishHalf: dropEnglishHalf
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = api;

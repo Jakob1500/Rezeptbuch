@@ -206,6 +206,8 @@ a { color: var(--accent); }
 .glyph { width: 40px; height: 40px; border-radius: 12px; background: var(--surface-2); display: grid; place-items: center; color: var(--ink); flex: none; }
 .glyph svg { width: 22px; height: 22px; }
 .glyph { position: relative; }
+.row.ing[data-a="abhaken"] { cursor: pointer; }
+.row.ing.erledigt .qty, .row.ing.erledigt .main { text-decoration: line-through; opacity: .45; }
 .glyph .dish { position: absolute; right: -5px; bottom: -5px; width: 22px; height: 22px; border-radius: 11px; background: var(--brand-soft); color: var(--brand-text); display: grid; place-items: center; box-shadow: 0 0 0 2px var(--bg); }
 .glyph .dish svg { width: 14px; height: 14px; }
 /* Startseite: Woche, Schnellzugriffe, Suche */
@@ -474,7 +476,7 @@ a { color: var(--accent); }
   function A(input) { return K.analyse(input, { lernen: [ZENTRAL, S.lernen] }); }
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.20.25";
+  var APP_VERSION = "0.20.26";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0 (creativecommons.org/licenses/by/4.0). Werte unverändert übernommen; Stück- und Löffelgewichte sind eigene Richtwerte der App. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -959,6 +961,7 @@ a { color: var(--accent); }
     if (!e.input) return;
     var old = e.recipe;
     var res = A(e.input), r = res.recipe;
+    if (e.schritteZusammen && K.schritteZusammenfuehren) K.schritteZusammenfuehren(r); // deine Korrektur gilt auch nach einem Update
     // Übersetzungen behalten, solange sich der Originaltext nicht geändert hat
     if (old && old.stepsTranslated && old.stepsOriginal && JSON.stringify(old.stepsOriginal) === JSON.stringify(r.steps)) {
       r.stepsOriginal = old.stepsOriginal; r.steps = old.steps; r.stepsTranslated = true; r.lang = "de";
@@ -1989,7 +1992,8 @@ a { color: var(--accent); }
       var have = haveKey(i.key);
       var gh = "";
       if ((i.group || "") !== lastGroup) { lastGroup = i.group || ""; gh = '<div class="row ing-group"><span class="main"><span class="small muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.04em">' + esc(lastGroup || "Weitere Zutaten") + '</span></span></div>'; }
-      return gh + '<div class="row ing"><span class="dot' + (have ? " have" : "") + '"><span class="sr">' + (have ? "vorhanden" : "fehlt") + '</span></span>' +
+      var weg = !orig && UI.abgehakt && UI.abgehakt[id] && UI.abgehakt[id][ingN];
+      return gh + '<div class="row ing' + (weg ? ' erledigt' : '') + '"' + (orig ? '' : ' role="button" tabindex="0" aria-pressed="' + !!weg + '" data-a="abhaken" data-id="' + esc(id) + '" data-n="' + ingN + '"') + '><span class="dot' + (have ? " have" : "") + '"><span class="sr">' + (have ? "vorhanden" : "fehlt") + '</span></span>' +
         '<span class="qty">' + esc(clean2(q + " " + unitText(i.unit))) + '</span><span class="main"><span>' + esc(name) + (i.optional ? ' <span class="muted small">(optional)</span>' : '') + '</span>' +
         ((i.note || i.qtyEstimated || i.ergaenzt || i.andereMenge) ? '<span class="sub">' + esc([i.note, i.qtyEstimated ? "Menge geschätzt (im Rezept nicht angegeben)" : "", i.ergaenzt ? (i.ergaenzt === "Blog" ? "nur im Blog" : "nur in der " + i.ergaenzt) + " – ergänzt" : "", i.andereMenge ? "anders: " + i.andereMenge : ""].filter(Boolean).join(" · ")) + '</span>' : '') + '</span>' +
         (!orig && K.ersatzFuer && K.ersatzFuer(i).length ? '<button class="ibtn tausch" data-a="ersatz" data-id="' + esc(id) + '" data-n="' + ingN + '" aria-label="' + esc(i.name) + ' ersetzen" title="Ersetzen">⇄</button>' : '') + '</div>';
@@ -2074,6 +2078,7 @@ a { color: var(--accent); }
       (steps && !hideSteps ? '<section class="sec"><div class="sec-head"><h2>Zubereitung</h2>' + (orig && r.stepsOriginal ? '<span class="small muted">Original</span>' : '') + '</div>' +
         (stepLang ? '<div class="note info"><b>Die Schritte sind noch auf ' + LANG_NAME[stepLang] + '.</b><span>Die App übersetzt sie auf deinem iPhone – privat, kostenlos, nach dem ersten Laden offline.</span><button class="btn accent" data-a="translate" data-id="' + esc(id) + '">' + ic("lang") + 'Auf Deutsch übersetzen</button></div>' : '') +
         '<div class="group"><ol class="steps">' + steps + '</ol>' +
+        (r.stepsTeilung && !orig ? '<button class="row" data-a="schritte-zusammen" data-id="' + esc(id) + '">' + ic("lang") + '<span class="main"><span class="title">Wie im Original zusammenführen</span><span class="sub">Die App hat lange Schritte automatisch geteilt.</span></span></button>' : '') +
         ((r.schritteErgaenzt || []).length ? '<p class="small muted" style="padding:0 14px 10px">In Klammern ergänzt: welche Zutaten mit „alles“ gemeint sind.</p>' : '') +
         (r.logik && r.logik.ohneSchritt && r.logik.ohneSchritt.length ? '<p class="small muted" style="padding:0 14px 12px">In keinem Schritt erwähnt: ' + esc(r.logik.ohneSchritt.join(", ")) + '. Wenn etwas fehlt: „Mehr → Rezept bearbeiten“ oder „Problem melden“.</p>' : '') +
         '</div></section>' : '') +
@@ -3192,7 +3197,7 @@ a { color: var(--accent); }
       case "woche-vorschlag": wocheSheet(); break;
       case "woche-neu": UI.wocheSeed = (UI.wocheSeed || 0) + 1; wocheSheet(); break;
       case "woche-nehmen": wocheNehmen(); break;
-      case "open": closeSheet(); UI.detail = id; if (S.recipes[id]) { S.recipes[id].viewedAt = Date.now(); save("recipes"); } render(); window.scrollTo(0, 0); break;
+      case "open": closeSheet(); UI.detail = id; UI.abgehakt = {}; if (S.recipes[id]) { S.recipes[id].viewedAt = Date.now(); save("recipes"); } render(); window.scrollTo(0, 0); break;
       case "filters": filterSheet(); break;
       case "sort": UI.sort = el.dataset.v; render(); break;
       case "onboard": onboardSheet(false); break;
@@ -3289,6 +3294,12 @@ a { color: var(--accent); }
         var mc = S.recipes[id];
         if (mc.lastCooked && relDay(mc.lastCooked) === "heute") { toast("Für heute schon eingetragen"); break; }
         mc.cooked = (mc.cooked || 0) + 1; mc.lastCooked = Date.now(); save("recipes"); render(); toast("Als gekocht eingetragen"); break;
+      case "abhaken": // Zutaten abhaken beim Kochen (Runde 4 Nr. 9) – gilt nur, bis das Rezept geschlossen wird
+        UI.abgehakt = UI.abgehakt || {}; UI.abgehakt[id] = UI.abgehakt[id] || {}; UI.abgehakt[id][el.dataset.n] = !UI.abgehakt[id][el.dataset.n]; render(); break;
+      case "schritte-zusammen":
+        var sz = S.recipes[id]; if (!sz) break; sz.schritteZusammen = true; K.schritteZusammenfuehren(sz.recipe); sz.updatedAt = Date.now(); save("recipes");
+        merkeFehler("schritte-zusammengefuehrt", null, { link: (sz.recipe.source && sz.recipe.source.url) || "", notiz: "Automatisch geteilte Schritte wieder zusammengeführt" });
+        render(); toast("Zusammengeführt – die App lernt daraus"); break;
       case "export-anleitung": exportAnleitungSheet(); break;
       case "wasneu-ok": S.meta.wasNeu = WASNEU_VERSION; save("meta"); closeSheet(); break;
       case "wasneu-version": S.prefs.kurzbefehl = el.dataset.v; save("prefs"); closeSheet(); wasNeuPruefen(); break;
