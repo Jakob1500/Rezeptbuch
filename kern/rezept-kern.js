@@ -879,6 +879,15 @@
     t = t.replace(/^(?:n\.\s?B\.?|nach Belieben)\s+(.+)$/i, function (m0, x) { return x + (/,/.test(x) ? " (nach Belieben)" : ", nach Belieben"); });
     return t;
   }
+  // Dose, Glas oder Packung, die schon geschnitten/geschält verkauft wird („1 Dose gehackte Tomaten“, „can diced tomatoes“) –
+  // keine Vorbereitung. Steht die Arbeit ausdrücklich im Hinweis („drained and chopped“, „(gehackt)“), zählt sie (Jakob, Runde 4 Nr. 3).
+  var VERPACKT = /\b(cans?|canned|tins?|tinned|jars?|jarred|dosen?|gläser|glas|konserven?|packung|pck|store-bought|gekauft)\b/i;
+  function gekauftVorbereitet(i) {
+    var roh = String(i.raw || ""), notiz = String(i.note || "");
+    if (!VERPACKT.test(roh) && !/^(Dose|Glas|Pck)$/.test(i.unit || "")) return false;
+    var hinweis = notiz + " " + ((roh.match(/\(([^)]*)\)|,\s*(.*)$/) || [])[0] || "");
+    return !/\b(and|und|then|dann)\s+(chopped|diced|sliced|minced|gehackt|gewürfelt|geschnitten|in scheiben)|^\s*\(?\s*(chopped|diced|sliced|minced|gehackt|gewürfelt|geschnitten)\b/i.test(hinweis.replace(/drained|rinsed|abgetropft|abgespült/gi, "").replace(/^[\s,(]+/, "").trim() ? hinweis : "");
+  }
   // Zeilen der Zutatenliste reparieren, bevor sie gelesen werden (Lern-Export 06.11.):
   // „Gemüse-“ + „brühe“ → „Gemüsebrühe“, „1 TL toskanische“ + „Würzmischung“, „so viel ihr wollt“ / „z. B. …“ / „(Abtropfgewicht …)“
   // als Hinweis zur Zeile davor, „chickpeas (i used“ ohne Klammer-Ende, „Hauptteig“ / „Voor de citroencrumb“ als Abschnitt
@@ -1395,7 +1404,7 @@
     if (!n) return null;
     // Zutaten mit "gewürfelt", "gehackt" … die in keinem Schneide-Schritt vorkamen
     var vorbereiten = [];
-    ings.forEach(function (i, k) { if (!inSchritt[k] && schneidbar(i) && ZUTAT_GESCHNITTEN.test((i.raw || "") + " " + (i.note || ""))) { sum += 2; vorbereiten.push(i.name); } });
+    ings.forEach(function (i, k) { if (!inSchritt[k] && schneidbar(i) && ZUTAT_GESCHNITTEN.test((i.raw || "") + " " + (i.note || "")) && !gekauftVorbereitet(i)) { sum += 2; vorbereiten.push(i.name); } });
     if (vorbereiten.length) teile.push({ schritt: 0, text: "Zutaten laut Liste vorbereiten (" + vorbereiten.join(", ") + ")", min: 2 * vorbereiten.length, art: "2 Min. je Zutat" });
     var t = sum + ZEIT_FAKTOR.bereitlegen; // Bereitlegen und Kleinkram
     teile.push({ schritt: 0, text: "Bereitlegen und Kleinkram", min: ZEIT_FAKTOR.bereitlegen, art: "fester Zuschlag" });
@@ -3339,17 +3348,42 @@
   }
 
   // Übersetzte Schritte einsetzen; das Original bleibt erhalten ("Original zeigen")
-  function uebersetzeSchritte(r, stepsDe) {
+  function uebersetzeSchritte(r, stepsDe, stepsEn) {
     var st = (stepsDe || []).map(function (x, k) {
       var head = /^## /.test(r.steps[k] || "") || /^##\s/.test(String(x));
       var t = String(x).replace(/^##\s*/, "");
-      t = nachUebersetzung((r.steps[k] || "").replace(/^##\s*/, ""), t);
+      t = nachUebersetzung(((stepsEn && stepsEn[k]) || r.steps[k] || "").replace(/^##\s*/, ""), t);
       return head ? "## " + clean(t).replace(/:\s*$/, "") : rezeptStil(cleanStep(t));
     }).filter(function (x) { return x.replace(/^## /, "").length > 2; });
     if (!st.length) return r;
     if (!r.stepsOriginal) r.stepsOriginal = r.steps.slice();
     r.steps = st; r.stepsTranslated = true; r.lang = "de";
     return r;
+  }
+  // Niederländisch → Englisch (Zwischenschritt): typische Fehler des kleinen Modells vor dem Weg nach Deutsch korrigieren.
+  // [Muster im niederländischen Original, falsches Englisch, richtiges Englisch]
+  var NL_EN = [
+    [/plantaardige? (melk|drank)/i, /\bvegetable (milk|drink)\b/gi, "plant milk"],
+    [/plantaardige? (margarine|magarine|boter)/i, /\bvegetable (margarine|butter)\b/gi, "plant-based margarine"],
+    [/plantaardige? (room|kookroom)/i, /\bvegetable cream\b/gi, "plant-based cream"],
+    [/\bbloem\b/i, /\bflowers?\b/gi, "flour"],
+    [/\bgist\b/i, /\b(yeast|gist)\b/gi, "yeast"],
+    [/\bgehakt\b/i, /\b(chopped|minced meat|mince)\b(?! (onion|garlic|parsley|herbs))/gi, "minced meat"],
+    [/\bkruiden\b/i, /\bherbs\b/gi, "herbs"],
+    [/\bui(en)?\b/i, /\bui\b/gi, "onion"],
+    [/\bteentjes? knoflook|\bknoflook/i, /\btoes? of garlic\b/gi, "cloves of garlic"],
+    [/\bsnufje\b/i, /\bsnuff\b/gi, "pinch"],
+    [/\bscheutje\b/i, /\bshot\b/gi, "splash"],
+    [/\bhapjespan\b/i, /\b(snack pan|bite pan)\b/gi, "sauté pan"],
+    [/\bkoekenpan\b/i, /\bcookie pan\b/gi, "frying pan"],
+    [/\bbakpapier\b/i, /\bbaking paper\b/gi, "parchment paper"],
+    [/\bgaar\b/i, /\b(cooked through|done)\b/gi, "cooked through"]
+  ];
+  function nlEnKorrektur(nl, en) {
+    var t = String(en || "");
+    t = t.replace(/(\d{2,3}) ?0C\b/g, "$1 °C").replace(/(\d{2,3}) ?°\s?C\b/g, "$1 °C");
+    NL_EN.forEach(function (g) { if (g[0].test(nl)) t = t.replace(g[1], g[2]); });
+    return t;
   }
   // Übersetzte Zutatenzeilen (z. B. aus dem Niederländischen) neu einlesen; Original bleibt erhalten
   function uebersetzeZutaten(r, linesDe) {
@@ -4287,12 +4321,14 @@
   function berechneNaehrwerte(r, tabelle, portionen, opts) {
     var table = tabelle && tabelle.zutaten ? tabelle.zutaten : tabelle;
     var eigene = (opts && opts.zuordnungen) || {};
-    var total = {}, matched = [], unmatched = [], noQty = [], offen = [], grams = 0;
+    var total = {}, matched = [], unmatched = [], noQty = [], offen = [], grams = 0, ausgelassen = [];
     NUTRIENT_KEYS.forEach(function (k) { total[k] = 0; });
     // Teilrezepte anteilig (Jakob, 29.10.): "2 EL Soße" aus dem Abschnitt „Soße“ (der z. B. 150 g ergibt) -> nur 30/150 der Soßen-Zutaten zählen
     var teilAnteil = teilrezeptAnteile(r, table, eigene);
     (r.ingredients || []).forEach(function (i) {
       if (i.teilrezept) return; // wird aus den Zutaten des Abschnitts gerechnet
+      // Öl/Fett zum Confieren oder Frittieren wird nicht gegessen (Jakob, Runde 4 Nr. 3: Option A) – nicht mitzählen, im Rezept sagen
+      if (/(öl|oil|fett|schmalz|frittierfett)\b/i.test(i.name || "") && /(confi|frittier|ausback|ausbraten|deep[- ]?fr|for frying|zum braten in viel|reichlich öl zum|frituur)/i.test((i.raw || "") + " " + (i.note || ""))) { ausgelassen.push(i.name); return; }
       var hit = eigene[i.key] ? { key: i.key, entry: eigene[i.key], eigene: true } : findNutrientEntry(nwSchluessel(i), table, nwZustand(i));
       if (!hit) { if (!i.staple && !isSpice(i) && !isMinor(i)) { unmatched.push(i.name); offen.push({ name: i.name, key: i.key, grund: "unbekannt", unit: i.unit || "" }); } return; }
       var g = gramsOf(i, hit.entry);
@@ -4331,7 +4367,7 @@
     var nutrition = {
       perServing: !!serv, servings: serv, values: per, perUnit: r.servingsUnit === "Stück" || r.servingsUnit === "Scheiben" ? "Stück" : "Portion",
       coverage: { matched: matched.length, unmatched: unmatched, offen: offen, withoutQuantity: noQty, share: round(share, 2) },
-      reliable: reliable, totalGrams: Math.round(grams),
+      reliable: reliable, totalGrams: Math.round(grams), ausgelassen: ausgelassen,
       details: matched,
       teilrezepte: Object.keys(teilAnteil).map(function (g) { return { gruppe: g, genutzt: Math.round(teilAnteil[g].genutzt), gesamt: Math.round(teilAnteil[g].gesamt), faktor: round(teilAnteil[g].faktor, 2) }; }),
       basis: "berechnet",
@@ -5293,7 +5329,7 @@
     extractInlineIngredients: extractInlineIngredients, isStepLike: isStepLike, postType: postType, normalizeFancy: normalizeFancy, zuordnungsVorschlaege: zuordnungsVorschlaege,
     recipeId: recipeId, importNeue: importNeue, folgenVorschlag: folgenVorschlag, folgenAntwort: folgenAntwort, FOLGEN_ERNEUT_AB: FOLGEN_ERNEUT_AB, FOLGEN_AB: FOLGEN_AB, pruefeBlogTreffer: pruefeBlogTreffer,
     kochAblauf: kochAblauf, FOKUS_INFO: FOKUS_INFO, FOKUS_ALT: FOKUS_ALT, NRV: NRV, naehrwertVergleich: naehrwertVergleich, merkeNaehrwertAbweichung: merkeNaehrwertAbweichung, lerneKategorie: lerneKategorie, lernGesendetMerken: lernGesendetMerken, lernAbgleich: lernAbgleich, kategorieWoerter: kategorieWoerter, naehrwertAnteile: naehrwertAnteile, rezeptPaket: rezeptPaket, rezeptAusPaket: rezeptAusPaket, paketKodieren: paketKodieren, paketLesen: paketLesen, einkaufsGang: einkaufsGang, blsGang: blsGang, resteSuche: resteSuche, wochenVorschlag: wochenVorschlag, ersatzFuer: ersatzFuer, ERSATZ: ERSATZ, kochbegriffeIn: kochbegriffeIn, KOCHBEGRIFFE: KOCHBEGRIFFE,
-    parseRecipeHtml: parseRecipeHtml, inferServings: inferServings, uebersetzeSchritte: uebersetzeSchritte, vorUebersetzung: vorUebersetzung, nachUebersetzung: nachUebersetzung, uebersetzeZutaten: uebersetzeZutaten, klassifiziere: klassifiziere, mergeFrameText: mergeFrameText, isEnglishTitle: isEnglishTitle, stepIngredients: stepIngredients, parseTranscript: parseTranscript, detectLang: detectLang, rezeptStil: rezeptStil, cleanSteps: cleanSteps, langOfText: langOfText, dropEnglishHalf: dropEnglishHalf
+    parseRecipeHtml: parseRecipeHtml, inferServings: inferServings, uebersetzeSchritte: uebersetzeSchritte, vorUebersetzung: vorUebersetzung, nachUebersetzung: nachUebersetzung, uebersetzeZutaten: uebersetzeZutaten, klassifiziere: klassifiziere, nlEnKorrektur: nlEnKorrektur, mergeFrameText: mergeFrameText, isEnglishTitle: isEnglishTitle, stepIngredients: stepIngredients, parseTranscript: parseTranscript, detectLang: detectLang, rezeptStil: rezeptStil, cleanSteps: cleanSteps, langOfText: langOfText, dropEnglishHalf: dropEnglishHalf
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = api;
