@@ -139,6 +139,7 @@ const check = (name, cond, info) => { if (cond) ok++; else { bad++; console.log(
   await klick('[data-a="cook"]');
   for (let k = 0; k < 5; k++) { if (!(await klick('[data-a="cook-next"]'))) break; }
   await klick('[data-a="cook-done"]');
+  if (await page.$('.sheet [data-a="foto-nein"]')) { check("Nach dem Kochen: Frage nach einem Foto", true); await page.$eval('.sheet [data-a="foto-nein"]', e => e.click()); await page.waitForTimeout(500); }
   sh = await page.innerText(".sheet");
   check("Nach dem Kochen: „nochmal kochen?“", /nochmal kochen/.test(sh), sh.slice(0, 120));
   await klick('.sheet [data-v="ja"]');
