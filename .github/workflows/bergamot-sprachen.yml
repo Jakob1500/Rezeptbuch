@@ -5,8 +5,6 @@
 name: Bergamot-Sprachen holen
 on:
   workflow_dispatch:
-  push:
-    paths: [".github/workflows/bergamot-sprachen.yml"]
 permissions:
   contents: write
 env:

@@ -1,5 +1,5 @@
 // Offline-Speicher der App (nur eigene Dateien, keine fremden Abrufe)
-const CACHE = "rezeptbuch-0.8.1-mw9sosjh";
+const CACHE = "rezeptbuch-0.8.1-mw9srfj2";
 const DATEN = "rezeptbuch-daten-f528a9baa9";
 const FILES = ["./", "index.html", "manifest.webmanifest", "icon.svg", "icon-180.png", "icon-192.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES))); self.skipWaiting(); });

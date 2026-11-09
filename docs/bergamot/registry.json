@@ -1,17 +1,17 @@
 {
  "nlen": {
   "lex": {
-   "name": "bergamot/nlen/lex.50.50.nlen.s2t.bin",
+   "name": "bergamot/v2/nlen/lex.50.50.nlen.s2t.bin",
    "size": 4862412,
    "expectedSha256Hash": "811ac8f9dcbd12706e2d73a7057a7bbe6b9f0607d15170ffe9439977e8229b41"
   },
   "model": {
-   "name": "bergamot/nlen/model.nlen.intgemm.alphas.bin",
+   "name": "bergamot/v2/nlen/model.nlen.intgemm.alphas.bin",
    "size": 31561787,
    "expectedSha256Hash": "ff987741ff15a5d94fff16cbef28f2b0a85a6e9547d982fad60ac09d16d11270"
   },
   "vocab": {
-   "name": "bergamot/nlen/vocab.nlen.spm",
+   "name": "bergamot/v2/nlen/vocab.nlen.spm",
    "size": 807708,
    "expectedSha256Hash": "c09588ca5662b230ed65bd39a07f58d9f7dd21c3a19e4aeb1bff39bf3b297c56"
   }

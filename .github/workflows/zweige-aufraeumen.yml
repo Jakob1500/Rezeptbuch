@@ -1,9 +1,7 @@
 # Löscht alte, fertige Arbeitszweige (Inhalt ist in main). Freigabe Jakob 09.11.2026. Läuft nur, wenn diese Datei geändert wird.
 name: Alte Zweige löschen
 on:
-  push:
-    branches: [main]
-    paths: [".github/workflows/zweige-aufraeumen.yml"]
+  workflow_dispatch:
 permissions:
   contents: write
 jobs:
