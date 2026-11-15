@@ -1,1 +1,141 @@
-{"app":"rezeptbuch-lernen","version":1,"stand":"2026-10-20","hinweis":"Zentral geprüfte Regeln für alle Nutzer. Wird mit tools/lernen-uebernehmen.js gepflegt.","floskeln":{},"ignorieren":{},"keinSchritt":{},"istSchritt":{},"zutatAlias":{},"keineZutat":{},"keineFloskel":{}}
+{
+ "app": "rezeptbuch-lernen",
+ "version": 1,
+ "stand": "2026-11-15T17:31",
+ "hinweis": "Zentral geprüfte Regeln für alle Nutzer. Wird mit tools/lernen-uebernehmen.js gepflegt.",
+ "floskeln": {},
+ "ignorieren": {},
+ "keinSchritt": {},
+ "istSchritt": {},
+ "zutatAlias": {},
+ "keineZutat": {},
+ "keineFloskel": {},
+ "naehrwerte": {
+  "heisses wasser": {
+   "bls": "N110000",
+   "name": "Trinkwasser",
+   "n": {
+    "kcal": 0,
+    "protein": 0,
+    "fat": 0,
+    "carbs": 0,
+    "fiber": 0,
+    "sugar": 0,
+    "salt": 0.006,
+    "iron": 0,
+    "calcium": 5.3,
+    "magnesium": 0.9,
+    "zinc": 0.001,
+    "potassium": 0.2,
+    "vitC": 0,
+    "vitB12": 0,
+    "vitD": 0,
+    "folate": 0,
+    "satFat": 0,
+    "omega3": 0,
+    "iodine": 0.45,
+    "vitB2": 0
+   },
+   "art": "bls",
+   "geprueft": true,
+   "zutat": "heisses wasser"
+  },
+  "oyster mushrooms": {
+   "bls": "K740152",
+   "name": "Austernpilz gedünstet",
+   "n": {
+    "kcal": 45,
+    "protein": 4.66,
+    "fat": 0.31,
+    "carbs": 1.78,
+    "fiber": 8.239,
+    "sugar": 1.56,
+    "salt": 0.02,
+    "iron": 0.8,
+    "calcium": 17,
+    "magnesium": 18,
+    "zinc": 0.77,
+    "potassium": 357,
+    "vitC": 0.676,
+    "vitD": 1,
+    "folate": 61,
+    "satFat": 0.043,
+    "omega3": 0,
+    "vitB2": 0.381
+   },
+   "art": "bls",
+   "geprueft": true,
+   "zutat": "Oyster mushrooms"
+  },
+  "suppengrün": {
+   "bls": "G093100",
+   "name": "Suppengrün/Suppenkraut, roh",
+   "n": {
+    "kcal": 33,
+    "protein": 2.154,
+    "fat": 0.335,
+    "carbs": 3.4,
+    "fiber": 3.4,
+    "sugar": 3.3,
+    "salt": 0.14,
+    "iron": 1.3,
+    "calcium": 61,
+    "magnesium": 18,
+    "zinc": 0.4,
+    "potassium": 396,
+    "vitC": 48.618,
+    "vitB12": 0,
+    "vitD": 0,
+    "folate": 78,
+    "satFat": 0.061,
+    "omega3": 0.039,
+    "iodine": 2,
+    "vitB2": 0.1
+   },
+   "art": "bls",
+   "geprueft": true,
+   "zutat": "Suppengrün"
+  },
+  "potato starch": {
+   "bls": "K230000",
+   "name": "Kartoffelstärke (Kartoffelmehl)",
+   "n": {
+    "kcal": 338,
+    "protein": 0.614,
+    "fat": 0.1,
+    "carbs": 83.1,
+    "fiber": 1,
+    "sugar": 0,
+    "salt": 0.02,
+    "iron": 1.8,
+    "calcium": 35,
+    "magnesium": 6,
+    "zinc": 0.15,
+    "potassium": 15,
+    "vitC": 0,
+    "vitB12": 0,
+    "vitD": 0,
+    "folate": 0,
+    "satFat": 0.034,
+    "omega3": 0.003,
+    "iodine": 1,
+    "vitB2": 0.007
+   },
+   "art": "bls",
+   "geprueft": true,
+   "zutat": "Potato starch"
+  }
+ },
+ "uebernommen": {
+  "erledigt": [
+   "https://www.instagram.com/reel/C_2UKH4ohOC",
+   "https://www.instagram.com/reel/Da44ZmmIsbn"
+  ],
+  "unbekannt": [
+   "heisses wasser",
+   "oyster mushrooms",
+   "suppengrün",
+   "potato starch"
+  ]
+ }
+}

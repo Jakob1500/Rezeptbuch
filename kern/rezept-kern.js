@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.8.1";
+  var VERSION = "0.8.2";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -1118,7 +1118,7 @@
   }
 
   // Sieht eine Zeile wie ein Arbeitsschritt aus? ("Den Salat geben und alles gut vermengen")
-  var STEP_VERBS = /\b(vermisch|vermeng|verrühr|unterrühr|unterheb|hineingeben|dazugeben|zugeben|gebt|gib|köcheln|anbraten|anbräun|schneid|hinzufüg|umrühr|rühr|servier|abschmeck|pürier|aufkoch|ziehen lassen|backen lassen)\w*|\b(?:mix|add|stir|cook|bake|place|serve|combine|pour|blend|heat|simmer|toss|whisk|fold|drizzle|sprinkle|transfer|bring|until)(?:es|s|ing)?\b|\bgeben\b|\bvermische\b|\blassen\b|\bbis (?:es|sie|alles|die|der|das)\b/i;
+  var STEP_VERBS = /\b(vermisch|vermeng|verrühr|unterrühr|unterheb|hineingeben|dazugeben|zugeben|gebt|gib|köcheln|anbraten|anbräun|schneid|hinzufüg|umrühr|rühr|servier|abschmeck|pürier|aufkoch|ziehen lassen|backen lassen|vorheiz)\w*|\b(?:mix|add|stir|cook|bake|place|serve|combine|pour|blend|heat|simmer|toss|whisk|fold|drizzle|sprinkle|transfer|bring|until|preheat)(?:es|s|ing)?\b|\bgeben\b|\bvermische\b|\blassen\b|\bbis (?:es|sie|alles|die|der|das)\b/i;
   function isStepLike(line) {
     var l = clean(stripEmoji(String(line || "")).replace(BULLET_RE, "").replace(/\([^)]*\)/g, " ")); // "Basilikum (nach dem Backen dazugeben)" ist eine Zutat
     var words = l.split(/\s+/).length;
@@ -1194,7 +1194,7 @@
 
   function extractUrls(text) {
     var out = [];
-    String(text || "").replace(/\b((?:https?:\/\/|www\.)[^\s<>"')]+)/gi, function (m) {
+    String(text || "").replace(/[\u200B-\u200D\u2060-\u2064\uFEFF]/g, "").replace(/\b((?:https?:\/\/|www\.)[^\s<>"')]+)/gi, function (m) {
       var u = m.replace(/[.,;:!?]+$/, "");
       if (!/^https?:/i.test(u)) u = "https://" + u;
       if (!/instagram\.com|instagr\.am/i.test(u)) out.push(u);
@@ -1683,7 +1683,7 @@
   // Captions ohne Zeilenumbrüche (z. B. aus der Einbettungsseite) wieder in Zeilen zerlegen
   var SECTION_WORDS = "(?:Zutaten(?: für [^:]{1,30})?|Das brauchst du|Du brauchst|Ihr braucht|Was du brauchst|Was brauchen wir|Ingredients|What you need|You need|Zubereitung|Anleitung|So machst du es|So geht['’]?s|So wird['’]?s gemacht|Instructions|Method|Directions|How to make it|Für (?:den|die|das) [A-ZÄÖÜ][a-zäöüß]+)";
   function resegment(text) {
-    var t = String(text || "");
+    var t = String(text || "").replace(/[\u200B-\u200D\u2060-\u2064\uFEFF]/g, ""); // unsichtbare Zeichen (Lern-Export 14.11.)
     var lines = t.split(/\n/).filter(function (l) { return l.trim() && !isHashtagLine(l.trim()); });
     var longest = lines.reduce(function (m, l) { return Math.max(m, l.length); }, 0);
     // Abschnitts-Überschriften mitten in der Zeile immer abtrennen ("Noodles 🍜 Ingredients: …")
@@ -1824,7 +1824,7 @@
       if (!instr && /[.!]$/.test(t) && t.split(/\s+/).length <= 6 && (EN_IMP.test(t) || DE_VERBS.test(t))) instr = true;
       // Erzählung in der Ich-Form oder Hintergrund ("Meine Mutter hat …", "Normalerweise wird …")
       if (/^(hi|hallo|hey|normalerweise|eigentlich|ursprünglich|traditionell|es gibt|dieses rezept|this recipe|meine?|my|ich|i|wir|we)\b/i.test(t) && !/^(ich|i|wir|we)\s+(gebe|mische|brate|koche|add|mix|stir)\b/i.test(t)) { desc.push(t); return; }
-      if (/\b(ich|mein\w*|wir|unser\w*|I|my|we|our)\b/.test(t) && !(STEP_VERBS.test(t.split(/\s+/).slice(0, 8).join(" ")) || DE_VERBS.test(t.split(/\s+/).slice(0, 8).join(" ")) || EN_IMP.test(t))) { desc.push(t); return; }
+      if (/\b(ich|mein\w*|wir|unser\w*|I|my|we|our)\b/.test(t.replace(/\([^)]*\)/g, " ")) && !(STEP_VERBS.test(t.split(/\s+/).slice(0, 8).join(" ")) || DE_VERBS.test(t.split(/\s+/).slice(0, 8).join(" ")) || EN_IMP.test(t))) { desc.push(t); return; }
       if (LERN) { var ln = lernNorm(t); if (LERN.keinSchritt[ln]) { desc.push(t); return; } if (LERN.istSchritt[ln]) { out.push(fToC(t)); return; } }
       if (NARRATIVE.test(t) && !instr) { desc.push(t); return; }
       if (!trusted && !instr) { desc.push(t); return; }
@@ -1894,6 +1894,12 @@
     var dopp = (String(text || "").match(/\S {2,}(?=\S)/g) || []).length, textVorDopp = null;
     if (dopp >= 4 && dopp > (String(text || "").match(/\n/g) || []).length) { textVorDopp = String(text); text = textVorDopp.replace(/(\S) {2,}(?=\S)/g, "$1\n"); }
     text = resegment(preferGerman(normalizeFancy(text)));
+    // „Gewürzmischung: jeweils 1 TL: Kurkuma, Zimt, Salz“ → je eine Zeile „1 TL Kurkuma“ … (Lern-Export 15.11.)
+    text = String(text).replace(/^([^:\n\d]{2,30}):\s*(?:je(?:weils)?|each)\s+(\d+(?:[.,]\d+)?\s*[A-Za-zÄÖÜäöü.]{1,12})\s*:?\s+([^\n.!?]{3,200})$/gm, function (m0, lab, menge, liste) {
+      var teile = liste.split(/\s*,\s*|\s+(?:und|and)\s+/).filter(function (x) { return x && x.split(/\s+/).length <= 3; });
+      if (teile.length < 2) return m0;
+      return teile.map(function (x) { return menge.trim() + " " + x.trim(); }).join("\n");
+    });
     // "Salmon Sushi Bowl #sushibowl #sushi …": Text vor den Hashtags behalten
     var rawLines = splitLines(text).map(function (l) {
       return /^[^#@\s]/.test(l) ? l.replace(/(\s+[#@][^\s#@]+)+\s*$/, "") : l;
