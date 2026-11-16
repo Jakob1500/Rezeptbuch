@@ -27,6 +27,8 @@ fs.readdirSync(dir).filter(f => f.endsWith(".json")).forEach(f => {
   (soll.zutatNamen || []).forEach(n => { if (!r.ingredients.some(i => i.name === n)) fehler.push(`Zutat „${n}“ fehlt`); });
   (soll.schrittEnthaelt || []).forEach(x => { if (!r.steps.some(s => s.includes(x))) fehler.push(`kein Schritt enthält „${x}“`); });
   if (soll.ohneNaehrwert && JSON.stringify((r.nutrition.coverage.offen || []).map(o => o.name)) !== JSON.stringify(soll.ohneNaehrwert)) fehler.push(`ohne Nährwert ${JSON.stringify((r.nutrition.coverage.offen || []).map(o => o.name))}`);
+  if (soll.ersterSchritt && !(st[0] || "").includes(soll.ersterSchritt)) fehler.push(`erster Schritt „${(st[0] || "").slice(0, 40)}“ ohne „${soll.ersterSchritt}“`);
+  if (soll.wo && ((r.elsewhere && r.elsewhere.wo) || "") !== soll.wo) fehler.push(`Fundort ${(r.elsewhere && r.elsewhere.wo) || "–"} statt ${soll.wo}`);
   if (soll.zeitMax && r.timeTotal > soll.zeitMax) fehler.push(`Zeit ${r.timeTotal} > ${soll.zeitMax}`);
   if (fehler.length) { bad++; console.log(`✗ ${f.replace(".json", "")}: ${fehler.join("; ")}`); } else { ok++; console.log(`✓ ${f.replace(".json", "")}`); }
 });

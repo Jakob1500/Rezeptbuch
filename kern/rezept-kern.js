@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.8.2";
+  var VERSION = "0.8.3";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -138,7 +138,7 @@
     "half and half=Kaffeesahne", "sour cream=Saure Sahne", "creme fraiche=Crème fraîche", "ghee=Ghee", "clarified butter=Butterschmalz", "shortening=Pflanzenfett", "margarine=Margarine",
     "parmesan cheese=Parmesan", "cheddar cheese=Cheddar", "mozzarella cheese=Mozzarella", "ricotta cheese=Ricotta", "feta cheese=Feta", "goat cheese=Ziegenkäse", "cream cheese=Frischkäse", "monterey jack cheese=Monterey Jack", "pepper jack cheese=Pepper Jack",
     "pecorino romano=Pecorino", "pecorino=Pecorino", "provolone=Provolone", "gruyere=Gruyère", "swiss cheese=Emmentaler", "blue cheese=Blauschimmelkäse", "halloumi=Halloumi", "oaxaca cheese=Oaxaca-Käse", "cottage cheese=Hüttenkäse",
-    "chicken broth=Hühnerbrühe", "chicken stock=Hühnerbrühe", "beef broth=Rinderbrühe", "beef stock=Rinderbrühe", "vegetable broth=Gemüsebrühe", "bouillon powder=Brühpulver", "bouillon cube=Brühwürfel", "stock cube=Brühwürfel",
+    "chicken bone broth=Hühnerbrühe", "beef bone broth=Rinderbrühe", "chicken broth=Hühnerbrühe", "chicken stock=Hühnerbrühe", "beef broth=Rinderbrühe", "beef stock=Rinderbrühe", "vegetable broth=Gemüsebrühe", "bouillon powder=Brühpulver", "bouillon cube=Brühwürfel", "stock cube=Brühwürfel",
     "caster sugar=Feiner Zucker", "superfine sugar=Feiner Zucker", "powdered sugar=Puderzucker", "icing sugar=Puderzucker", "confectioners sugar=Puderzucker", "light brown sugar=Brauner Zucker", "dark brown sugar=Dunkler brauner Zucker", "white sugar=Zucker", "fine sugar=Feiner Zucker",
     "molasses=Melasse", "golden syrup=Zuckerrübensirup", "corn syrup=Glukosesirup", "light corn syrup=Glukosesirup", "agave=Agavendicksaft", "agave syrup=Agavendicksaft", "date syrup=Dattelsirup",
     "cake flour=Weizenmehl Type 405", "bread flour=Weizenmehl Type 550", "whole wheat flour=Vollkornmehl", "self-raising flour=Mehl mit Backpulver", "self-rising flour=Mehl mit Backpulver", "rice flour=Reismehl", "coconut flour=Kokosmehl", "almond flour=Gemahlene Mandeln", "almond meal=Gemahlene Mandeln", "masa harina=Maismehl (Masa Harina)", "cornmeal=Maisgrieß", "semolina=Hartweizengrieß",
@@ -922,6 +922,7 @@
   function parseIngredientLine(line) {
     var raw = clean(stripEmoji(String(line || "")).replace(/[\u200b-\u200f\u2060-\u2064\ufeff]/g, "").replace(BULLET_RE, "").replace(/[„“”"«»]/g, ""));
     if (!raw) return null;
+    raw = raw.replace(/\b(handful|pinch|bunch|clove|sprig)[’'](s)\b/gi, function (m0, w) { return w.toLowerCase() + "s"; }); // „Handful’s of Spinach“ (V5, Lern-Export 1)
     var res = { raw: raw, qty: null, qtyMax: null, unit: "", name: "", note: "", optional: false };
     var note = [];
     if (/\b(optional|nach belieben|nach geschmack|to taste)\b/i.test(raw)) res.optional = /optional/i.test(raw);
@@ -1857,12 +1858,21 @@
   }
 
   // Wo steht das Rezept, wenn nicht in der Caption? (Blog, Bio-Link, Kommentar, Nachricht, Kochbuch, Newsletter)
+  // Instagram-Fehlerseite statt Beitrag (gelöscht, privat, kurz gesperrt) – V1, Lern-Export 1
+  var FEHLERSEITE_RE = /(entweder funktioniert der link|der beitrag wurde entfernt|diese seite ist leider nicht verfügbar|sorry, this page isn['’]t available|the link you followed may be broken|page may have been removed)/i;
+  function istFehlerseite(text) {
+    var t = String(text || "");
+    return t.length < 1500 && FEHLERSEITE_RE.test(t);
+  }
+
   function findElsewhere(text, r) {
     var t = lower(normalizeFancy(text));
     var m;
     // Rezept nur gegen Geld (Mitgliedschaft, Abo, Patreon)
     if (/(membership|mitgliedschaft|patreon|less than a coffee|weniger als ein kaffee|paid subscribers|bezahl-?abo)/.test(t) && /(recipe|rezept)/.test(t)) return { wo: "bezahlseite" };
     if (/(pinned comment|pinned (?:in|below|in the) comments?|(?:method|instructions|steps?) (?:are |is )?(?:in the |in )comments?|angepinnte[nm]? kommentar|recipe (?:is )?in (?:the )?comments?|recipes? (?:are )?pinned|rezept (?:steht |ist )?in den kommentaren|rezept im kommentar|first comment|ersten kommentar|comment the recipe back)/.test(t)) return { wo: "kommentar" };
+    // Vollständiger Blog-Link hat Vorrang vor „Kommentiere … für DM“ (V3, Lern-Export 1)
+    if ((r.links || []).length) return { wo: "blog", url: r.links[0] };
     if ((m = t.match(/(?:comment|kommentier\w*|schreib\w*)\s+[„"“'‘]([^"”“'’]{2,25})["”“'’]/)) && /(dm|nachricht|message|recipe|rezept|link)/.test(t)) return { wo: "nachricht", stichwort: m[1] };
     var mRoh = normalizeFancy(text);
     if ((m = mRoh.match(/(?:[Cc]omment|[Kk]ommentier\w*|[Ss]chreib\w*)\s+(?:mir\s+)?(?:(?:das wort|the word|einfach)\s+)?([A-ZÄÖÜ][A-ZÄÖÜ0-9]{2,19})\b/)) && /(dm|nachricht|message|recipe|rezept|link|schick|send)/i.test(t)) return { wo: "nachricht", stichwort: m[1] };
@@ -1870,7 +1880,6 @@
     if ((m = t.match(/(?:pg\.?|page|seite|s\.)\s*(\d{1,3})\b/)) && /(cookbook|kochbuch|my book|mein buch|book)/.test(t)) return { wo: "kochbuch", seite: +m[1] };
     if (/(cookbook|kochbuch)/.test(t) && /(recipe|rezept)/.test(t) && !(r.links || []).length) return { wo: "kochbuch" };
     if (/(newsletter|substack)/.test(t) && /(recipe|rezept)/.test(t)) return { wo: "newsletter" };
-    if ((r.links || []).length) return { wo: "blog", url: r.links[0] };
     if (/(on my (?:blog|website|site)|auf meinem blog|auf meiner (?:website|seite|homepage)|full recipe (?:here|on|at)|recipe is on|rezept (?:gibt'?s|findest du|steht) auf)/.test(t)) return { wo: "blog" };
     if (r.linkInBio) return { wo: "bio" };
     return null;
@@ -5340,7 +5349,7 @@
     neuerLernspeicher: neuerLernspeicher, lerneAusRezept: lerneAusRezept, lerneKorrektur: lerneKorrektur, lernExport: lernExport, lernStand: lernStand, zeitAusreisser: zeitAusreisser, schrittMinutenAngabe: schrittMinutenAngabe, lernSpaeter: lernSpaeter, LERN_GRENZEN: LERN_GRENZEN, lernRegeln: lernRegeln, lernNorm: lernNorm,
     VERSION: VERSION, SCHEMA_VERSION: SCHEMA_VERSION, ZEIT_FAKTOR: ZEIT_FAKTOR,
     AISLES: AISLES,
-    analyse: analyse,
+    analyse: analyse, istFehlerseite: istFehlerseite,
     parseText: parseText, parseTranscript: parseTranscript, parseSchemaOrg: parseSchemaOrg,
     parseIngredientLine: parseIngredientLine, parseDuration: parseDuration,
     classify: classify, completeness: completeness, focusFromNutrition: focusFromNutrition,

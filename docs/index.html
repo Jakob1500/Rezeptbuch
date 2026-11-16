@@ -474,7 +474,7 @@ a { color: var(--accent); }
 
 <script>(function (root) {
 "use strict";
-var VERSION = "0.8.2";
+var VERSION = "0.8.3";
 var SCHEMA_VERSION = 1;
 var AISLES = ["Obst & Gemüse", "Kühlregal", "Fleisch & Fisch", "Brot & Backwaren",
 "Trockenware & Konserven", "Gewürze, Öle & Saucen", "Tiefkühl", "Getränke", "Süßes & Snacks", "Drogerie & Haushalt", "Sonstiges"];
@@ -573,7 +573,7 @@ var EN_NAMES_RAW = [
 "half and half=Kaffeesahne", "sour cream=Saure Sahne", "creme fraiche=Crème fraîche", "ghee=Ghee", "clarified butter=Butterschmalz", "shortening=Pflanzenfett", "margarine=Margarine",
 "parmesan cheese=Parmesan", "cheddar cheese=Cheddar", "mozzarella cheese=Mozzarella", "ricotta cheese=Ricotta", "feta cheese=Feta", "goat cheese=Ziegenkäse", "cream cheese=Frischkäse", "monterey jack cheese=Monterey Jack", "pepper jack cheese=Pepper Jack",
 "pecorino romano=Pecorino", "pecorino=Pecorino", "provolone=Provolone", "gruyere=Gruyère", "swiss cheese=Emmentaler", "blue cheese=Blauschimmelkäse", "halloumi=Halloumi", "oaxaca cheese=Oaxaca-Käse", "cottage cheese=Hüttenkäse",
-"chicken broth=Hühnerbrühe", "chicken stock=Hühnerbrühe", "beef broth=Rinderbrühe", "beef stock=Rinderbrühe", "vegetable broth=Gemüsebrühe", "bouillon powder=Brühpulver", "bouillon cube=Brühwürfel", "stock cube=Brühwürfel",
+"chicken bone broth=Hühnerbrühe", "beef bone broth=Rinderbrühe", "chicken broth=Hühnerbrühe", "chicken stock=Hühnerbrühe", "beef broth=Rinderbrühe", "beef stock=Rinderbrühe", "vegetable broth=Gemüsebrühe", "bouillon powder=Brühpulver", "bouillon cube=Brühwürfel", "stock cube=Brühwürfel",
 "caster sugar=Feiner Zucker", "superfine sugar=Feiner Zucker", "powdered sugar=Puderzucker", "icing sugar=Puderzucker", "confectioners sugar=Puderzucker", "light brown sugar=Brauner Zucker", "dark brown sugar=Dunkler brauner Zucker", "white sugar=Zucker", "fine sugar=Feiner Zucker",
 "molasses=Melasse", "golden syrup=Zuckerrübensirup", "corn syrup=Glukosesirup", "light corn syrup=Glukosesirup", "agave=Agavendicksaft", "agave syrup=Agavendicksaft", "date syrup=Dattelsirup",
 "cake flour=Weizenmehl Type 405", "bread flour=Weizenmehl Type 550", "whole wheat flour=Vollkornmehl", "self-raising flour=Mehl mit Backpulver", "self-rising flour=Mehl mit Backpulver", "rice flour=Reismehl", "coconut flour=Kokosmehl", "almond flour=Gemahlene Mandeln", "almond meal=Gemahlene Mandeln", "masa harina=Maismehl (Masa Harina)", "cornmeal=Maisgrieß", "semolina=Hartweizengrieß",
@@ -1401,6 +1401,7 @@ function parseIngredientLine(line) {
 var raw = clean(stripEmoji(String(line || "")).replace(/[\u200b-\u200f\u2060-\u2064\ufeff]/g, "").replace(BULLET_RE, "").replace(/[„“”"«»]/g, ""));
 if (!raw)
 return null;
+raw = raw.replace(/\b(handful|pinch|bunch|clove|sprig)[’'](s)\b/gi, function (m0, w) { return w.toLowerCase() + "s"; });
 var res = { raw: raw, qty: null, qtyMax: null, unit: "", name: "", note: "", optional: false };
 var note = [];
 if (/\b(optional|nach belieben|nach geschmack|to taste)\b/i.test(raw))
@@ -2502,6 +2503,11 @@ return { steps: final, description: desc, ingredients: ings };
 function normalizeFancy(s) {
 return String(s || "").replace(/[\u{1D400}-\u{1D7FF}]/gu, function (c) { return c.normalize ? c.normalize("NFKC") : c; });
 }
+var FEHLERSEITE_RE = /(entweder funktioniert der link|der beitrag wurde entfernt|diese seite ist leider nicht verfügbar|sorry, this page isn['’]t available|the link you followed may be broken|page may have been removed)/i;
+function istFehlerseite(text) {
+var t = String(text || "");
+return t.length < 1500 && FEHLERSEITE_RE.test(t);
+}
 function findElsewhere(text, r) {
 var t = lower(normalizeFancy(text));
 var m;
@@ -2509,6 +2515,8 @@ if (/(membership|mitgliedschaft|patreon|less than a coffee|weniger als ein kaffe
 return { wo: "bezahlseite" };
 if (/(pinned comment|pinned (?:in|below|in the) comments?|(?:method|instructions|steps?) (?:are |is )?(?:in the |in )comments?|angepinnte[nm]? kommentar|recipe (?:is )?in (?:the )?comments?|recipes? (?:are )?pinned|rezept (?:steht |ist )?in den kommentaren|rezept im kommentar|first comment|ersten kommentar|comment the recipe back)/.test(t))
 return { wo: "kommentar" };
+if ((r.links || []).length)
+return { wo: "blog", url: r.links[0] };
 if ((m = t.match(/(?:comment|kommentier\w*|schreib\w*)\s+[„"“'‘]([^"”“'’]{2,25})["”“'’]/)) && /(dm|nachricht|message|recipe|rezept|link)/.test(t))
 return { wo: "nachricht", stichwort: m[1] };
 var mRoh = normalizeFancy(text);
@@ -2522,8 +2530,6 @@ if (/(cookbook|kochbuch)/.test(t) && /(recipe|rezept)/.test(t) && !(r.links || [
 return { wo: "kochbuch" };
 if (/(newsletter|substack)/.test(t) && /(recipe|rezept)/.test(t))
 return { wo: "newsletter" };
-if ((r.links || []).length)
-return { wo: "blog", url: r.links[0] };
 if (/(on my (?:blog|website|site)|auf meinem blog|auf meiner (?:website|seite|homepage)|full recipe (?:here|on|at)|recipe is on|rezept (?:gibt'?s|findest du|steht) auf)/.test(t))
 return { wo: "blog" };
 if (r.linkInBio)
@@ -6682,7 +6688,7 @@ var api = {
 neuerLernspeicher: neuerLernspeicher, lerneAusRezept: lerneAusRezept, lerneKorrektur: lerneKorrektur, lernExport: lernExport, lernStand: lernStand, zeitAusreisser: zeitAusreisser, schrittMinutenAngabe: schrittMinutenAngabe, lernSpaeter: lernSpaeter, LERN_GRENZEN: LERN_GRENZEN, lernRegeln: lernRegeln, lernNorm: lernNorm,
 VERSION: VERSION, SCHEMA_VERSION: SCHEMA_VERSION, ZEIT_FAKTOR: ZEIT_FAKTOR,
 AISLES: AISLES,
-analyse: analyse,
+analyse: analyse, istFehlerseite: istFehlerseite,
 parseText: parseText, parseTranscript: parseTranscript, parseSchemaOrg: parseSchemaOrg,
 parseIngredientLine: parseIngredientLine, parseDuration: parseDuration,
 classify: classify, completeness: completeness, focusFromNutrition: focusFromNutrition,
@@ -6862,7 +6868,7 @@ root.RezeptKern = api;
   function A(input) { return K.analyse(input, { lernen: [ZENTRAL, S.lernen] }); }
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.20.29";
+  var APP_VERSION = "0.20.30";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0 (creativecommons.org/licenses/by/4.0). Werte unverändert übernommen; Stück- und Löffelgewichte sind eigene Richtwerte der App. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -9294,9 +9300,21 @@ root.RezeptKern = api;
     try { navigator.clipboard.readText().then(go, function () { pasteSheet(); }); } catch (x) { pasteSheet(); }
   }
   // Teilen-Probleme merken (die App lernt, wo es hakt; geht mit „An Jakob schicken“ mit)
-  var HARTE_FEHLER = { "zwischenablage-leer": 1, "keine-daten": 1, "keine-beschreibung": 1, "nicht-gelesen": 1, "share-link": 1, "gemeldet": 1, "nicht-uebersetzt": 1, "blog-unvollstaendig": 1, "uebersetzer": 1 };
+  var HARTE_FEHLER = { "zwischenablage-leer": 1, "keine-daten": 1, "keine-beschreibung": 1, "nicht-gelesen": 1, "share-link": 1, "gemeldet": 1, "nicht-uebersetzt": 1, "blog-unvollstaendig": 1, "uebersetzer": 1, "nicht-erreichbar": 1 };
   var FEHLER_TEXT = { "zwischenablage-leer": "Zwischenablage war leer", "keine-daten": "Kein Kombüse-Text in der Zwischenablage", "keine-beschreibung": "Instagram gab keine Beschreibung heraus",
-    "nicht-gelesen": "Text kam an, Rezept nicht lesbar", "nicht-uebersetzt": "Schritte nicht übersetzt", "uebersetzer": "Übersetzer konnte nicht starten", "blog-unvollstaendig": "Blog angehängt, Rezept trotzdem unvollständig", "share-link": "Teilen-Link (instagram.com/share/…) nicht unterstützt", "unvollstaendig": "Gespeichert, aber unvollständig", "gemeldet": "Von dir gemeldet" };
+    "nicht-gelesen": "Text kam an, Rezept nicht lesbar", "nicht-uebersetzt": "Schritte nicht übersetzt", "uebersetzer": "Übersetzer konnte nicht starten", "blog-unvollstaendig": "Blog angehängt, Rezept trotzdem unvollständig", "share-link": "Teilen-Link (instagram.com/share/…) nicht unterstützt", "unvollstaendig": "Gespeichert, aber unvollständig", "gemeldet": "Von dir gemeldet",
+    "nicht-erreichbar": "Beitrag nicht erreichbar (gelöscht, privat oder kurz gesperrt)", "nur-zutaten": "Zutaten da, Schritte fehlen", "nur-schritte": "Schritte da, Zutaten fehlen",
+    "rezept-blog": "Rezept steht auf einem Blog", "rezept-bio": "Rezept über den Link in der Bio", "rezept-nachricht": "Rezept nur per Nachricht/DM", "rezept-kommentar": "Rezept in den Kommentaren",
+    "rezept-kochbuch": "Rezept im Kochbuch", "rezept-newsletter": "Rezept im Newsletter", "rezept-bezahlseite": "Rezept nur gegen Bezahlung", "rezept-video": "Rezept nur im Video" };
+  // V2 (Lern-Export 1): genauer Grund statt pauschal „unvollstaendig“, damit sich zählen lässt, welcher Weg scheitert
+  function fehlerGrundFuer(r) {
+    var wo = r && r.elsewhere && r.elsewhere.wo;
+    if (wo && FEHLER_TEXT["rezept-" + wo]) return "rezept-" + wo;
+    var z = (r && r.ingredients || []).length, st = (r && r.steps || []).length;
+    if (z && !st) return "nur-zutaten";
+    if (st && !z) return "nur-schritte";
+    return "unvollstaendig";
+  }
   function merkeFehler(grund, txt, extra) {
     if (!S.lernen) return null;
     try {
@@ -9419,6 +9437,11 @@ root.RezeptKern = api;
         return true;
       }
     }
+    if (K.istFehlerseite && K.istFehlerseite(text)) {
+      // V1 (Lern-Export 1): Instagram-Fehlerseite statt Beitrag – kein leeres Rezept anlegen
+      setTimeout(function () { diagSheet("Instagram hat diesen Beitrag gerade nicht herausgegeben. Er ist vielleicht gelöscht oder privat, oder Instagram blockt kurz. Versuch es später noch einmal über „Teilen“.", text, "nicht-erreichbar", { link: url }); }, 250);
+      return true;
+    }
     var looksIg = /Gefällt|Liked by|class="Caption"|Profil ansehen|View profile|Mehr auf Instagram ansehen|View more on Instagram/.test(text);
     var emb = looksIg ? K.parseInstagramEmbed(text) : null;
     if (looksIg && !emb) {
@@ -9464,7 +9487,7 @@ root.RezeptKern = api;
       if (!out.dupe) { var accF = (S.recipes[out.id].recipe.source && S.recipes[out.id].recipe.source.account) || account; if (accF) setTimeout(function () { folgenPruefen(accF); }, 1800); }
       try {
         var rS = S.recipes[out.id].recipe;
-        if (!out.dupe && !K.completeness(rS).enough) merkeFehler("unvollstaendig", null, { link: url, rezept: { zutaten: rS.ingredients.length, schritte: rS.steps.length, wo: (rS.elsewhere && rS.elsewhere.wo) || "" } });
+        if (!out.dupe && !K.completeness(rS).enough) merkeFehler(fehlerGrundFuer(rS), null, { link: url, rezept: { zutaten: rS.ingredients.length, schritte: rS.steps.length, wo: (rS.elsewhere && rS.elsewhere.wo) || "" } });
         // Fremdsprachige Schritte gleich auf dem iPhone übersetzen (Bergamot)
         if (!out.dupe && UEB_SPRACHEN[foreignLang(rS, S.recipes[out.id])]) setTimeout(function () { startTranslate(out.id, true); }, 900);
         if (!out.dupe) setTimeout(function () { titelSpracheFragen(out.id); }, 700);

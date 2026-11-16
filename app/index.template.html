@@ -480,7 +480,7 @@ a { color: var(--accent); }
   function A(input) { return K.analyse(input, { lernen: [ZENTRAL, S.lernen] }); }
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.20.29";
+  var APP_VERSION = "0.20.30";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0 (creativecommons.org/licenses/by/4.0). Werte unverändert übernommen; Stück- und Löffelgewichte sind eigene Richtwerte der App. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -2912,9 +2912,21 @@ a { color: var(--accent); }
     try { navigator.clipboard.readText().then(go, function () { pasteSheet(); }); } catch (x) { pasteSheet(); }
   }
   // Teilen-Probleme merken (die App lernt, wo es hakt; geht mit „An Jakob schicken“ mit)
-  var HARTE_FEHLER = { "zwischenablage-leer": 1, "keine-daten": 1, "keine-beschreibung": 1, "nicht-gelesen": 1, "share-link": 1, "gemeldet": 1, "nicht-uebersetzt": 1, "blog-unvollstaendig": 1, "uebersetzer": 1 };
+  var HARTE_FEHLER = { "zwischenablage-leer": 1, "keine-daten": 1, "keine-beschreibung": 1, "nicht-gelesen": 1, "share-link": 1, "gemeldet": 1, "nicht-uebersetzt": 1, "blog-unvollstaendig": 1, "uebersetzer": 1, "nicht-erreichbar": 1 };
   var FEHLER_TEXT = { "zwischenablage-leer": "Zwischenablage war leer", "keine-daten": "Kein Kombüse-Text in der Zwischenablage", "keine-beschreibung": "Instagram gab keine Beschreibung heraus",
-    "nicht-gelesen": "Text kam an, Rezept nicht lesbar", "nicht-uebersetzt": "Schritte nicht übersetzt", "uebersetzer": "Übersetzer konnte nicht starten", "blog-unvollstaendig": "Blog angehängt, Rezept trotzdem unvollständig", "share-link": "Teilen-Link (instagram.com/share/…) nicht unterstützt", "unvollstaendig": "Gespeichert, aber unvollständig", "gemeldet": "Von dir gemeldet" };
+    "nicht-gelesen": "Text kam an, Rezept nicht lesbar", "nicht-uebersetzt": "Schritte nicht übersetzt", "uebersetzer": "Übersetzer konnte nicht starten", "blog-unvollstaendig": "Blog angehängt, Rezept trotzdem unvollständig", "share-link": "Teilen-Link (instagram.com/share/…) nicht unterstützt", "unvollstaendig": "Gespeichert, aber unvollständig", "gemeldet": "Von dir gemeldet",
+    "nicht-erreichbar": "Beitrag nicht erreichbar (gelöscht, privat oder kurz gesperrt)", "nur-zutaten": "Zutaten da, Schritte fehlen", "nur-schritte": "Schritte da, Zutaten fehlen",
+    "rezept-blog": "Rezept steht auf einem Blog", "rezept-bio": "Rezept über den Link in der Bio", "rezept-nachricht": "Rezept nur per Nachricht/DM", "rezept-kommentar": "Rezept in den Kommentaren",
+    "rezept-kochbuch": "Rezept im Kochbuch", "rezept-newsletter": "Rezept im Newsletter", "rezept-bezahlseite": "Rezept nur gegen Bezahlung", "rezept-video": "Rezept nur im Video" };
+  // V2 (Lern-Export 1): genauer Grund statt pauschal „unvollstaendig“, damit sich zählen lässt, welcher Weg scheitert
+  function fehlerGrundFuer(r) {
+    var wo = r && r.elsewhere && r.elsewhere.wo;
+    if (wo && FEHLER_TEXT["rezept-" + wo]) return "rezept-" + wo;
+    var z = (r && r.ingredients || []).length, st = (r && r.steps || []).length;
+    if (z && !st) return "nur-zutaten";
+    if (st && !z) return "nur-schritte";
+    return "unvollstaendig";
+  }
   function merkeFehler(grund, txt, extra) {
     if (!S.lernen) return null;
     try {
@@ -3037,6 +3049,11 @@ a { color: var(--accent); }
         return true;
       }
     }
+    if (K.istFehlerseite && K.istFehlerseite(text)) {
+      // V1 (Lern-Export 1): Instagram-Fehlerseite statt Beitrag – kein leeres Rezept anlegen
+      setTimeout(function () { diagSheet("Instagram hat diesen Beitrag gerade nicht herausgegeben. Er ist vielleicht gelöscht oder privat, oder Instagram blockt kurz. Versuch es später noch einmal über „Teilen“.", text, "nicht-erreichbar", { link: url }); }, 250);
+      return true;
+    }
     var looksIg = /Gefällt|Liked by|class="Caption"|Profil ansehen|View profile|Mehr auf Instagram ansehen|View more on Instagram/.test(text);
     var emb = looksIg ? K.parseInstagramEmbed(text) : null;
     if (looksIg && !emb) {
@@ -3082,7 +3099,7 @@ a { color: var(--accent); }
       if (!out.dupe) { var accF = (S.recipes[out.id].recipe.source && S.recipes[out.id].recipe.source.account) || account; if (accF) setTimeout(function () { folgenPruefen(accF); }, 1800); }
       try {
         var rS = S.recipes[out.id].recipe;
-        if (!out.dupe && !K.completeness(rS).enough) merkeFehler("unvollstaendig", null, { link: url, rezept: { zutaten: rS.ingredients.length, schritte: rS.steps.length, wo: (rS.elsewhere && rS.elsewhere.wo) || "" } });
+        if (!out.dupe && !K.completeness(rS).enough) merkeFehler(fehlerGrundFuer(rS), null, { link: url, rezept: { zutaten: rS.ingredients.length, schritte: rS.steps.length, wo: (rS.elsewhere && rS.elsewhere.wo) || "" } });
         // Fremdsprachige Schritte gleich auf dem iPhone übersetzen (Bergamot)
         if (!out.dupe && UEB_SPRACHEN[foreignLang(rS, S.recipes[out.id])]) setTimeout(function () { startTranslate(out.id, true); }, 900);
         if (!out.dupe) setTimeout(function () { titelSpracheFragen(out.id); }, 700);
