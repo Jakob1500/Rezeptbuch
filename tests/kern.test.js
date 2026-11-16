@@ -61,7 +61,7 @@ Zubereitung:
 let a = K.analyse({ caption: capDE, url: "https://www.instagram.com/p/ABC123/", account: "@kochmitlisa" });
 let r = a.recipe;
 check("DE Titel", r.title === "Cremiges Linsen-Curry in 30 Minuten", r.title);
-check("DE Zutaten", r.ingredients.length === 10 && r.ingredients.some(x => x.name === "Salz") && r.ingredients.some(x => x.name === "Pfeffer"), r.ingredients.map(x => x.raw)); // "Salz & Pfeffer" -> zwei Zutaten
+check("DE Zutaten", r.ingredients.filter(x => !x.ausSchritt).length === 10 && r.ingredients.some(x => x.ausSchritt && x.name === "Öl") && r.ingredients.some(x => x.name === "Salz") && r.ingredients.some(x => x.name === "Pfeffer"), r.ingredients.map(x => x.raw)); // "Salz & Pfeffer" -> zwei Zutaten
 check("DE Schritte", r.steps.length === 4, r.steps);
 check("DE Portionen", r.servings === 4, r.servings);
 check("DE Zeit aus Titel", r.timeTotal === 30, r.timeTotal);
@@ -606,7 +606,7 @@ const tonVoll = K.analyse({
   transcript: "Heute machen wir ein Linsen Dal. Das reicht für 4 Portionen und ist in 30 Minuten fertig. Zuerst die Zwiebel anbraten."
 });
 check("Ton: vollständiges Rezept bekommt Portionen aus dem Ton", tonVoll.recipe.servings === 4 && tonVoll.recipe.provenance.servings === "speech", [tonVoll.recipe.servings, tonVoll.recipe.provenance]);
-check("Ton: Zutaten aus der Caption bleiben", tonVoll.recipe.provenance.ingredients !== "speech" && tonVoll.recipe.ingredients.length === 4, tonVoll.recipe.provenance);
+check("Ton: Zutaten aus der Caption bleiben", tonVoll.recipe.provenance.ingredients !== "speech" && tonVoll.recipe.ingredients.filter(i => !i.ausSchritt).length === 4, tonVoll.recipe.provenance);
 const tonLeer = K.analyse({
   caption: "Das beste Pasta-Rezept 🍝 Folgt mir für mehr!",
   transcript: "Today we're making a creamy tomato pasta. You need 250 grams of pasta, 2 cloves of garlic, 400 grams of tomatoes and 100 ml of cream. First cook the pasta in salted water. Then fry the garlic in olive oil. Add the tomatoes and simmer for 10 minutes. Stir in the cream and the pasta."
@@ -918,5 +918,36 @@ check("Ü: Brüche vor der Übersetzung", K.vorUebersetzung("Add 3½ cups water"
 // 09.11. spät: Fehler aus 0.20.26 – „chopped“ wurde über die Tippfehler-Korrektur zu „Hackfleisch“ (niederländisch „gehakt“)
 check("„chopped onion“ bleibt gehackt, nicht Hackfleisch", K.parseIngredientLine("1/4 cup chopped onion").note.indexOf("Hackfleisch") === -1);
 check("Englisches Rezept mit „chopped“ bleibt vegan", K.analyse({ caption: "Salad\n\nIngredients:\n1 cup chopped onion\n2 cups chopped parsley\n\nMix everything in a bowl.", url: "x" }).recipe.diet.indexOf("vegan") !== -1);
+// 15./16.11.: Lern-Exporte 1 und 2
+{
+  const a = (c) => K.analyse({ caption: c, url: "" }).recipe;
+  const sp = a("Ofenkohl\n\nZutaten:\n1 Kopf Spitzkohl\nOlivenöl\n\nToppings:\nLimettensaft\n\nDen Backofen auf 175 Grad Umluft vorheizen.\nSpitzkohl vierteln.\nFür 30 Minuten in den Backofen geben.");
+  check("Export 2: „vorheizen“ ohne Zubereitungs-Überschrift ist Schritt 1", /vorheizen/.test(sp.steps[0] || ""), sp.steps);
+  const ich = a("Eintopf\n\n1 Süßkartoffel\n1 Dose Kokosmilch\n\nZuerst die Süßkartoffel klein schneiden und garen.\nDie gekochte Süßkartoffel zusammen der Kokosmilch in einen Mixer geben. ( ich heb mir immer etwas auf) Danach die Soße in den Topf geben.");
+  check("Export 2: Ich-Anmerkung in Klammern verwirft den Schritt nicht", ich.steps.some(s => /Mixer/.test(s)), ich.steps);
+  const gw = a("Eintopf\n\n1 Süßkartoffel\nGewürzmischung: jeweils 1 TL: Kurkuma, Zimt, Salz\n\nZuerst die Süßkartoffel schneiden und garen.");
+  check("Export 2: „jeweils 1 TL: A, B, C“ wird zerlegt", ["Kurkuma", "Zimt", "Salz"].every(n => gw.ingredients.some(i => i.name === n && i.unit === "TL")), gw.ingredients.map(i => i.raw));
+  check("Export 1: unsichtbares Zeichen zerschneidet den Titel nicht", a("Vegan Butter Chicken 💛 Find the recipe on noracooks.com (link in bio) or comment BUTTER and I’ll DM you the link.⁠\n⁠\n" + "x ".repeat(120) + "\n\nhttps://www.noracooks.com/vegan-butter-chicken/⁠").title !== "Vegan");
+  const bl = a("Vegan Butter Chicken\nFind the recipe on noracooks.com or comment BUTTER and I’ll DM you the link.\nhttps://www.noracooks.com/vegan-butter-chicken/⁠");
+  check("V3: Blog-Link hat Vorrang vor DM, ohne unsichtbares Anhängsel", bl.elsewhere && bl.elsewhere.wo === "blog" && bl.elsewhere.url === "https://www.noracooks.com/vegan-butter-chicken/", bl.elsewhere);
+  check("V1: Instagram-Fehlerseite erkannt", K.istFehlerseite("Instagram\nEntweder funktioniert der Link für dieses Foto oder Video nicht oder der Beitrag wurde entfernt.") && !K.istFehlerseite("Zutaten:\n200 g Linsen\nLink in Bio"));
+  check("V5: „Chicken Bone Broth“ und „Handful’s“", K.parseIngredientLine("500ml Chicken Bone Broth").name === "Hühnerbrühe" && K.parseIngredientLine("Few Handful’s of Spinach").name === "Spinat");
+  check("V8: „aus der Dose“ wird Notiz", K.parseIngredientLine("400 g rote Linsen aus der Dose").name === "Rote Linsen" && K.parseIngredientLine("400 g rote Linsen aus der Dose").state === "abgetropft");
+  const NWt = require("../daten/naehrwerte.json"), lr = a("Dal\nFür 1 Portion\n\nZutaten:\n400g Red Lentils (Tinned)\n\nZubereitung:\n1. Alles mischen.");
+  const ln = K.berechneNaehrwerte(lr, NWt);
+  check("V8: Linsen aus der Dose zählen als Konserve, nicht trocken", ln.values.kcal < 700, ln.values.kcal);
+  const dp = a("Soße\n\nZutaten:\n2 Wacholderbeeren\n1 Lorbeerblatt\n1 Wacholderbeere\n\nZubereitung:\n1. Wacholderbeeren und Lorbeer in den Topf geben.");
+  const wb = dp.ingredients.filter(i => /Wacholder/.test(i.name));
+  check("V6: doppelte Zutat im selben Abschnitt wird eine Zeile mit Rückfrage", wb.length === 1 && wb[0].qty === 2 && wb[0].doppelt && wb[0].doppelt.summe === 3, dp.ingredients.map(i => i.raw));
+  const sh = a("Wrap\n\n400g veganes Hähnchen\nSchawarma Marinade:\n100g Sojajoghurt\n1TL Kreuzkümmel\n\nKnoblauch Soße:\n200g Sojajoghurt\n2 Knoblauchzehen\n\nZubereitung:\nAlles verrühren und anbraten.");
+  check("V6: gleiche Zutat unter (nicht erkannter) Überschrift bleibt getrennt", sh.ingredients.filter(i => i.name === "Sojajoghurt").length === 2, sh.ingredients.map(i => i.raw));
+  K.doppeltWahl(dp, { [wb[0].key]: 3 });
+  check("V6: Wahl des Nutzers gilt", wb[0].qty === 3 && wb[0].doppelt.gewaehlt);
+  const st = a("Schmorpfanne\n\nZutaten:\n400 g Seitan\n1 Zwiebel\n\nZubereitung:\n1. Seitan in etwas Öl anbraten.\n2. Bei Bedarf Speisestärke mit kaltem Wasser anrühren und die Soße binden.\n3. Mit Paprikapulver würzen.");
+  const oel = st.ingredients.find(i => i.name === "Öl"), sta = st.ingredients.find(i => i.name === "Speisestärke");
+  check("V7: Öl aus den Schritten mit geschätzt 1 EL", oel && oel.ausSchritt && oel.qty === 1 && oel.unit === "EL", st.ingredients.map(i => i.raw));
+  check("V7: Speisestärke „bei Bedarf“ ist optional, ohne Menge", sta && sta.optional && sta.qty == null);
+  check("V7: kein Pfeffer aus „Paprikapulver“", !st.ingredients.some(i => i.name === "Pfeffer"));
+}
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

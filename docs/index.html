@@ -248,6 +248,8 @@ a { color: var(--accent); }
 .schnellchips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding-inline: max(16px, env(safe-area-inset-left, 0px)); }
 .schnellchips::-webkit-scrollbar { display: none; }
 .schnellchips .chip { display: inline-flex; align-items: center; gap: 6px; }
+.doppelt { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+.doppelt .chip { min-height: 32px; padding: 4px 12px; }
 .schnellchips .chip svg { width: 16px; height: 16px; color: var(--brand-text); }
 .schnellchips .chip[aria-pressed="true"] svg { color: inherit; }
 .topbar .acts { display: flex; gap: 8px; }
@@ -474,7 +476,7 @@ a { color: var(--accent); }
 
 <script>(function (root) {
 "use strict";
-var VERSION = "0.8.3";
+var VERSION = "0.8.4";
 var SCHEMA_VERSION = 1;
 var AISLES = ["Obst & Gemüse", "Kühlregal", "Fleisch & Fisch", "Brot & Backwaren",
 "Trockenware & Konserven", "Gewürze, Öle & Saucen", "Tiefkühl", "Getränke", "Süßes & Snacks", "Drogerie & Haushalt", "Sonstiges"];
@@ -1584,6 +1586,12 @@ res.name = clean(bed[1]);
 note.push(clean(bed[2]));
 }
 res.note = note.filter(Boolean).join(", ");
+var dm = res.name.match(/^(.{3,}?)\s+(aus der dose|aus dem glas|from a (?:can|tin|jar))$/i);
+if (dm) {
+res.name = dm[1];
+note.unshift(/glas|jar/i.test(dm[2]) ? "aus dem Glas" : "aus der Dose");
+res.note = note.filter(Boolean).join(", ");
+}
 res.state = detectState(res.name + " " + res.note, res.unit);
 var tr = translateIngredient(res.name);
 if (tr) {
@@ -4082,6 +4090,8 @@ var mr = mehrereRezepte(input.caption);
 if (mr)
 r.mehrere = { anzahl: mr.anzahl, titel: mr.teile.map(function (x) { return x.titel; }) };
 }
+doppelteZutaten(r);
+zutatenAusSchritten(r);
 if (LERN) {
 r.ingredients = r.ingredients.filter(function (i) { return !LERN.keineZutat[i.key]; });
 r.ingredients.forEach(function (i) { var a = LERN.zutatAlias[i.key]; if (a) {
@@ -4096,6 +4106,76 @@ finalize(r);
 LERN = null;
 var c = completeness(r);
 return { recipe: r, trace: trace, completeness: c, next: suggestNext(r, c, input), ms: now() - t0, version: VERSION };
+}
+function doppelteZutaten(r) {
+if (!r || !(r.ingredients || []).length)
+return;
+var seen = {}, raus = {};
+r.ingredients.forEach(function (i, n) {
+if (!i.key || i.qty == null)
+return;
+var k = (i.group || "") + "|" + i.key + "|" + (i.unit || "");
+if (seen[k] == null) {
+seen[k] = n;
+return;
+}
+var a = r.ingredients[seen[k]];
+for (var zw = seen[k] + 1; zw < n; zw++)
+if (r.ingredients[zw].qty == null && !raus[zw])
+return;
+if (a.qtyMax != null || i.qtyMax != null || i.optional !== a.optional || (a.note || "") !== (i.note || ""))
+return;
+var erst = a.doppelt ? a.doppelt.erste : a.qty;
+a.doppelt = { erste: erst, summe: Math.round(((a.doppelt ? a.doppelt.summe : a.qty) + i.qty) * 100) / 100 };
+raus[n] = true;
+});
+if (Object.keys(raus).length)
+r.ingredients = r.ingredients.filter(function (i, n) { return !raus[n]; });
+}
+function doppeltWahl(r, wahl) {
+if (!r || !wahl)
+return;
+r.ingredients.forEach(function (i) { if (i.doppelt && wahl[i.key] != null) {
+i.qty = wahl[i.key];
+i.doppelt.gewaehlt = true;
+} });
+}
+var SCHRITT_ZUTATEN = [
+{ re: /(?<![a-zäöüß])(oliven|raps|sonnenblumen|pflanzen|sesam|kokos|erdnuss)?öl(?![a-zäöüß])|\b(olive |vegetable |sesame |coconut |rapeseed |sunflower )?oil\b/i, zeile: "1 EL Öl", gruppe: /öl$|\boil$/i, geschaetzt: true },
+{ re: /(?<![a-zäöüß])(speise|mais)stärke(?![a-zäöüß])|\bcorn ?(starch|flour)\b/i, zeile: "Speisestärke", gruppe: /stärke$|starch/i },
+{ re: /\bsalz\b|\bsalt\b/i, zeile: "Salz", gruppe: /salz$|\bsalt\b/i },
+{ re: /\bpfeffer\b|\bpepper\b(?! flakes)/i, zeile: "Pfeffer", gruppe: /pfeffer$|\bpepper\b/i, nicht: /paprika|chili|cayenne|bell pepper|red pepper|green pepper|pfefferkörner/i }
+];
+function zutatenAusSchritten(r) {
+if (!r || !(r.steps || []).length || !(r.ingredients || []).length)
+return;
+var namen = r.ingredients.map(function (i) { return lower((i.name || "") + " " + (i.nameOriginal || "") + " " + (i.raw || "")); });
+SCHRITT_ZUTATEN.forEach(function (z) {
+if (namen.some(function (n) { return z.gruppe.test(n.split(",")[0].trim()) || z.re.test(n); }))
+return;
+var schritt = null;
+r.steps.forEach(function (st) { if (!schritt && !/^## /.test(st)) {
+var t = String(st);
+var m = t.match(z.re);
+if (m && !(z.nicht && z.nicht.test(t.slice(Math.max(0, m.index - 12), m.index + 20))))
+schritt = t;
+} });
+if (!schritt)
+return;
+var ing = parseIngredientLine(z.zeile);
+if (!ing)
+return;
+if (!z.geschaetzt) {
+ing.qty = null;
+ing.unit = "";
+}
+var bedarf = new RegExp("(bei bedarf|nach bedarf|if needed|optional)[^.]{0,60}(?:" + z.re.source + ")|(?:" + z.re.source + ")[^.]{0,40}(bei bedarf|nach bedarf|if needed|optional)", "i").test(schritt);
+ing.note = z.geschaetzt ? "aus den Schritten, Menge geschätzt" : "aus den Schritten";
+ing.ausSchritt = true;
+if (bedarf)
+ing.optional = true;
+r.ingredients.push(ing);
+});
 }
 function buildModelPrompt(text, missing) {
 return "Extrahiere aus dem folgenden Text ein Kochrezept auf Deutsch. Antworte NUR mit JSON: " +
@@ -5470,6 +5550,14 @@ if (state) {
 var base = findNutrientEntry(key, table);
 if (base && table[base.key + "@" + state])
 return { key: base.key + "@" + state, entry: table[base.key + "@" + state], state: state };
+if (base && state !== "roh") {
+var bw = base.key.split(" ");
+for (var bi = 1; bi < bw.length; bi++) {
+var allg = bw.slice(bi).join(" ") + "@" + state;
+if (table[allg])
+return { key: allg, entry: table[allg], state: state };
+}
+}
 return base;
 }
 if (table[key])
@@ -6688,7 +6776,7 @@ var api = {
 neuerLernspeicher: neuerLernspeicher, lerneAusRezept: lerneAusRezept, lerneKorrektur: lerneKorrektur, lernExport: lernExport, lernStand: lernStand, zeitAusreisser: zeitAusreisser, schrittMinutenAngabe: schrittMinutenAngabe, lernSpaeter: lernSpaeter, LERN_GRENZEN: LERN_GRENZEN, lernRegeln: lernRegeln, lernNorm: lernNorm,
 VERSION: VERSION, SCHEMA_VERSION: SCHEMA_VERSION, ZEIT_FAKTOR: ZEIT_FAKTOR,
 AISLES: AISLES,
-analyse: analyse, istFehlerseite: istFehlerseite,
+analyse: analyse, istFehlerseite: istFehlerseite, doppeltWahl: doppeltWahl,
 parseText: parseText, parseTranscript: parseTranscript, parseSchemaOrg: parseSchemaOrg,
 parseIngredientLine: parseIngredientLine, parseDuration: parseDuration,
 classify: classify, completeness: completeness, focusFromNutrition: focusFromNutrition,
@@ -6868,7 +6956,7 @@ root.RezeptKern = api;
   function A(input) { return K.analyse(input, { lernen: [ZENTRAL, S.lernen] }); }
   // Nährwert-Zuordnungen: zentral geprüfte zuerst, eigene Angaben dieses Geräts gehen vor
   function Z() { return Object.assign({}, ZENTRAL.naehrwerte || {}, S.zuord); }
-  var APP_VERSION = "0.20.30";
+  var APP_VERSION = "0.20.31";
   var BLS_HINWEIS = "Nährwerte: Max Rubner-Institut (2025), Bundeslebensmittelschlüssel (BLS), Version 4.0, Karlsruhe, DOI 10.25826/Data20251217-134202-0, Lizenz CC BY 4.0 (creativecommons.org/licenses/by/4.0). Werte unverändert übernommen; Stück- und Löffelgewichte sind eigene Richtwerte der App. Berechnet, ohne Gewähr.";
 
   // ------------------------------------------------------------------ Symbole (eigene, schlichte Linien)
@@ -6884,6 +6972,7 @@ root.RezeptKern = api;
     check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
     copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
     camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+    bild: '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="M20.5 16l-5-5-8 8.5"/>',
     share: '<path d="M12 3v12"/><path d="M7.5 7.5L12 3l4.5 4.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/>',
     link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
     file: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
@@ -7356,6 +7445,7 @@ root.RezeptKern = api;
     var old = e.recipe;
     var res = A(e.input), r = res.recipe;
     if (e.schritteZusammen && K.schritteZusammenfuehren) K.schritteZusammenfuehren(r); // deine Korrektur gilt auch nach einem Update
+    if (e.doppelt && K.doppeltWahl) K.doppeltWahl(r, e.doppelt); // V6: deine Wahl bei doppelten Zutaten bleibt
     // Übersetzungen behalten, solange sich der Originaltext nicht geändert hat
     if (old && old.stepsTranslated && old.stepsOriginal && JSON.stringify(old.stepsOriginal) === JSON.stringify(r.steps)) {
       r.stepsOriginal = old.stepsOriginal; r.steps = old.steps; r.stepsTranslated = true; r.lang = "de";
@@ -8389,7 +8479,7 @@ root.RezeptKern = api;
       var weg = !orig && UI.abgehakt && UI.abgehakt[id] && UI.abgehakt[id][ingN];
       return gh + '<div class="row ing' + (weg ? ' erledigt' : '') + '"' + (orig ? '' : ' role="button" tabindex="0" aria-pressed="' + !!weg + '" data-a="abhaken" data-id="' + esc(id) + '" data-n="' + ingN + '"') + '><span class="dot' + (have ? " have" : "") + '"><span class="sr">' + (have ? "vorhanden" : "fehlt") + '</span></span>' +
         '<span class="qty">' + esc(clean2(q + " " + unitText(i.unit))) + '</span><span class="main"><span>' + esc(name) + (i.optional ? ' <span class="muted small">(optional)</span>' : '') + '</span>' +
-        ((i.note || i.qtyEstimated || i.ergaenzt || i.andereMenge) ? '<span class="sub">' + esc([i.note, i.qtyEstimated ? "Menge geschätzt (im Rezept nicht angegeben)" : "", i.ergaenzt ? (i.ergaenzt === "Blog" ? "nur im Blog" : "nur in der " + i.ergaenzt) + " – ergänzt" : "", i.andereMenge ? "anders: " + i.andereMenge : ""].filter(Boolean).join(" · ")) + '</span>' : '') + '</span>' +
+        ((i.note || i.qtyEstimated || i.ergaenzt || i.andereMenge) ? '<span class="sub">' + esc([i.note, i.qtyEstimated ? "Menge geschätzt (im Rezept nicht angegeben)" : "", i.ergaenzt ? (i.ergaenzt === "Blog" ? "nur im Blog" : "nur in der " + i.ergaenzt) + " – ergänzt" : "", i.andereMenge ? "anders: " + i.andereMenge : ""].filter(Boolean).join(" · ")) + '</span>' : '') + (!orig && i.doppelt && !i.doppelt.gewaehlt ? '<span class="doppelt" role="group" aria-label="Im Original doppelt aufgeführt"><span class="small muted">doppelt im Original:</span><button class="chip" data-a="doppelt-wahl" data-id="' + esc(id) + '" data-n="' + ingN + '" data-q="' + i.doppelt.erste + '">' + esc(sq(i, i.doppelt.erste, f)) + '</button><button class="chip" data-a="doppelt-wahl" data-id="' + esc(id) + '" data-n="' + ingN + '" data-q="' + i.doppelt.summe + '">' + esc(sq(i, i.doppelt.summe, f)) + '</button></span>' : '') + '</span>' +
         (!orig && K.ersatzFuer && K.ersatzFuer(i).length ? '<button class="ibtn tausch" data-a="ersatz" data-id="' + esc(id) + '" data-n="' + ingN + '" aria-label="' + esc(i.name) + ' ersetzen" title="Ersetzen">⇄</button>' : '') + '</div>';
     }).join("");
     var stepList = orig && r.stepsOriginal ? r.stepsOriginal : r.steps;
@@ -8487,6 +8577,7 @@ root.RezeptKern = api;
     var translated = r.titleTranslated || r.stepsTranslated || r.ingredients.some(function (i) { return i.nameOriginal; });
     sheet('<h2>' + esc(titleOf(e)) + '</h2><div class="group">' +
       '<button class="row" data-a="foto-machen" data-id="' + esc(id) + '">' + ic("camera") + '<span class="main"><span class="title">' + (S.fotos[id] ? 'Neues Foto machen' : 'Foto vom Essen machen') + '</span><span class="sub">Wird Titelbild, bleibt auf diesem iPhone</span></span></button>' +
+      '<button class="row" data-a="foto-album" data-id="' + esc(id) + '">' + ic("bild") + '<span class="main"><span class="title">Foto aus deinen Fotos wählen</span><span class="sub">Wird Titelbild, bleibt auf diesem iPhone</span></span></button>' +
       (S.fotos[id] ? '<button class="row" data-a="foto-weg" data-id="' + esc(id) + '">' + ic("x") + '<span class="main"><span class="title">Foto entfernen</span></span></button>' : '') +
       '<button class="row" data-a="share-recipe" data-id="' + esc(id) + '">' + ic("share") + '<span class="main"><span class="title">Rezept teilen</span><span class="sub">Mit Kombüse-Link und Link zum Original</span></span></button>' +
       '<button class="row" data-a="edit" data-id="' + esc(id) + '">' + ic("edit") + '<span class="main"><span class="title">Rezept bearbeiten</span><span class="sub">Zutaten und Schritte korrigieren – die App lernt daraus</span></span></button>' +
@@ -8582,11 +8673,12 @@ root.RezeptKern = api;
   function fotoFrage(id) {
     var e = S.recipes[id]; if (!e || (S.fotos && S.fotos[id]) || e.fotoNein) { if (e && e.nochmal == null) { nochmalSheet(id); return true; } return false; }
     sheet('<h2>Guten Appetit!</h2><p>Magst du ein Foto vom Essen machen? Es erscheint dann als Titelbild bei „' + esc(titleOf(e)) + '“.</p><p class="small muted">Das Foto bleibt auf diesem iPhone und wird nicht geteilt.</p>' +
-      '<div class="btnrow"><button class="btn soft" data-a="foto-nein" data-id="' + esc(id) + '">Nicht jetzt</button><button class="btn accent" data-a="foto-machen" data-id="' + esc(id) + '">' + ic("camera") + 'Foto machen</button></div>');
+      '<div class="btnrow"><button class="btn soft" data-a="foto-nein" data-id="' + esc(id) + '">Nicht jetzt</button><button class="btn soft" data-a="foto-album" data-id="' + esc(id) + '">' + ic("bild") + 'Aus Fotos</button><button class="btn accent" data-a="foto-machen" data-id="' + esc(id) + '">' + ic("camera") + 'Foto machen</button></div>');
     return true;
   }
-  function fotoAufnehmen(id) {
-    var inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*"; inp.setAttribute("capture", "environment");
+  // ausAlbum: ohne „capture“ bietet iOS die Fotomediathek an (Jakob, 16.11.); EXIF/Standort fällt beim Verkleinern weg
+  function fotoAufnehmen(id, ausAlbum) {
+    var inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*"; if (!ausAlbum) inp.setAttribute("capture", "environment");
     inp.onchange = function () { var f = inp.files && inp.files[0]; if (f) fotoSpeichern(id, f); };
     inp.click();
   }
@@ -8904,7 +8996,7 @@ root.RezeptKern = api;
       sec("person", "Teilnahme am Test", einwilligungText() + (S.prefs.testEinwilligung ? '<p class="small muted">Eingewilligt am ' + esc(dateDe(Date.parse(S.prefs.testEinwilligung.am))) + '.</p>' : ''), false) +
       sec("jar", "Wo deine Daten liegen",
         '<p>Alles, was du in der App speicherst, liegt nur im Speicher dieses Geräts, im Bereich der App. Niemand sonst kann es sehen, auch nicht die Person, die die App bereitstellt.</p>' +
-        '<ul><li>Ein Rezept braucht etwa 4 KB, 1.000 Rezepte so viel wie ein Foto.</li><li>Bilder und Videos speichert die App nicht.</li>' +
+        '<ul><li>Ein Rezept braucht etwa 4 KB, 1.000 Rezepte so viel wie ein Foto.</li><li>Videos speichert die App nicht. Fotos nur, wenn du selbst eins als Titelbild wählst (verkleinert, etwa 200 KB).</li>' +
         '<li>Die Sicherung ist eine einzige Datei, die du selbst ablegst, zum Beispiel in deinem iCloud Drive. Tipp: Schalte in den iCloud-Einstellungen den „Erweiterten Datenschutz“ ein, dann ist sie Ende-zu-Ende-verschlüsselt.</li>' +
         '<li>Löschst du die App vom Home-Bildschirm, sind die Daten weg. Deshalb erinnert die App ans Sichern.</li>' +
         '<li>Nur wenn du bei einer Zutat auf „In Open Food Facts suchen“ tippst, geht der Suchbegriff (z. B. „Kashk“) an Open Food Facts in Frankreich. Sonst verlässt nichts dein iPhone, außer du teilst es selbst.</li></ul>', true,
@@ -9360,6 +9452,29 @@ root.RezeptKern = api;
     var versuche = 0;
     (function zeigen() { if (($("#layer").innerHTML || $("#coach").innerHTML) && versuche++ < 40) { setTimeout(zeigen, 1500); return; } if ((S.prefs.erstbefragung || 1) < ERSTBEFRAGUNG_VERSION) { S.prefs.erstbefragung = ERSTBEFRAGUNG_VERSION; save("prefs"); onboardSheet(true); } })(); // nur einmal fragen, auch wenn das Fenster weggewischt wird
   }
+  // „Was ist neu“ für Nutzer – nur bei spürbaren Änderungen (Jakob, 16.11.): neuen Eintrag oben anfügen, kleine Korrekturen bekommen keinen
+  var NEUIGKEITEN = [
+    { id: 1, version: "0.20.31", punkte: [
+      "Du kannst jetzt auch ein Foto aus deinen Fotos als Titelbild wählen – nicht nur mit der Kamera.",
+      "Schritte werden besser erkannt, z. B. „Backofen vorheizen“ steht jetzt am Anfang statt am Ende.",
+      "Öl, Salz oder Speisestärke, die nur in den Schritten vorkommen, stehen jetzt auch bei den Zutaten.",
+      "Steht eine Zutat im Original doppelt, wählst du mit einem Tipp die richtige Menge.",
+      "Ist ein Beitrag gelöscht oder privat, sagt dir die App das, statt ein leeres Rezept anzulegen." ] }
+  ];
+  function neuigkeitenPruefen() {
+    var neu = NEUIGKEITEN[0]; if (!neu) return;
+    if (!S.prefs.onboarded) { S.meta.neuigkeiten = neu.id; save("meta"); return; } // Neue Nutzer kennen schon alles
+    if ((S.meta.neuigkeiten || 0) >= neu.id || einwilligungFehlt()) return;
+    var versuche = 0;
+    (function zeigen() {
+      if (($("#layer").innerHTML || $("#coach").innerHTML) && versuche++ < 40) { setTimeout(zeigen, 1500); return; }
+      if ((S.meta.neuigkeiten || 0) >= neu.id) return;
+      S.meta.neuigkeiten = neu.id; save("meta");
+      sheet('<p class="small" style="margin:0;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--brand-text)">Neu in der Kombüse</p><h2>Das hat sich verbessert</h2>' +
+        '<ul class="small">' + neu.punkte.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join("") + '</ul>' +
+        '<button class="btn accent" data-a="close-sheet">Alles klar</button>');
+    })();
+  }
   function wasNeuPruefen() {
     if (!S.prefs.onboarded || (S.meta.wasNeu || 0) >= WASNEU_VERSION || einwilligungFehlt()) return;
     var v = scVersion() || "einfach", link = (window.KURZBEFEHL_LINKS || {})[v];
@@ -9738,6 +9853,12 @@ root.RezeptKern = api;
         merkeFehler("schritte-zusammengefuehrt", null, { link: (sz.recipe.source && sz.recipe.source.url) || "", notiz: "Automatisch geteilte Schritte wieder zusammengeführt" });
         render(); toast("Zusammengeführt – die App lernt daraus"); break;
       case "foto-machen": fotoAufnehmen(id); break;
+      case "foto-album": fotoAufnehmen(id, true); break;
+      case "doppelt-wahl": (function () {
+        var e = S.recipes[id], i = e && e.recipe.ingredients[+el.dataset.n], q = parseFloat(el.dataset.q); if (!i || !i.doppelt || isNaN(q)) return;
+        e.doppelt = e.doppelt || {}; e.doppelt[i.key] = q; i.qty = q; i.doppelt.gewaehlt = true;
+        K.berechneNaehrwerte(e.recipe, NW, null, { zuordnungen: Z() }); save("recipes"); render(); toast("Menge übernommen: " + K.fmtQty(q) + " " + i.name);
+      })(); break;
       case "foto-nein": if (S.recipes[id]) { S.recipes[id].fotoNein = true; save("recipes"); } closeSheet(); if (S.recipes[id] && S.recipes[id].nochmal == null) setTimeout(function () { nochmalSheet(id); }, 300); break;
       case "foto-weg": delete S.fotos[id]; save("fotos"); closeSheet(); render(); toast("Foto entfernt"); break;
       case "export-anleitung": exportAnleitungSheet(); break;
@@ -9968,6 +10089,7 @@ root.RezeptKern = api;
     if (imSafari() && !S.meta.guides.installieren) coachMerken("installieren");
     else if (einwilligungFehlt()) setTimeout(einwilligungSheet, 300);
     if (!imSafari()) setTimeout(wasNeuPruefen, 1500);
+    if (!imSafari()) setTimeout(neuigkeitenPruefen, 2000);
     if (!imSafari()) setTimeout(erstbefragungNachtrag, 2500);
     if (!imSafari()) setTimeout(lernPopupPruefen, 4000);
     if (upd) toast(upd + (upd === 1 ? " Rezept" : " Rezepte") + " mit der verbesserten Erkennung neu ausgewertet");

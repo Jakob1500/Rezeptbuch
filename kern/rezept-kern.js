@@ -22,7 +22,7 @@
 (function (root) {
   "use strict";
 
-  var VERSION = "0.8.3";
+  var VERSION = "0.8.4";
   var SCHEMA_VERSION = 1;
 
   // ---------------------------------------------------------------------------
@@ -1050,6 +1050,9 @@
     var bed = res.name.match(/^(.{3,}?)\s+((?:wenn|falls|if) (?:du|ihr|man|you)\b.*)$/i);
     if (bed) { res.name = clean(bed[1]); note.push(clean(bed[2])); }
     res.note = note.filter(Boolean).join(", ");
+    // „Rote Linsen aus der Dose“ → Name „Rote Linsen“, Notiz „aus der Dose“ (Nährwert-Suche findet sonst nichts)
+    var dm = res.name.match(/^(.{3,}?)\s+(aus der dose|aus dem glas|from a (?:can|tin|jar))$/i);
+    if (dm) { res.name = dm[1]; note.unshift(/glas|jar/i.test(dm[2]) ? "aus dem Glas" : "aus der Dose"); res.note = note.filter(Boolean).join(", "); }
     res.state = detectState(res.name + " " + res.note, res.unit);
 
     // Englisch -> Deutsch: Name und Notiz direkt übersetzen, Original unsichtbar behalten
@@ -3107,6 +3110,8 @@
     // Teil eines Beitrags mit mehreren Rezepten: eigener Titel und eigene Kennung
     if (input.teil) { r.teil = input.teil; r.teilVon = input.teilVon || null; if (input.teilTitel) { r.title = input.teilTitel; r.titleOriginal = null; r.titleGuessed = false; r.titelSignal = ""; } }
     else if (input.caption) { var mr = mehrereRezepte(input.caption); if (mr) r.mehrere = { anzahl: mr.anzahl, titel: mr.teile.map(function (x) { return x.titel; }) }; }
+    doppelteZutaten(r);
+    zutatenAusSchritten(r);
     if (LERN) {
       r.ingredients = r.ingredients.filter(function (i) { return !LERN.keineZutat[i.key]; });
       r.ingredients.forEach(function (i) { var a = LERN.zutatAlias[i.key]; if (a) { i.nameOriginal = i.nameOriginal || i.name; i.name = a; i.key = normName(a); i.aisle = guessAisle(a); i.gelernt = true; } });
@@ -3115,6 +3120,57 @@
     LERN = null;
     var c = completeness(r);
     return { recipe: r, trace: trace, completeness: c, next: suggestNext(r, c, input), ms: now() - t0, version: VERSION };
+  }
+
+  // V6 (Jakob 16.11., Option C): gleiche Zutat zweimal im selben Abschnitt („2 Wacholderbeeren“ … „1 Wacholderbeere“)
+  // → eine Zeile mit der ersten Menge; i.doppelt hält beide Angaben, die App fragt in der Zeile „2 oder 3?“.
+  // Verschiedene Abschnitte (Teig/Soße) bleiben getrennt.
+  function doppelteZutaten(r) {
+    if (!r || !(r.ingredients || []).length) return;
+    var seen = {}, raus = {};
+    r.ingredients.forEach(function (i, n) {
+      if (!i.key || i.qty == null) return;
+      var k = (i.group || "") + "|" + i.key + "|" + (i.unit || "");
+      if (seen[k] == null) { seen[k] = n; return; }
+      var a = r.ingredients[seen[k]];
+      // Dazwischen eine Zeile ohne Menge? Dann steckt dort vermutlich eine nicht erkannte Überschrift („Schawarma Marinade:“) → nicht zusammenführen
+      for (var zw = seen[k] + 1; zw < n; zw++) if (r.ingredients[zw].qty == null && !raus[zw]) return;
+      if (a.qtyMax != null || i.qtyMax != null || i.optional !== a.optional || (a.note || "") !== (i.note || "")) return; // „Mini-Tomaten (rote)“ / „(gelbe)“ bleiben getrennt
+      var erst = a.doppelt ? a.doppelt.erste : a.qty;
+      a.doppelt = { erste: erst, summe: Math.round(((a.doppelt ? a.doppelt.summe : a.qty) + i.qty) * 100) / 100 };
+      raus[n] = true;
+    });
+    if (Object.keys(raus).length) r.ingredients = r.ingredients.filter(function (i, n) { return !raus[n]; });
+  }
+  // Wahl des Nutzers anwenden (App speichert sie je Rezept als { key: menge })
+  function doppeltWahl(r, wahl) {
+    if (!r || !wahl) return;
+    r.ingredients.forEach(function (i) { if (i.doppelt && wahl[i.key] != null) { i.qty = wahl[i.key]; i.doppelt.gewaehlt = true; } });
+  }
+
+  // V7 (Lern-Export 1, Jakob 14./16.11.): Grundzutaten, die nur in den Schritten vorkommen („etwas Öl“, „Speisestärke“),
+  // als Zutat ergänzen – ohne Menge, Öl mit geschätzt 1 EL; „bei Bedarf“ → optional. Markiert mit ausSchritt.
+  var SCHRITT_ZUTATEN = [
+    { re: /(?<![a-zäöüß])(oliven|raps|sonnenblumen|pflanzen|sesam|kokos|erdnuss)?öl(?![a-zäöüß])|\b(olive |vegetable |sesame |coconut |rapeseed |sunflower )?oil\b/i, zeile: "1 EL Öl", gruppe: /öl$|\boil$/i, geschaetzt: true },
+    { re: /(?<![a-zäöüß])(speise|mais)stärke(?![a-zäöüß])|\bcorn ?(starch|flour)\b/i, zeile: "Speisestärke", gruppe: /stärke$|starch/i },
+    { re: /\bsalz\b|\bsalt\b/i, zeile: "Salz", gruppe: /salz$|\bsalt\b/i },
+    { re: /\bpfeffer\b|\bpepper\b(?! flakes)/i, zeile: "Pfeffer", gruppe: /pfeffer$|\bpepper\b/i, nicht: /paprika|chili|cayenne|bell pepper|red pepper|green pepper|pfefferkörner/i }
+  ];
+  function zutatenAusSchritten(r) {
+    if (!r || !(r.steps || []).length || !(r.ingredients || []).length) return;
+    var namen = r.ingredients.map(function (i) { return lower((i.name || "") + " " + (i.nameOriginal || "") + " " + (i.raw || "")); });
+    SCHRITT_ZUTATEN.forEach(function (z) {
+      if (namen.some(function (n) { return z.gruppe.test(n.split(",")[0].trim()) || z.re.test(n); })) return; // schon in der Liste
+      var schritt = null;
+      r.steps.forEach(function (st) { if (!schritt && !/^## /.test(st)) { var t = String(st); var m = t.match(z.re); if (m && !(z.nicht && z.nicht.test(t.slice(Math.max(0, m.index - 12), m.index + 20)))) schritt = t; } });
+      if (!schritt) return;
+      var ing = parseIngredientLine(z.zeile); if (!ing) return;
+      if (!z.geschaetzt) { ing.qty = null; ing.unit = ""; }
+      var bedarf = new RegExp("(bei bedarf|nach bedarf|if needed|optional)[^.]{0,60}(?:" + z.re.source + ")|(?:" + z.re.source + ")[^.]{0,40}(bei bedarf|nach bedarf|if needed|optional)", "i").test(schritt);
+      ing.note = z.geschaetzt ? "aus den Schritten, Menge geschätzt" : "aus den Schritten";
+      ing.ausSchritt = true; if (bedarf) ing.optional = true;
+      r.ingredients.push(ing);
+    });
   }
 
   function buildModelPrompt(text, missing) {
@@ -4233,6 +4289,11 @@
     if (state) {
       var base = findNutrientEntry(key, table);
       if (base && table[base.key + "@" + state]) return { key: base.key + "@" + state, entry: table[base.key + "@" + state], state: state };
+      // „Rote Linsen (Tinned)“: kein Eintrag „rote linse@abgetropft“ → allgemeiner Zustand „linse@abgetropft“ statt trockener Linsen (V8, Lern-Export 1)
+      if (base && state !== "roh") {
+        var bw = base.key.split(" ");
+        for (var bi = 1; bi < bw.length; bi++) { var allg = bw.slice(bi).join(" ") + "@" + state; if (table[allg]) return { key: allg, entry: table[allg], state: state }; }
+      }
       return base;
     }
     if (table[key]) return { key: key, entry: table[key] };
@@ -5349,7 +5410,7 @@
     neuerLernspeicher: neuerLernspeicher, lerneAusRezept: lerneAusRezept, lerneKorrektur: lerneKorrektur, lernExport: lernExport, lernStand: lernStand, zeitAusreisser: zeitAusreisser, schrittMinutenAngabe: schrittMinutenAngabe, lernSpaeter: lernSpaeter, LERN_GRENZEN: LERN_GRENZEN, lernRegeln: lernRegeln, lernNorm: lernNorm,
     VERSION: VERSION, SCHEMA_VERSION: SCHEMA_VERSION, ZEIT_FAKTOR: ZEIT_FAKTOR,
     AISLES: AISLES,
-    analyse: analyse, istFehlerseite: istFehlerseite,
+    analyse: analyse, istFehlerseite: istFehlerseite, doppeltWahl: doppeltWahl,
     parseText: parseText, parseTranscript: parseTranscript, parseSchemaOrg: parseSchemaOrg,
     parseIngredientLine: parseIngredientLine, parseDuration: parseDuration,
     classify: classify, completeness: completeness, focusFromNutrition: focusFromNutrition,
